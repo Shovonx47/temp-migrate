@@ -1,27 +1,62 @@
-*.log
+# ------------------------------------------------------------
+# OS / System files
+# ------------------------------------------------------------
 .DS_Store
+Thumbs.db
+
+# ------------------------------------------------------------
+# Logs
+# ------------------------------------------------------------
+*.log
+
+# ------------------------------------------------------------
+# Environment files
+# ------------------------------------------------------------
 .env
 .env.backup
 .env.production
-.phpactor.json
-.phpunit.result.cache
+/auth.json
+
+# ------------------------------------------------------------
+# IDE / Editor files
+# ------------------------------------------------------------
 /.codex
-/.cursor/
+/.cursor
 /.idea
 /.nova
-/.phpunit.cache
 /.vscode
 /.zed
-/auth.json
+.phpactor.json
+_ide_helper.php
+
+# ------------------------------------------------------------
+# Dependencies
+# ------------------------------------------------------------
 /node_modules
-/public/build
-/public/fonts-manifest.dev.json
-/public/hot
-/public/storage
+/vendor
+
+
+# ------------------------------------------------------------
+# Laravel / PHP
+# ------------------------------------------------------------
+/.phpunit.cache
+.phpunit.result.cache
 /storage/*.key
 /storage/pail
-/vendor
-_ide_helper.php
+
+# ------------------------------------------------------------
+# Public generated files
+# ------------------------------------------------------------
+/public/build
+/public/css
+/public/fonts
+/public/fonts-manifest.dev.json
+/public/hot
+/public/js
+/public/storage
+
+# ------------------------------------------------------------
+# Homestead
+# ------------------------------------------------------------
 Homestead.json
 Homestead.yaml
-Thumbs.db

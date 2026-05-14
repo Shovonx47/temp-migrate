@@ -7,6 +7,7 @@ use App\Enums\DepositStatus;
 use App\Models\Deposit;
 use App\Services\Payments\PaymentManager;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 use RuntimeException;
 use Throwable;
 
@@ -26,11 +27,13 @@ readonly class RefundDeposit
             throw new RuntimeException('Only completed deposits can be refunded.');
         }
 
-        if ($deposit->payment_method !== 'piprapay') {
-            throw new RuntimeException('This deposit cannot be refunded through PipraPay.');
+        try {
+            $driver = $this->manager->driver($deposit->payment_method);
+        } catch (InvalidArgumentException) {
+            $methodName = ucfirst($deposit->payment_method);
+            throw new RuntimeException("This deposit cannot be refunded through {$methodName}.");
         }
 
-        $driver = $this->manager->driver('piprapay');
         $driver->refund($deposit->transaction_id);
 
         DB::transaction(function () use ($deposit) {
@@ -45,11 +48,13 @@ readonly class RefundDeposit
 
             $deposit->update(['status' => DepositStatus::Refunded]);
 
+            $methodName = ucfirst($deposit->payment_method);
+
             $this->debitBalance->handle(
                 user: $deposit->user,
                 amount: (float) $deposit->amount,
                 transactionable: $deposit,
-                description: 'Refund via PipraPay',
+                description: "Refund via {$methodName}",
             );
         }, attempts: 3);
     }

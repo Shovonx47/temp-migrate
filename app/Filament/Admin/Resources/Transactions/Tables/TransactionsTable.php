@@ -51,15 +51,7 @@ class TransactionsTable
                     ->sortable()
                     ->toggleable(),
 
-                TextColumn::make('description')
-                    ->label('Description')
-                    ->searchable()
-                    ->limit(50),
-
-                TextColumn::make('created_at')
-                    ->label('Date')
-                    ->dateTime()
-                    ->sortable(),
+                TextColumn::make('created_at'),
             ])
             ->filters([
                 SelectFilter::make('direction')
@@ -72,6 +64,6 @@ class TransactionsTable
             ->recordActions([
                 ViewAction::make(),
             ])
-            ->defaultSort('created_at', 'desc');
+            ->defaultSort('id', 'desc');
     }
 }

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('user_sender', function (Blueprint $table) {
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignId('sender_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('sender_id')->constrained('senders')->cascadeOnDelete();
 
             $table->primary(['user_id', 'sender_id']);
         });

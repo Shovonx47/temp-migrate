@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\Campaign;
+use App\Models\Deposit;
+use App\Models\Message;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +23,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        $this->mapMorphRelations();
+    }
+
+    private function mapMorphRelations(): void
+    {
+        Relation::morphMap([
+            'deposit' => Deposit::class,
+            'campaign' => Campaign::class,
+            'message' => Message::class
+        ]);
     }
 }

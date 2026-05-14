@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('phone')->nullable()->unique();
             $table->string('type')->default('customer')->index();
 
-            $table->decimal('balance')->default(0);
+            $table->decimal('balance', 10)->default(0);
 
             $table->string('password');
             $table->rememberToken();
@@ -26,7 +26,9 @@ return new class extends Migration
             $table->json('app_authentication_recovery_codes')->nullable();
 
             $table->timestamp('email_verified_at')->nullable();
+            $table->timestamp('phone_verified_at')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {

@@ -6,6 +6,7 @@ use App\Models\Campaign;
 use App\Models\Deposit;
 use App\Models\Message;
 use App\Models\User;
+use App\Services\Payments\PaymentManager;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\ServiceProvider;
 
@@ -16,7 +17,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(PaymentManager::class, fn ($app) => new PaymentManager($app));
     }
 
     /**

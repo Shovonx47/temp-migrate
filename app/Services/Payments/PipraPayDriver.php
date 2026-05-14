@@ -12,10 +12,17 @@ use RuntimeException;
 
 class PipraPayDriver implements PaymentGateway
 {
-    public function __construct(
-        private readonly string $apiKey,
-        private readonly string $baseUrl,
-    ) {}
+    private readonly string $apiKey;
+
+    private readonly string $baseUrl;
+
+    public function __construct(private readonly array $config)
+    {
+        $this->apiKey = $config['api_key'];
+        $this->baseUrl = $config['sandbox']
+            ? $config['sandbox_url']
+            : $config['live_url'];
+    }
 
     /**
      * @throws ConnectionException

@@ -1,29 +1,27 @@
 <?php
 
-namespace App\Services;
+namespace App\Support;
 
-use App\Enums\TransactionableType;
+use App\Contracts\Transactionable;
 use App\Enums\TransactionDirection;
-use App\Models\Campaign;
-use App\Models\Deposit;
-use App\Models\Message;
 use App\Models\Transaction;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
+use Throwable;
 
-class BalanceService
+class Balance
 {
     /**
      * Credit a user's balance. Creates an immutable transaction record.
+     * @throws Throwable
      */
-    public function credit(User $user, float $amount, Model $transactionable, ?string $description = null): Transaction
+    public function credit(User $user, float $amount, Transactionable $transactionable, ?string $description = null): Transaction
     {
         return DB::transaction(function () use ($user, $amount, $transactionable, $description) {
             $user = User::where('id', $user->id)->lockForUpdate()->firstOrFail();
 
-            $balanceBefore = (float) $user->balance;
+            $balanceBefore = (float)$user->balance;
             $balanceAfter = $balanceBefore + $amount;
 
             $user->balance = $balanceAfter;
@@ -43,13 +41,14 @@ class BalanceService
 
     /**
      * Debit a user's balance. Throws if insufficient balance.
+     * @throws Throwable
      */
-    public function debit(User $user, float $amount, Model $transactionable, ?string $description = null): Transaction
+    public function debit(User $user, float $amount, Transactionable $transactionable, ?string $description = null): Transaction
     {
         return DB::transaction(function () use ($user, $amount, $transactionable, $description) {
             $user = User::where('id', $user->id)->lockForUpdate()->firstOrFail();
 
-            $balanceBefore = (float) $user->balance;
+            $balanceBefore = (float)$user->balance;
 
             if ($balanceBefore < $amount) {
                 throw new RuntimeException('Insufficient balance.');
@@ -77,38 +76,26 @@ class BalanceService
      */
     public function hasBalance(User $user, float $amount): bool
     {
-        return (float) $user->balance >= $amount;
+        return (float)$user->balance >= $amount;
     }
 
     private function record(
-        User $user,
-        float $amount,
+        User                 $user,
+        float                $amount,
         TransactionDirection $direction,
-        float $balanceBefore,
-        float $balanceAfter,
-        Model $transactionable,
-        string $description,
-    ): Transaction {
-        return Transaction::create([
+        float                $balanceBefore,
+        float                $balanceAfter,
+        Transactionable      $transactionable,
+        string               $description,
+    ): Transaction
+    {
+        return $transactionable->transactions()->create([
             'user_id' => $user->id,
-            'transactionable_type' => get_class($transactionable),
-            'transactionable_id' => $transactionable->getKey(),
-            'type' => $this->resolveType($transactionable)->value,
             'amount' => $amount,
             'direction' => $direction,
             'balance_before' => $balanceBefore,
             'balance_after' => $balanceAfter,
             'description' => $description,
         ]);
-    }
-
-    private function resolveType(Model $transactionable): TransactionableType
-    {
-        return match (get_class($transactionable)) {
-            Deposit::class => TransactionableType::Deposit,
-            Campaign::class => TransactionableType::Campaign,
-            Message::class => TransactionableType::Message,
-            default => throw new RuntimeException('Unknown transactionable type: '.get_class($transactionable)),
-        };
     }
 }

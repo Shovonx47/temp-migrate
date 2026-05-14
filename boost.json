@@ -17,6 +17,7 @@
         "tailwindcss-development",
         "action-patterns",
         "laravel-filament",
+        "laravel-manager-pattern",
         "laravel-sms-broker"
     ]
 }

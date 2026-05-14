@@ -4,8 +4,8 @@ namespace App\Filament\Admin\Resources\Deposits\Pages;
 
 use App\Enums\DepositStatus;
 use App\Filament\Admin\Resources\Deposits\DepositResource;
-use App\Services\BalanceService;
-use App\Services\Payments\PaymentGatewayResolver;
+use App\Services\Payments\PaymentManager;
+use App\Support\Balance;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Notifications\Notification;
@@ -32,8 +32,8 @@ class ViewDeposit extends ViewRecord
                     $deposit = $this->record;
 
                     try {
-                        $resolver = app(PaymentGatewayResolver::class);
-                        $driver = $resolver->resolve('piprapay');
+                        $manager = app(PaymentManager::class);
+                        $driver = $manager->driver('piprapay');
                         $driver->refund($deposit->transaction_id);
                     } catch (\Throwable $e) {
                         Log::error('PipraPay refund failed', [
@@ -53,7 +53,7 @@ class ViewDeposit extends ViewRecord
 
                     $deposit->update(['status' => DepositStatus::Refunded]);
 
-                    app(BalanceService::class)->debit(
+                    app(Balance::class)->debit(
                         user: $deposit->user,
                         amount: (float) $deposit->amount,
                         transactionable: $deposit,

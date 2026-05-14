@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Concerns\HasTransactions;
+use App\Contracts\Transactionable;
 use App\Enums\MessageStatus;
 use Database\Factories\MessageFactory;
 use Illuminate\Database\Eloquent\Attributes\Guarded;
@@ -11,10 +13,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Propaganistas\LaravelPhone\Casts\E164PhoneNumberCast;
 
 #[Guarded(['id'])]
-class Message extends Model
+class Message extends Model implements Transactionable
 {
     /** @use HasFactory<MessageFactory> */
-    use HasFactory;
+    use HasFactory, HasTransactions;
 
     protected function casts(): array
     {

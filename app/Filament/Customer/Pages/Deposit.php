@@ -3,7 +3,7 @@
 namespace App\Filament\Customer\Pages;
 
 use App\Models\Deposit as DepositModel;
-use App\Services\Payments\PaymentGatewayResolver;
+use App\Services\Payments\PaymentManager;
 use BackedEnum;
 use Filament\Forms\Components\TextInput;
 use Filament\Pages\Page;
@@ -61,9 +61,8 @@ class Deposit extends Page
             'status' => 'pending',
         ]);
 
-        $resolver = app(PaymentGatewayResolver::class);
-        $driver = $resolver->resolve('piprapay');
+        $manager = app(PaymentManager::class);
 
-        return $driver->initiate($deposit);
+        return $manager->driver('piprapay')->initiate($deposit);
     }
 }

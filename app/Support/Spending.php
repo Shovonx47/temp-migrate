@@ -1,15 +1,15 @@
 <?php
 
-namespace App\Services;
+namespace App\Support;
 
 use App\Models\Campaign;
 use App\Models\Message;
 use App\Models\User;
 
-class SpendingService
+class Spending
 {
     public function __construct(
-        private readonly BalanceService $balance,
+        private readonly Balance $balance,
     ) {}
 
     /**

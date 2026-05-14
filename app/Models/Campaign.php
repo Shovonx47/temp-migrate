@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Concerns\HasTransactions;
+use App\Contracts\Transactionable;
 use App\Enums\CampaignStatus;
 use Database\Factories\CampaignFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,10 +12,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Campaign extends Model
+class Campaign extends Model implements Transactionable
 {
     /** @use HasFactory<CampaignFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasTransactions;
 
     protected function casts(): array
     {

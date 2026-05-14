@@ -2,7 +2,11 @@
 
 namespace Database\Factories;
 
+use App\Enums\MessageStatus;
+use App\Models\Campaign;
 use App\Models\Message;
+use App\Models\Sender;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -10,15 +14,54 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class MessageFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
         return [
-            //
+            'user_id' => User::factory(),
+            'campaign_id' => Campaign::factory(),
+            'sender_id' => Sender::factory(),
+            'to' => fake()->numerify('+88017XXXXXXXX'),
+            'body' => fake()->sentence(),
+            'status' => fake()->randomElement(MessageStatus::cases()),
+            'gateway_message_id' => fake()->optional()->uuid(),
+            'cost' => fake()->randomFloat(4, 0, 5),
+            'failed_reason' => null,
+            'sent_at' => null,
+            'delivered_at' => null,
+            'failed_at' => null,
         ];
+    }
+
+    public function pending(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => MessageStatus::Pending,
+        ]);
+    }
+
+    public function sent(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => MessageStatus::Sent,
+            'sent_at' => now(),
+        ]);
+    }
+
+    public function delivered(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => MessageStatus::Delivered,
+            'sent_at' => now()->subMinutes(2),
+            'delivered_at' => now(),
+        ]);
+    }
+
+    public function failed(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => MessageStatus::Failed,
+            'failed_reason' => fake()->sentence(),
+            'failed_at' => now(),
+        ]);
     }
 }

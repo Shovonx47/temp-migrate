@@ -28,7 +28,7 @@ class AppServiceProvider extends ServiceProvider
 
     private function mapMorphRelations(): void
     {
-        Relation::morphMap([
+        Relation::enforceMorphMap([
             'deposit' => Deposit::class,
             'campaign' => Campaign::class,
             'message' => Message::class

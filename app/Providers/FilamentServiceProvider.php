@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\Exports\ExportColumn;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Select;
 use Filament\Schemas\Components\Section;
@@ -114,6 +115,14 @@ class FilamentServiceProvider extends ServiceProvider
                 ->sortable()
                 ->toggleable(isToggledHiddenByDefault: $component->getName() !== 'created_at');
         });
+
+//        ExportColumn::configureUsing(static function (ExportColumn $exportColumn) {
+//            $exportColumn->label(function (ExportColumn $component) {
+//                $name = $component->getName();
+//
+//                return str($name)->headline();
+//            });
+//        });
     }
 
     private function configureFilters(): void

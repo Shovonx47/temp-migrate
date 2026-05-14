@@ -27,12 +27,29 @@ class FilamentServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->configureMacros();
         $this->configureTable();
         $this->configureSections();
         $this->configureActions();
         $this->configureField();
         $this->configureColumns();
         $this->configureFilters();
+    }
+
+    protected function configureMacros(): void
+    {
+
+        Stringable::macro('acronym', function (): Stringable {
+            $acronyms = config('data.acronyms');
+
+            /** @var Stringable $this */
+            return $this->replaceMatches(
+                pattern: '/\b(' . implode('|', array_keys($acronyms)) . ')\b/i',
+                replace: function (array $matches) use ($acronyms) {
+                    return $acronyms[strtolower($matches[1])] ?? $matches[0];
+                }
+            );
+        });
     }
 
     protected function configureTable(): void
@@ -116,13 +133,18 @@ class FilamentServiceProvider extends ServiceProvider
                 ->toggleable(isToggledHiddenByDefault: $component->getName() !== 'created_at');
         });
 
-//        ExportColumn::configureUsing(static function (ExportColumn $exportColumn) {
-//            $exportColumn->label(function (ExportColumn $component) {
-//                $name = $component->getName();
-//
-//                return str($name)->headline();
-//            });
-//        });
+        ExportColumn::configureUsing(static function (ExportColumn $exportColumn) {
+            $exportColumn->label(function (ExportColumn $component) {
+                return str($component->getName())
+                    ->beforeLast('.')
+                    ->afterLast('.')
+                    ->kebab()
+                    ->replace(['-', '_'], ' ')
+                    ->headline()
+                    ->acronym()
+                    ->toString();
+            });
+        });
     }
 
     private function configureFilters(): void

@@ -6,6 +6,7 @@ use App\Filament\Admin\Resources\Deposits\DepositResource;
 use App\Filament\Exports\DepositExporter;
 use Filament\Actions\ExportAction;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Support\Icons\Heroicon;
 
 class ListDeposits extends ListRecords
 {
@@ -15,8 +16,11 @@ class ListDeposits extends ListRecords
     {
         return [
             ExportAction::make()
+                ->label('Export')
+                ->icon(Heroicon::OutlinedArrowDownTray)
                 ->exporter(DepositExporter::class)
-                ->columnMappingColumns(3),
+                ->columnMappingColumns(3)
+                ->enableVisibleTableColumnsByDefault(),
         ];
     }
 }

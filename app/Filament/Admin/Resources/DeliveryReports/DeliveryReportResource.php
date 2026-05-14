@@ -50,8 +50,8 @@ class DeliveryReportResource extends Resource
     {
         return [
             'index' => ListDeliveryReports::route('/'),
-            'view' => ViewDeliveryReport::route('/{record}'),
             'create' => CreateDeliveryReport::route('/create'),
+            'view' => ViewDeliveryReport::route('/{record}'),
             'edit' => EditDeliveryReport::route('/{record}/edit'),
         ];
     }

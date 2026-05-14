@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Payments;
+namespace App\Services\Payments\Drivers;
 
 use App\Contracts\PaymentGateway;
 use App\Models\Deposit;

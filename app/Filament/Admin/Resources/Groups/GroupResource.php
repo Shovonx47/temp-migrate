@@ -52,8 +52,8 @@ class GroupResource extends Resource
     {
         return [
             'index' => ListGroups::route('/'),
-            'view' => ViewGroup::route('/{record}'),
             'create' => CreateGroup::route('/create'),
+            'view' => ViewGroup::route('/{record}'),
             'edit' => EditGroup::route('/{record}/edit'),
         ];
     }

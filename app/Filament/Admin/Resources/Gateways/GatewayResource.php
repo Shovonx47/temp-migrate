@@ -52,8 +52,8 @@ class GatewayResource extends Resource
     {
         return [
             'index' => ListGateways::route('/'),
-            'view' => ViewGateway::route('/{record}'),
             'create' => CreateGateway::route('/create'),
+            'view' => ViewGateway::route('/{record}'),
             'edit' => EditGateway::route('/{record}/edit'),
         ];
     }

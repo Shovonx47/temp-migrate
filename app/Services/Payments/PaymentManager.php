@@ -3,6 +3,8 @@
 namespace App\Services\Payments;
 
 use App\Contracts\PaymentGateway;
+use App\Services\Payments\Drivers\LogDriver;
+use App\Services\Payments\Drivers\PipraPayDriver;
 use Illuminate\Support\Manager;
 
 class PaymentManager extends Manager

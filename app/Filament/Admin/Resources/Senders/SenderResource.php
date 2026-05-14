@@ -52,8 +52,8 @@ class SenderResource extends Resource
     {
         return [
             'index' => ListSenders::route('/'),
-            'view' => ViewSender::route('/{record}'),
             'create' => CreateSender::route('/create'),
+            'view' => ViewSender::route('/{record}'),
             'edit' => EditSender::route('/{record}/edit'),
         ];
     }

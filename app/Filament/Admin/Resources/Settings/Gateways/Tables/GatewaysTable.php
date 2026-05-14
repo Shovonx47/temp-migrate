@@ -11,6 +11,7 @@ use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 
@@ -28,12 +29,15 @@ class GatewaysTable
                     ->sortable(),
                 TextColumn::make('daily_limit')
                     ->numeric()
-                    ->sortable(),
+                    ->abbreviate()
+                    ->sortable()
+                    ->placeholder('Unlimited'),
                 TextColumn::make('monthly_limit')
                     ->numeric()
-                    ->sortable(),
-                IconColumn::make('is_enabled')
-                    ->boolean(),
+                    ->abbreviate()
+                    ->sortable()
+                    ->placeholder('Unlimited'),
+                ToggleColumn::make('is_enabled'),
                 IconColumn::make('supports_bulk')
                     ->boolean(),
                 TextColumn::make('created_at')

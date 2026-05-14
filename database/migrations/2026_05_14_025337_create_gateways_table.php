@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('driver');
 
-            $table->json('credentials')->nullable();
+            $table->longText('credentials')->nullable();
             $table->json('config')->nullable();
 
             $table->unsignedBigInteger('daily_limit')->nullable();

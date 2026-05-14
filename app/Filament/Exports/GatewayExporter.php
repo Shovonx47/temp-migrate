@@ -19,8 +19,6 @@ class GatewayExporter extends Exporter
                 ->label('ID'),
             ExportColumn::make('name'),
             ExportColumn::make('driver'),
-            ExportColumn::make('credentials'),
-            ExportColumn::make('config'),
             ExportColumn::make('daily_limit'),
             ExportColumn::make('monthly_limit'),
             ExportColumn::make('is_enabled'),

@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Campaign;
 use App\Models\Deposit;
 use App\Models\Message;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\ServiceProvider;
 
@@ -29,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
     private function mapMorphRelations(): void
     {
         Relation::enforceMorphMap([
+            'user' => User::class,
             'deposit' => Deposit::class,
             'campaign' => Campaign::class,
             'message' => Message::class,

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\UserApproval;
 use App\Enums\UserType;
 use Database\Factories\UserFactory;
 use Filament\Auth\MultiFactor\App\Concerns\InteractsWithAppAuthentication;
@@ -22,7 +23,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Propaganistas\LaravelPhone\Casts\E164PhoneNumberCast;
 
-#[Fillable(['name', 'email', 'phone', 'type', 'password'])]
+#[Fillable(['name', 'email', 'phone', 'type', 'approval', 'password'])]
 #[Hidden(['type', 'password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 {
@@ -42,6 +43,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     {
         return [
             'type' => UserType::class,
+            'approval' => UserApproval::class,
             'phone' => E164PhoneNumberCast::class,
             'password' => 'hashed',
             'email_verified_at' => 'datetime',

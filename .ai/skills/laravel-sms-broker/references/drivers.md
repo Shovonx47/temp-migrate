@@ -18,6 +18,7 @@ Per-provider details for the four first-class drivers in the Frolax SMS broker. 
 **Best for**: OTP traffic from your customers, transactional, banking-grade. Most reliable BD routes. Most expensive.
 
 ### Credentials shape (`gateways.credentials`)
+
 ```json
 {
   "api_token": "...",
@@ -27,6 +28,7 @@ Per-provider details for the four first-class drivers in the Frolax SMS broker. 
 ```
 
 ### Config shape (`gateways.config`)
+
 ```json
 {
   "endpoint": "https://smsplus.sslwireless.com/api/v3/send-sms/single",
@@ -39,6 +41,7 @@ Per-provider details for the four first-class drivers in the Frolax SMS broker. 
 Note: the `sid` in credentials is the default — actual per-message `sid` comes from the `Sender` model attached to the message. SSL Wireless requires each masking SID be pre-registered with them.
 
 ### Send request
+
 POST JSON:
 ```json
 {
@@ -53,6 +56,7 @@ POST JSON:
 Phone format: leading `880`, no `+`, no spaces. Strip with `ltrim($to, '+')`.
 
 ### Response
+
 Success:
 ```json
 {
@@ -69,11 +73,13 @@ Failure: `status: "FAILED"` with `error_message`. Map common codes:
 - `5xx` codes → transient, retry
 
 ### Capabilities
+
 `['unicode', 'long_sms', 'delivery_reports']`
 
 No `bulk` in v3 single endpoint — use the separate bulk endpoint if `supports_bulk=true` on the gateway and the campaign warrants it. No scheduling via API.
 
 ### Delivery reports
+
 SSL POSTs to whatever URL you've configured with them. Payload:
 ```json
 {
@@ -101,6 +107,7 @@ No signature — `verifySignature()` returns `true`, but restrict the webhook ro
 **Best for**: bulk transactional and promotional. Cheaper than SSL, no DLR support.
 
 ### Credentials shape
+
 ```json
 {
   "api_key": "...",
@@ -110,6 +117,7 @@ No signature — `verifySignature()` returns `true`, but restrict the webhook ro
 (For Mim, `UserName` and `Apikey` are usually the same value — confirm with your Mim account manager.)
 
 ### Config shape
+
 ```json
 {
   "endpoint": "https://api.mimsms.com/api/SmsSending/SMS",
@@ -118,6 +126,7 @@ No signature — `verifySignature()` returns `true`, but restrict the webhook ro
 ```
 
 ### Send request
+
 POST JSON:
 ```json
 {
@@ -134,6 +143,7 @@ POST JSON:
 `TransactionType`: `T` for transactional, `P` for promotional. Map from the campaign category or default to `T` for single sends.
 
 ### Response
+
 ```json
 { "responseResult": "Success", "ApiResponse": "...", "ReferenceID": "..." }
 ```
@@ -141,11 +151,13 @@ POST JSON:
 `ReferenceID` → `gateway_message_id`.
 
 ### Capabilities
+
 `['unicode']`
 
 No `long_sms` concatenation (Mim bills per 160-char segment but doesn't reassemble — segment manually if body > 160). No `delivery_reports`. No `bulk` endpoint.
 
 ### Delivery reports
+
 Not supported. Treat `sent` as terminal. `parseDeliveryReport()` returns `null` always.
 
 `verifySignature()` returns `true` (never called in practice since no webhooks).
@@ -157,6 +169,7 @@ Not supported. Treat `sent` as terminal. `parseDeliveryReport()` returns `null` 
 **Best for**: low-cost dev/staging, marketing blasts, large campaigns. The bulk API call is the cheapest way to fan out.
 
 ### Credentials shape
+
 ```json
 {
   "api_key": "..."
@@ -164,6 +177,7 @@ Not supported. Treat `sent` as terminal. `parseDeliveryReport()` returns `null` 
 ```
 
 ### Config shape
+
 ```json
 {
   "endpoint": "http://bulksmsbd.net/api/smsapi",
@@ -174,6 +188,7 @@ Not supported. Treat `sent` as terminal. `parseDeliveryReport()` returns `null` 
 Note: base tier is HTTP-only. If you have the HTTPS paid tier, override `endpoint` to `https://...`.
 
 ### Send request (single)
+
 POST form-encoded:
 ```
 api_key={api_key}&senderid={sender.sender_id}&number=8801712345678&message=Hello&type=text
@@ -182,6 +197,7 @@ api_key={api_key}&senderid={sender.sender_id}&number=8801712345678&message=Hello
 For Bangla / unicode body: `type=unicode`.
 
 ### Send request (bulk)
+
 Same endpoint, comma-separated numbers:
 ```
 api_key=...&senderid=...&number=8801712345678,8801812345678,...&message=Hello&type=text
@@ -190,6 +206,7 @@ api_key=...&senderid=...&number=8801712345678,8801812345678,...&message=Hello&ty
 Response covers all recipients in one call. Use this path when `supports_bulk=true` AND the campaign has > 50 recipients (single-call overhead dominates otherwise).
 
 ### Response
+
 ```json
 { "response_code": 202, "message_id": 12345, "success_message": "SMS Submitted Successfully" }
 ```
@@ -203,11 +220,13 @@ Codes:
 - `1006` / `1007` balance issues → mark failed, alert admin (broker's upstream balance is empty)
 
 ### Capabilities
+
 `['unicode', 'bulk']`
 
 No DLR webhook on base tier — there's a pull-based "report" endpoint that's out of scope here. No `long_sms` reassembly.
 
 ### Delivery reports
+
 Not via webhook. `parseDeliveryReport()` returns `null`. If you later add the pull-report integration, do it as a scheduled command, not part of the driver contract.
 
 ---
@@ -217,6 +236,7 @@ Not via webhook. `parseDeliveryReport()` returns `null`. If you later add the pu
 **Best for**: international recipients, US/EU traffic, when you need signed webhook callbacks.
 
 ### Credentials shape
+
 ```json
 {
   "account_sid": "ACxxxxxxxxxxxx",
@@ -228,6 +248,7 @@ Not via webhook. `parseDeliveryReport()` returns `null`. If you later add the pu
 The `from` in credentials is the Twilio-owned phone number. The `Sender` model's `sender_id` should match this (or be set to the Messaging Service SID — Twilio's recommended pattern).
 
 ### Config shape
+
 ```json
 {
   "cost_per_segment": 1.20
@@ -236,6 +257,7 @@ The `from` in credentials is the Twilio-owned phone number. The `Sender` model's
 Twilio is significantly more expensive in BDT terms — markup accordingly.
 
 ### Send request
+
 Use the SDK: `composer require twilio/sdk`.
 ```php
 $client = new \Twilio\Rest\Client($creds['account_sid'], $creds['auth_token']);
@@ -251,11 +273,13 @@ return DriverResult::ok($msg->sid, $msg->toArray());
 ```
 
 ### Capabilities
+
 `['unicode', 'long_sms', 'delivery_reports', 'two_way', 'scheduling']`
 
 No `bulk` — Twilio's API is one-message-per-call. Don't set `supports_bulk=true` on Twilio gateway rows.
 
 ### Delivery reports
+
 Twilio POSTs to `statusCallback`:
 - Form-encoded body with `MessageSid`, `MessageStatus`, `ErrorCode`, etc.
 - Statuses: `queued`, `sent`, `delivered`, `failed`, `undelivered`

@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->string('phone')->nullable()->unique();
             $table->string('type')->default('customer')->index();
+            $table->string('approval')->default('pending')->index();
 
             $table->decimal('balance', 12, 4)->default(0);
 

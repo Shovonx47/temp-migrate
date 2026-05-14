@@ -10,6 +10,8 @@ use Filament\Schemas\Components\Section;
 use Filament\Support\Enums\Size;
 use Filament\Tables\Columns\Column;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -29,6 +31,7 @@ class FilamentServiceProvider extends ServiceProvider
         $this->configureActions();
         $this->configureField();
         $this->configureColumns();
+        $this->configureFilters();
     }
 
     protected function configureTable(): void
@@ -110,6 +113,16 @@ class FilamentServiceProvider extends ServiceProvider
                 ->dateTimeTooltip('M j, Y \a\t h:i A')
                 ->sortable()
                 ->toggleable(isToggledHiddenByDefault: $component->getName() !== 'created_at');
+        });
+    }
+
+    private function configureFilters(): void
+    {
+        SelectFilter::configureUsing(static function (SelectFilter $selectFilter) {
+            $selectFilter->native(false)->selectablePlaceholder(false);
+        });
+        TrashedFilter::configureUsing(static function (TrashedFilter $trashedFilter) {
+            $trashedFilter->label('Trashed');
         });
     }
 }

@@ -71,6 +71,7 @@ class DemoSeeder extends Seeder
         $userData = collect($users)->map(fn (array $user) => [
             ...$user,
             'type' => UserType::Customer->value,
+            'approval' => fake()->randomElement(['approved', 'pending', 'rejected']),
             'balance' => fake()->numberBetween(100, 5000),
             'password' => bcrypt('password'),
             'created_at' => now(),

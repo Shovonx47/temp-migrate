@@ -27,6 +27,8 @@ class UserFactory extends Factory
         return [
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
+            'type' => 'customer',
+            'approval' => fake()->randomElement(['approved', 'pending', 'rejected']),
 
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),

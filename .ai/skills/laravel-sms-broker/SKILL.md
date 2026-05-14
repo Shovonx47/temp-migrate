@@ -52,9 +52,11 @@ This skill has two reference files. Read them when relevant:
 The migrations are already written and are the source of truth. Treat the column names below as fixed — do not rename, restructure, or add columns without explicit user approval.
 
 ### `users`
+
 Existing Laravel users table with extensions: `phone` (E.164, unique), `type` (default `customer`), `balance` (decimal 12,4, default 0), `app_authentication_secret` + `app_authentication_recovery_codes` (for 2FA). Soft deletes.
 
 ### `gateways`
+
 - `id`, `name`, `driver` (string, matches a key in `DriverRegistry`)
 - `credentials` (json, encrypted) — driver-specific keys
 - `config` (json) — non-secret driver config: endpoint URL overrides, retries, etc.
@@ -64,6 +66,7 @@ Existing Laravel users table with extensions: `phone` (E.164, unique), `type` (d
 - Soft deletes
 
 ### `senders`
+
 - `id`, `gateway_id` (fk, nullOnDelete)
 - `sender_id` (string) — the actual masking/numeric ID approved by the upstream
 - `type` (string) — one of: `numeric`, `alphanumeric`, `shortcode`
@@ -74,12 +77,15 @@ Existing Laravel users table with extensions: `phone` (E.164, unique), `type` (d
 A `sender` belongs to exactly one `gateway`. The `sender_user` pivot grants customers permission to send through specific senders.
 
 ### `sender_user` (pivot)
+
 - `sender_id`, `user_id`, composite primary key. No timestamps, no extras.
 
 ### `groups`
+
 - `id`, `user_id` (cascadeOnDelete), `name`, `description`. Customer-owned contact groups.
 
 ### `contacts`
+
 - `id`, `user_id` (cascadeOnDelete)
 - `name` (nullable), `phone` (E.164)
 - `meta` (json) — extra fields: email, dob, custom variables for template interpolation
@@ -87,20 +93,24 @@ A `sender` belongs to exactly one `gateway`. The `sender_user` pivot grants cust
 - Unique on `(user_id, phone)` — prevents duplicate contacts per customer
 
 ### `contact_group` (pivot)
+
 - `contact_id`, `group_id`, composite primary key.
 
 ### `templates`
+
 - `id`, `user_id` (cascadeOnDelete)
 - `name`, `body`, `variables` (json array, e.g. `["name", "otp", "amount"]`)
 - The `variables` column is the contract — body interpolation expects `{name}`, `{otp}`, `{amount}` placeholders and validates against this list before sending.
 
 ### `campaigns`
+
 - `id`, `user_id`, `template_id` (nullOnDelete), `sender_id` (nullOnDelete)
 - `name`, `body`
 - `status` (string) — `draft`, `scheduled`, `running`, `paused`, `completed`, `failed`
 - `scheduled_at`, `started_at`, `completed_at`
 
 ### `messages`
+
 - `id`, `user_id` (cascadeOnDelete), `campaign_id` (nullOnDelete), `sender_id` (nullOnDelete)
 - **`gateway_id` snapshot** — set at send-time. Doesn't change if the sender is later reassigned. This is the audit anchor.
 - `to` (E.164), `body`
@@ -113,6 +123,7 @@ A `sender` belongs to exactly one `gateway`. The `sender_user` pivot grants cust
 No soft deletes. Messages are immutable audit data.
 
 ### `deposits`
+
 - `id`, `user_id` (cascadeOnDelete)
 - `amount` (decimal 12,4), `currency` (default `BDT`)
 - `payment_method` — `sslcommerz`, `stripe`, `manual`, etc.
@@ -122,6 +133,7 @@ No soft deletes. Messages are immutable audit data.
 - `paid_at`
 
 ### `transactions`
+
 - `id`, `user_id` (cascadeOnDelete)
 - `transactionable_type`, `transactionable_id` (nullable polymorphic) — points to a Deposit, Campaign, Message, or null for manual adjustments
 - `type` — `deposit`, `campaign_deduction`, `sms_deduction`, `manual_credit`, `manual_debit`, `refund`
@@ -132,6 +144,7 @@ No soft deletes. Messages are immutable audit data.
 No soft deletes. Append-only ledger.
 
 ### `delivery_reports`
+
 - `id`, `gateway_id` (cascadeOnDelete), `message_id` (nullOnDelete)
 - `gateway_message_id` (nullable, indexed) — for retroactive matching
 - `status` — normalized: `delivered`, `failed`, `rejected`, `pending`, `unknown`

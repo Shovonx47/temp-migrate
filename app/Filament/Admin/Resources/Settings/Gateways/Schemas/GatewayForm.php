@@ -35,7 +35,7 @@ class GatewayForm
                         ->default(self::getDriverOptions()->keys()->first())
                         ->required()
                         ->live(onBlur: true)
-                        ->dehydrated(fn(string $operation): bool => $operation === 'create')
+                        ->dehydrated(fn (string $operation): bool => $operation === 'create')
                         ->disabledOn('edit'),
                     TextInput::make('daily_limit')
                         ->numeric()

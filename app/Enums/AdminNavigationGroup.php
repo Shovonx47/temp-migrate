@@ -8,7 +8,7 @@ use Filament\Support\Contracts\HasLabel;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
 
-enum AdminNavigationGroup: string implements HasLabel, HasIcon
+enum AdminNavigationGroup: string implements HasIcon, HasLabel
 {
     case User = 'user';
     case Messaging = 'messaging';

@@ -6,7 +6,5 @@ use App\Contracts\SmsGateway;
 
 class RevesmsDriver implements SmsGateway
 {
-    public function __construct(array $config)
-    {
-    }
+    public function __construct(array $config) {}
 }

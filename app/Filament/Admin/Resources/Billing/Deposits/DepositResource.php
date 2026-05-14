@@ -11,13 +11,13 @@ use App\Filament\Admin\Resources\Billing\Deposits\Schemas\DepositInfolist;
 use App\Filament\Admin\Resources\Billing\Deposits\Tables\DepositsTable;
 use App\Models\Deposit;
 use BackedEnum;
-use UnitEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use UnitEnum;
 
 class DepositResource extends Resource
 {

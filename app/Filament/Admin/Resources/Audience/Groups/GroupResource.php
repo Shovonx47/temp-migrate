@@ -12,13 +12,13 @@ use App\Filament\Admin\Resources\Audience\Groups\Schemas\GroupInfolist;
 use App\Filament\Admin\Resources\Audience\Groups\Tables\GroupsTable;
 use App\Models\Group;
 use BackedEnum;
-use UnitEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use UnitEnum;
 
 class GroupResource extends Resource
 {

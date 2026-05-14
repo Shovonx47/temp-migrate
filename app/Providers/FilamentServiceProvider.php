@@ -173,8 +173,7 @@ class FilamentServiceProvider extends ServiceProvider
 
         TextColumn::macro('abbreviate', function (): TextColumn {
             /** @var TextColumn $this */
-
-            if (!$this->isNumeric()) {
+            if (! $this->isNumeric()) {
                 throw new \LogicException('The abbreviate column can only be used on numeric columns.');
             }
 
@@ -198,8 +197,7 @@ class FilamentServiceProvider extends ServiceProvider
     {
         TextEntry::macro('abbreviate', function (): TextEntry {
             /** @var TextEntry $this */
-
-            if (!$this->isNumeric()) {
+            if (! $this->isNumeric()) {
                 throw new \LogicException('The abbreviate entry can only be used on numeric entries.');
             }
 

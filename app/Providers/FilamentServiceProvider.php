@@ -2,23 +2,109 @@
 
 namespace App\Providers;
 
+use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
+use Filament\Forms\Components\Field;
+use Filament\Schemas\Components\Section;
+use Filament\Support\Enums\Size;
+use Filament\Tables\Columns\Column;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Table;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
+use Illuminate\Support\Stringable;
 
 class FilamentServiceProvider extends ServiceProvider
 {
-    /**
-     * Register services.
-     */
     public function register(): void
     {
         //
     }
 
-    /**
-     * Bootstrap services.
-     */
     public function boot(): void
     {
-        //
+        $this->configureTable();
+        $this->configureSections();
+        $this->configureActions();
+        $this->configureField();
+        $this->configureColumns();
+    }
+
+    protected function configureTable(): void
+    {
+        Table::configureUsing(static function (Table $table) {
+            $table
+                ->defaultSort('created_at', 'desc')
+                ->deferFilters(false)
+                ->paginationPageOptions([10, 25, 50]);
+        });
+    }
+
+    protected function configureSections(): void
+    {
+        Section::configureUsing(static function (Section $section) {
+            $section
+                ->collapsible()
+                ->persistCollapsed();
+        });
+    }
+
+    protected function configureActions(): void
+    {
+        ActionGroup::configureUsing(static function (ActionGroup $action) {
+            $action
+                ->outlined()
+                ->button()
+                ->hiddenLabel()
+                ->size(Size::ExtraSmall);
+        });
+
+        Action::configureUsing(static function (Action $action) {
+            $action->outlined();
+        });
+    }
+
+    protected function configureField(): void
+    {
+        Field::configureUsing(static function (Field $field) {
+            $field->label(function (Field $component) {
+                $name = $component->getName();
+
+                return Str::of($name)
+                    ->when(
+                        value: str_starts_with($name, 'is_'),
+                        callback: fn (Stringable $string) => $string->remove('is_'),
+                    )
+                    ->headline();
+            });
+        });
+    }
+
+    protected function configureColumns(): void
+    {
+        Column::configureUsing(static function (Column $column) {
+            $column->label(function (Column $component) {
+                $name = $component->getName();
+
+                return Str::of($name)
+                    ->when(
+                        value: str_ends_with($name, '_at'),
+                        callback: fn (Stringable $string) => $string->remove('_at'),
+                    )
+                    ->headline();
+            });
+        });
+
+        TextColumn::configureUsing(static function (TextColumn $component) {
+            if (! str_ends_with($component->getName(), '_at')) {
+                return;
+            }
+
+            $component
+                ->since()
+                ->dateTimeTooltip('M j, Y \a\t h:i A')
+                ->sortable()
+                ->toggleable(isToggledHiddenByDefault: $component->getName() !== 'created_at');
+        });
     }
 }

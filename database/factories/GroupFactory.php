@@ -17,7 +17,6 @@ class GroupFactory extends Factory
             'user_id' => User::factory(),
             'name' => fake()->words(2, true),
             'description' => fake()->optional()->sentence(),
-            'contacts_count' => 0,
         ];
     }
 }

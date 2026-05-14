@@ -34,7 +34,7 @@ class Sender extends Model
 
     public function users(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'user_sender');
+        return $this->belongsToMany(User::class, 'sender_user');
     }
 
     public function campaigns(): HasMany

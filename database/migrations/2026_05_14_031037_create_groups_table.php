@@ -16,7 +16,6 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->string('name');
             $table->text('description')->nullable();
-            $table->unsignedBigInteger('contacts_count')->default(0);
             $table->timestamps();
             $table->softDeletes();
         });

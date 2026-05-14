@@ -9,7 +9,7 @@ use Filament\Support\Contracts\HasLabel;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
 
-enum UserType: string implements HasLabel, HasColor, HasIcon
+enum UserType: string implements HasColor, HasIcon, HasLabel
 {
     case Superman = 'superman';
     case Customer = 'customer';

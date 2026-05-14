@@ -8,4 +8,3 @@ enum SenderType: string
     case AlphaNumeric = 'alphanumeric';
     case Shortcode = 'shortcode';
 }
-

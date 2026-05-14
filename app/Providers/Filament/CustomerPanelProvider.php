@@ -41,7 +41,7 @@ class CustomerPanelProvider extends PanelProvider
             ->authGuard('customer')
             ->multiFactorAuthentication([
                 AppAuthentication::make()
-                    ->recoverable()
+                    ->recoverable(),
             ])
 
             // Database
@@ -100,8 +100,8 @@ class CustomerPanelProvider extends PanelProvider
                 FilamentDeveloperLoginsPlugin::make()
                     ->enabled(app()->environment('local') && request()->ip() === '127.0.0.1')
                     ->users([
-                        'Customer' => 'customer@example.com'
-                    ])
+                        'Customer' => 'customer@example.com',
+                    ]),
             ]);
     }
 }

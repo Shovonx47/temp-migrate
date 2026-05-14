@@ -16,10 +16,18 @@ class ContactFactory extends Factory
         return [
             'user_id' => User::factory(),
             'name' => fake()->optional()->name(),
-            'phone' => fake()->unique()->numerify('+88017XXXXXXXX'),
             'meta' => null,
             'is_blocked' => false,
         ];
+    }
+
+    public function configure(): static
+    {
+        return $this->sequence(fn ($sequence) => [
+            'phone' => '+8801'
+                .fake()->randomElement([3, 4, 5, 6, 7, 8, 9])
+                .str_pad($sequence->index, 8, '0', STR_PAD_LEFT),
+        ]);
     }
 
     public function blocked(): static

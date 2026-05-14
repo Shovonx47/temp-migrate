@@ -93,8 +93,8 @@ class SupermanPanelProvider extends PanelProvider
                 FilamentDeveloperLoginsPlugin::make()
                     ->enabled(app()->environment('local') && request()->ip() === '127.0.0.1')
                     ->users([
-                        'Superman' => 'superman@example.com'
-                    ])
+                        'Superman' => 'superman@example.com',
+                    ]),
             ]);
     }
 }

@@ -19,10 +19,6 @@ return new class extends Migration
             $table->timestamp('scheduled_at')->nullable();
             $table->timestamp('started_at')->nullable();
             $table->timestamp('completed_at')->nullable();
-            $table->unsignedBigInteger('total_recipients')->default(0);
-            $table->unsignedBigInteger('sent_count')->default(0);
-            $table->unsignedBigInteger('delivered_count')->default(0);
-            $table->unsignedBigInteger('failed_count')->default(0);
             $table->timestamps();
             $table->softDeletes();
 

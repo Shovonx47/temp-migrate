@@ -27,7 +27,6 @@ class UserFactory extends Factory
         return [
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
-            'phone' => fake()->unique()->numerify('+88017XXXXXXXX'),
 
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
@@ -36,9 +35,15 @@ class UserFactory extends Factory
         ];
     }
 
-    /**
-     * Indicate that the model's email address should be unverified.
-     */
+    public function configure(): static
+    {
+        return $this->sequence(fn ($sequence) => [
+            'phone' => '+8801'
+                .fake()->randomElement([3, 4, 5, 6, 7, 8, 9])
+                .str_pad($sequence->index, 8, '0', STR_PAD_LEFT),
+        ]);
+    }
+
     public function unverified(): static
     {
         return $this->state(fn (array $attributes) => [

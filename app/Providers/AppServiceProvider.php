@@ -31,7 +31,7 @@ class AppServiceProvider extends ServiceProvider
         Relation::enforceMorphMap([
             'deposit' => Deposit::class,
             'campaign' => Campaign::class,
-            'message' => Message::class
+            'message' => Message::class,
         ]);
     }
 }

@@ -26,10 +26,6 @@ class CampaignFactory extends Factory
             'scheduled_at' => fake()->optional()->dateTimeBetween('now', '+1 week'),
             'started_at' => null,
             'completed_at' => null,
-            'total_recipients' => fake()->numberBetween(0, 10000),
-            'sent_count' => fake()->numberBetween(0, 10000),
-            'delivered_count' => fake()->numberBetween(0, 10000),
-            'failed_count' => fake()->numberBetween(0, 1000),
         ];
     }
 
@@ -62,7 +58,6 @@ class CampaignFactory extends Factory
             'status' => CampaignStatus::Completed,
             'started_at' => now()->subHour(),
             'completed_at' => now(),
-            'sent_count' => fake()->numberBetween(1, 10000),
         ]);
     }
 }

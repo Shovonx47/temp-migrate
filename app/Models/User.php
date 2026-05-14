@@ -28,9 +28,9 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory,
-        Notifiable,
         InteractsWithAppAuthentication,
         InteractsWithAppAuthenticationRecovery,
+        Notifiable,
         SoftDeletes;
 
     /**
@@ -58,7 +58,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 
     public function senders(): BelongsToMany
     {
-        return $this->belongsToMany(Sender::class, 'user_sender');
+        return $this->belongsToMany(Sender::class, 'sender_user');
     }
 
     public function groups(): HasMany

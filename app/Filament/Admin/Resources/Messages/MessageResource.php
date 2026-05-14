@@ -5,7 +5,9 @@ namespace App\Filament\Admin\Resources\Messages;
 use App\Filament\Admin\Resources\Messages\Pages\CreateMessage;
 use App\Filament\Admin\Resources\Messages\Pages\EditMessage;
 use App\Filament\Admin\Resources\Messages\Pages\ListMessages;
+use App\Filament\Admin\Resources\Messages\Pages\ViewMessage;
 use App\Filament\Admin\Resources\Messages\Schemas\MessageForm;
+use App\Filament\Admin\Resources\Messages\Schemas\MessageInfolist;
 use App\Filament\Admin\Resources\Messages\Tables\MessagesTable;
 use App\Models\Message;
 use BackedEnum;
@@ -32,6 +34,11 @@ class MessageResource extends Resource
         return MessagesTable::configure($table);
     }
 
+    public static function infolist(Schema $schema): Schema
+    {
+        return MessageInfolist::configure($schema);
+    }
+
     public static function getRelations(): array
     {
         return [
@@ -43,6 +50,7 @@ class MessageResource extends Resource
     {
         return [
             'index' => ListMessages::route('/'),
+            'view' => ViewMessage::route('/{record}'),
             'create' => CreateMessage::route('/create'),
             'edit' => EditMessage::route('/{record}/edit'),
         ];

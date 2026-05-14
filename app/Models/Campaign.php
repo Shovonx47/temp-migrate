@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Campaign extends Model implements Transactionable
 {
     /** @use HasFactory<CampaignFactory> */
-    use HasFactory, SoftDeletes, HasTransactions;
+    use HasFactory, HasTransactions, SoftDeletes;
 
     protected function casts(): array
     {

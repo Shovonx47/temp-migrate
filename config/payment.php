@@ -7,6 +7,6 @@ return [
         'piprapy' => [
             'url' => env('PIPRAPAY_BASE_URL'),
             'key' => env('PIPRAPAY_API_KEY'),
-        ]
-    ]
+        ],
+    ],
 ];

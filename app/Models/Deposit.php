@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Deposit extends Model implements Transactionable
 {
     /** @use HasFactory<DepositFactory> */
-    use HasFactory, SoftDeletes, HasTransactions;
+    use HasFactory, HasTransactions, SoftDeletes;
 
     protected function casts(): array
     {

@@ -106,5 +106,5 @@ return [
 
         'ios' => 'iOS',
         'macos' => 'macOS',
-    ]
+    ],
 ];

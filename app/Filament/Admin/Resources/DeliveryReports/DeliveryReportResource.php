@@ -5,7 +5,9 @@ namespace App\Filament\Admin\Resources\DeliveryReports;
 use App\Filament\Admin\Resources\DeliveryReports\Pages\CreateDeliveryReport;
 use App\Filament\Admin\Resources\DeliveryReports\Pages\EditDeliveryReport;
 use App\Filament\Admin\Resources\DeliveryReports\Pages\ListDeliveryReports;
+use App\Filament\Admin\Resources\DeliveryReports\Pages\ViewDeliveryReport;
 use App\Filament\Admin\Resources\DeliveryReports\Schemas\DeliveryReportForm;
+use App\Filament\Admin\Resources\DeliveryReports\Schemas\DeliveryReportInfolist;
 use App\Filament\Admin\Resources\DeliveryReports\Tables\DeliveryReportsTable;
 use App\Models\DeliveryReport;
 use BackedEnum;
@@ -32,6 +34,11 @@ class DeliveryReportResource extends Resource
         return DeliveryReportsTable::configure($table);
     }
 
+    public static function infolist(Schema $schema): Schema
+    {
+        return DeliveryReportInfolist::configure($schema);
+    }
+
     public static function getRelations(): array
     {
         return [
@@ -43,6 +50,7 @@ class DeliveryReportResource extends Resource
     {
         return [
             'index' => ListDeliveryReports::route('/'),
+            'view' => ViewDeliveryReport::route('/{record}'),
             'create' => CreateDeliveryReport::route('/create'),
             'edit' => EditDeliveryReport::route('/{record}/edit'),
         ];

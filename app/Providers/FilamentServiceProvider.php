@@ -44,7 +44,7 @@ class FilamentServiceProvider extends ServiceProvider
 
             /** @var Stringable $this */
             return $this->replaceMatches(
-                pattern: '/\b(' . implode('|', array_keys($acronyms)) . ')\b/i',
+                pattern: '/\b('.implode('|', array_keys($acronyms)).')\b/i',
                 replace: function (array $matches) use ($acronyms) {
                     return $acronyms[strtolower($matches[1])] ?? $matches[0];
                 }
@@ -110,14 +110,14 @@ class FilamentServiceProvider extends ServiceProvider
     {
         Column::configureUsing(static function (Column $column) {
             $column->label(function (Column $component) {
-                $name = $component->getName();
-
-                return Str::of($name)
-                    ->when(
-                        value: str_ends_with($name, '_at'),
-                        callback: fn (Stringable $string) => $string->remove('_at'),
-                    )
-                    ->headline();
+                return str($component->getName())
+                    ->beforeLast('.')
+                    ->afterLast('.')
+                    ->kebab()
+                    ->replace(['-', '_'], ' ')
+                    ->headline()
+                    ->acronym()
+                    ->toString();
             });
         });
 

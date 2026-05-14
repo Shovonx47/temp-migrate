@@ -3,11 +3,13 @@
 namespace App\Filament\Admin\Resources\Customers\Tables;
 
 use App\Enums\UserApproval;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
+use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
@@ -54,7 +56,10 @@ class CustomersTable
                 TrashedFilter::make(),
             ])
             ->recordActions([
-                EditAction::make(),
+                ActionGroup::make([
+                    ViewAction::make(),
+                    EditAction::make(),
+                ]),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

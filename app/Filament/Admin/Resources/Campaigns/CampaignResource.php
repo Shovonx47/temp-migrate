@@ -5,7 +5,9 @@ namespace App\Filament\Admin\Resources\Campaigns;
 use App\Filament\Admin\Resources\Campaigns\Pages\CreateCampaign;
 use App\Filament\Admin\Resources\Campaigns\Pages\EditCampaign;
 use App\Filament\Admin\Resources\Campaigns\Pages\ListCampaigns;
+use App\Filament\Admin\Resources\Campaigns\Pages\ViewCampaign;
 use App\Filament\Admin\Resources\Campaigns\Schemas\CampaignForm;
+use App\Filament\Admin\Resources\Campaigns\Schemas\CampaignInfolist;
 use App\Filament\Admin\Resources\Campaigns\Tables\CampaignsTable;
 use App\Models\Campaign;
 use BackedEnum;
@@ -34,6 +36,11 @@ class CampaignResource extends Resource
         return CampaignsTable::configure($table);
     }
 
+    public static function infolist(Schema $schema): Schema
+    {
+        return CampaignInfolist::configure($schema);
+    }
+
     public static function getRelations(): array
     {
         return [
@@ -45,6 +52,7 @@ class CampaignResource extends Resource
     {
         return [
             'index' => ListCampaigns::route('/'),
+            'view' => ViewCampaign::route('/{record}'),
             'create' => CreateCampaign::route('/create'),
             'edit' => EditCampaign::route('/{record}/edit'),
         ];

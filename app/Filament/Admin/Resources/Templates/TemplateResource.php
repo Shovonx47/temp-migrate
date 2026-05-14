@@ -5,7 +5,9 @@ namespace App\Filament\Admin\Resources\Templates;
 use App\Filament\Admin\Resources\Templates\Pages\CreateTemplate;
 use App\Filament\Admin\Resources\Templates\Pages\EditTemplate;
 use App\Filament\Admin\Resources\Templates\Pages\ListTemplates;
+use App\Filament\Admin\Resources\Templates\Pages\ViewTemplate;
 use App\Filament\Admin\Resources\Templates\Schemas\TemplateForm;
+use App\Filament\Admin\Resources\Templates\Schemas\TemplateInfolist;
 use App\Filament\Admin\Resources\Templates\Tables\TemplatesTable;
 use App\Models\Template;
 use BackedEnum;
@@ -34,6 +36,11 @@ class TemplateResource extends Resource
         return TemplatesTable::configure($table);
     }
 
+    public static function infolist(Schema $schema): Schema
+    {
+        return TemplateInfolist::configure($schema);
+    }
+
     public static function getRelations(): array
     {
         return [
@@ -45,6 +52,7 @@ class TemplateResource extends Resource
     {
         return [
             'index' => ListTemplates::route('/'),
+            'view' => ViewTemplate::route('/{record}'),
             'create' => CreateTemplate::route('/create'),
             'edit' => EditTemplate::route('/{record}/edit'),
         ];

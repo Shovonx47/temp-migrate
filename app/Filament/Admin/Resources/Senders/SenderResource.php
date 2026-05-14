@@ -5,7 +5,9 @@ namespace App\Filament\Admin\Resources\Senders;
 use App\Filament\Admin\Resources\Senders\Pages\CreateSender;
 use App\Filament\Admin\Resources\Senders\Pages\EditSender;
 use App\Filament\Admin\Resources\Senders\Pages\ListSenders;
+use App\Filament\Admin\Resources\Senders\Pages\ViewSender;
 use App\Filament\Admin\Resources\Senders\Schemas\SenderForm;
+use App\Filament\Admin\Resources\Senders\Schemas\SenderInfolist;
 use App\Filament\Admin\Resources\Senders\Tables\SendersTable;
 use App\Models\Sender;
 use BackedEnum;
@@ -34,6 +36,11 @@ class SenderResource extends Resource
         return SendersTable::configure($table);
     }
 
+    public static function infolist(Schema $schema): Schema
+    {
+        return SenderInfolist::configure($schema);
+    }
+
     public static function getRelations(): array
     {
         return [
@@ -45,6 +52,7 @@ class SenderResource extends Resource
     {
         return [
             'index' => ListSenders::route('/'),
+            'view' => ViewSender::route('/{record}'),
             'create' => CreateSender::route('/create'),
             'edit' => EditSender::route('/{record}/edit'),
         ];

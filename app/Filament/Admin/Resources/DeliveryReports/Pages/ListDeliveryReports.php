@@ -3,8 +3,11 @@
 namespace App\Filament\Admin\Resources\DeliveryReports\Pages;
 
 use App\Filament\Admin\Resources\DeliveryReports\DeliveryReportResource;
+use App\Filament\Exports\DeliveryReportExporter;
 use Filament\Actions\CreateAction;
+use Filament\Actions\ExportAction;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Support\Icons\Heroicon;
 
 class ListDeliveryReports extends ListRecords
 {
@@ -13,6 +16,12 @@ class ListDeliveryReports extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            ExportAction::make()
+                ->label('Export')
+                ->icon(Heroicon::OutlinedArrowDownTray)
+                ->exporter(DeliveryReportExporter::class)
+                ->columnMappingColumns(3)
+                ->enableVisibleTableColumnsByDefault(),
             CreateAction::make(),
         ];
     }

@@ -44,4 +44,9 @@ class Message extends Model implements Transactionable
     {
         return $this->belongsTo(Sender::class);
     }
+
+    public function gateway(): BelongsTo
+    {
+        return $this->belongsTo(Gateway::class);
+    }
 }

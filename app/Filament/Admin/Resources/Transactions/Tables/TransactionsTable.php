@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Resources\Transactions\Tables;
 
 use App\Enums\TransactionableType;
 use App\Enums\TransactionDirection;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -62,7 +63,9 @@ class TransactionsTable
                     ->options(TransactionableType::class),
             ])
             ->recordActions([
-                ViewAction::make(),
+                ActionGroup::make([
+                    ViewAction::make(),
+                ]),
             ])
             ->defaultSort('id', 'desc');
     }

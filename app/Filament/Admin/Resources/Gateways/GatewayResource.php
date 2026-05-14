@@ -5,7 +5,9 @@ namespace App\Filament\Admin\Resources\Gateways;
 use App\Filament\Admin\Resources\Gateways\Pages\CreateGateway;
 use App\Filament\Admin\Resources\Gateways\Pages\EditGateway;
 use App\Filament\Admin\Resources\Gateways\Pages\ListGateways;
+use App\Filament\Admin\Resources\Gateways\Pages\ViewGateway;
 use App\Filament\Admin\Resources\Gateways\Schemas\GatewayForm;
+use App\Filament\Admin\Resources\Gateways\Schemas\GatewayInfolist;
 use App\Filament\Admin\Resources\Gateways\Tables\GatewaysTable;
 use App\Models\Gateway;
 use BackedEnum;
@@ -34,6 +36,11 @@ class GatewayResource extends Resource
         return GatewaysTable::configure($table);
     }
 
+    public static function infolist(Schema $schema): Schema
+    {
+        return GatewayInfolist::configure($schema);
+    }
+
     public static function getRelations(): array
     {
         return [
@@ -45,6 +52,7 @@ class GatewayResource extends Resource
     {
         return [
             'index' => ListGateways::route('/'),
+            'view' => ViewGateway::route('/{record}'),
             'create' => CreateGateway::route('/create'),
             'edit' => EditGateway::route('/{record}/edit'),
         ];

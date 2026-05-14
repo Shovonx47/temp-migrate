@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('phone')->nullable()->unique();
             $table->string('type')->default('customer')->index();
 
-            $table->decimal('balance', 10)->default(0);
+            $table->decimal('balance', 12, 4)->default(0);
 
             $table->string('password');
             $table->rememberToken();

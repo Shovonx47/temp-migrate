@@ -5,6 +5,7 @@ namespace App\Providers;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\Field;
+use Filament\Forms\Components\Select;
 use Filament\Schemas\Components\Section;
 use Filament\Support\Enums\Size;
 use Filament\Tables\Columns\Column;
@@ -77,6 +78,10 @@ class FilamentServiceProvider extends ServiceProvider
                     )
                     ->headline();
             });
+        });
+
+        Select::configureUsing(static function (Select $select) {
+            $select->native(false)->selectablePlaceholder(false);
         });
     }
 

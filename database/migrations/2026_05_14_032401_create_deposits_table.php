@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('deposits', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->decimal('amount', 10);
+            $table->decimal('amount', 12, 4)->default(0);
             $table->string('currency')->default('BDT');
             $table->string('payment_method')->nullable(); // sslcommerz, stripe, manual
             $table->string('transaction_id')->nullable()->unique(); // payment gateway er id

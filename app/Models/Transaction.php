@@ -5,11 +5,13 @@ namespace App\Models;
 use App\Enums\TransactionableType;
 use App\Enums\TransactionDirection;
 use Database\Factories\TransactionFactory;
+use Illuminate\Database\Eloquent\Attributes\Guarded;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
+#[Guarded(['id'])]
 class Transaction extends Model
 {
     /** @use HasFactory<TransactionFactory> */

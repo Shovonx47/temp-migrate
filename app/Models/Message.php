@@ -4,11 +4,13 @@ namespace App\Models;
 
 use App\Enums\MessageStatus;
 use Database\Factories\MessageFactory;
+use Illuminate\Database\Eloquent\Attributes\Guarded;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Propaganistas\LaravelPhone\Casts\E164PhoneNumberCast;
 
+#[Guarded(['id'])]
 class Message extends Model
 {
     /** @use HasFactory<MessageFactory> */

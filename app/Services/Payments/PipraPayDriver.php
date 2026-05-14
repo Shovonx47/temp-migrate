@@ -10,13 +10,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
-class PipraPayDriver implements PaymentGateway
+readonly class PipraPayDriver implements PaymentGateway
 {
-    private readonly string $apiKey;
+    private string $apiKey;
 
-    private readonly string $baseUrl;
+    private string $baseUrl;
 
-    public function __construct(private readonly array $config)
+    public function __construct(public array $config)
     {
         $this->apiKey = $config['api_key'];
         $this->baseUrl = $config['sandbox']
@@ -82,7 +82,7 @@ class PipraPayDriver implements PaymentGateway
 
     public function handleWebhook(Request $request): array
     {
-        $data = $request->validate([
+        return $request->validate([
             'pp_id' => ['required', 'string'],
             'status' => ['required', 'string'],
             'amount' => ['required'],
@@ -90,10 +90,11 @@ class PipraPayDriver implements PaymentGateway
             'transaction_id' => ['nullable', 'string'],
             'metadata' => ['nullable'],
         ]);
-
-        return $data;
     }
 
+    /**
+     * @throws ConnectionException
+     */
     public function refund(string $ppId): array
     {
         $response = Http::withHeader('MHS-PIPRAPAY-API-KEY', $this->apiKey)

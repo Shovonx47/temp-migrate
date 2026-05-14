@@ -12,18 +12,13 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
 
-            // polymorphic reference: deposit, campaign, message
-            $table->nullableMorphs('transactionable');
-
-            $table->string('type'); // deposit, campaign_deduction, sms_deduction, manual_credit, manual_debit, refund
+            $table->morphs('transactionable');
             $table->decimal('amount', 10, 2);
             $table->string('direction'); // credit, debit
             $table->decimal('balance_before', 10, 2);
             $table->decimal('balance_after', 10, 2);
             $table->string('description')->nullable();
             $table->timestamps();
-
-            $table->index('type');
         });
     }
 

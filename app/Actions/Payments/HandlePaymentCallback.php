@@ -8,7 +8,7 @@ use App\Services\Payments\PaymentManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
 
-class HandlePaymentCallback
+readonly class HandlePaymentCallback
 {
     public function __construct(
         private PaymentManager $manager,

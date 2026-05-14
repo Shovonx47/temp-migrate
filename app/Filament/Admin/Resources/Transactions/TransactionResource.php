@@ -36,7 +36,7 @@ class TransactionResource extends Resource
         return $schema
             ->components([
                 Section::make('Transaction')
-                    ->description('Transaction type, direction, and amount')
+                    ->description('Transaction reference, direction, and amount')
                     ->icon(Heroicon::OutlinedArrowsRightLeft)
                     ->schema([
                         Grid::make(2)
@@ -45,9 +45,7 @@ class TransactionResource extends Resource
                                     ->label('Customer')
                                     ->weight('bold'),
                                 TextEntry::make('transactionable_type')
-                                    ->label('Reference Type'),
-                                TextEntry::make('type')
-                                    ->label('Type')
+                                    ->label('Reference')
                                     ->badge(),
                                 TextEntry::make('direction')
                                     ->label('Direction')

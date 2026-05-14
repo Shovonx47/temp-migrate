@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Actions\Billing\DebitBalance;
 use App\Models\Campaign;
 use App\Models\Message;
 use App\Models\User;
@@ -9,7 +10,7 @@ use App\Models\User;
 class Spending
 {
     public function __construct(
-        private readonly Balance $balance,
+        private readonly DebitBalance $debitBalance,
     ) {}
 
     /**
@@ -22,7 +23,7 @@ class Spending
             return;
         }
 
-        $this->balance->debit(
+        $this->debitBalance->handle(
             user: $message->user,
             amount: $message->cost,
             transactionable: $message,
@@ -35,6 +36,6 @@ class Spending
      */
     public function canAffordCampaign(User $user, Campaign $campaign, int $messageCount, float $costPerMessage): bool
     {
-        return $this->balance->hasBalance($user, $messageCount * $costPerMessage);
+        return (float) $user->balance >= $messageCount * $costPerMessage;
     }
 }

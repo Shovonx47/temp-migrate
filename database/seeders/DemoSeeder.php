@@ -11,6 +11,7 @@ use App\Models\Contact;
 use App\Models\Deposit;
 use App\Models\Gateway;
 use App\Models\Group;
+use App\Models\Message;
 use App\Models\Sender;
 use App\Models\Template;
 use App\Models\User;
@@ -515,7 +516,6 @@ class DemoSeeder extends Seeder
                 'user_id' => $deposit->user_id,
                 'transactionable_type' => 'deposit',
                 'transactionable_id' => $deposit->id,
-                'type' => 'deposit',
                 'amount' => $deposit->amount,
                 'direction' => 'credit',
                 'balance_before' => $balanceBefore,
@@ -528,15 +528,20 @@ class DemoSeeder extends Seeder
 
         // SMS deduction transactions
         foreach ($this->customers as $customer) {
-            for ($i = 0; $i < fake()->numberBetween(5, 20); $i++) {
+            $messages = Message::query()
+                ->where('user_id', $customer->id)
+                ->inRandomOrder()
+                ->limit(fake()->numberBetween(5, 20))
+                ->get();
+
+            foreach ($messages as $message) {
                 $amount = fake()->randomFloat(2, 0.25, 5);
                 $balanceBefore = fake()->randomFloat(2, 50, 5000);
 
                 $transactionsData[] = [
                     'user_id' => $customer->id,
-                    'transactionable_type' => null,
-                    'transactionable_id' => null,
-                    'type' => fake()->randomElement(['sms_deduction', 'campaign_deduction']),
+                    'transactionable_type' => 'message',
+                    'transactionable_id' => $message->id,
                     'amount' => $amount,
                     'direction' => 'debit',
                     'balance_before' => $balanceBefore,

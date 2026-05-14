@@ -2,10 +2,9 @@
 
 namespace App\Filament\Admin\Resources\Deposits\Pages;
 
+use App\Actions\Payments\RefundDeposit;
 use App\Enums\DepositStatus;
 use App\Filament\Admin\Resources\Deposits\DepositResource;
-use App\Services\Payments\PaymentManager;
-use App\Support\Balance;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Notifications\Notification;
@@ -28,13 +27,11 @@ class ViewDeposit extends ViewRecord
                 ->requiresConfirmation()
                 ->visible(fn (): bool => $this->record->status === DepositStatus::Completed
                     && $this->record->payment_method === 'piprapay')
-                ->action(function (): void {
+                ->action(function (RefundDeposit $refundDeposit): void {
                     $deposit = $this->record;
 
                     try {
-                        $manager = app(PaymentManager::class);
-                        $driver = $manager->driver('piprapay');
-                        $driver->refund($deposit->transaction_id);
+                        $refundDeposit->handle($deposit);
                     } catch (\Throwable $e) {
                         Log::error('PipraPay refund failed', [
                             'deposit_id' => $deposit->id,
@@ -50,15 +47,6 @@ class ViewDeposit extends ViewRecord
 
                         return;
                     }
-
-                    $deposit->update(['status' => DepositStatus::Refunded]);
-
-                    app(Balance::class)->debit(
-                        user: $deposit->user,
-                        amount: (float) $deposit->amount,
-                        transactionable: $deposit,
-                        description: 'Refund via PipraPay',
-                    );
 
                     Notification::make()
                         ->title('Refund processed')

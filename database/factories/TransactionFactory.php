@@ -20,9 +20,8 @@ class TransactionFactory extends Factory
 
         return [
             'user_id' => User::factory(),
-            'transactionable_type' => Deposit::class,
+            'transactionable_type' => 'deposit',
             'transactionable_id' => Deposit::factory(),
-            'type' => 'deposit',
             'amount' => $amount,
             'direction' => fake()->randomElement(TransactionDirection::cases()),
             'balance_before' => $balanceBefore,

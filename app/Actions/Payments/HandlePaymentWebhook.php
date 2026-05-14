@@ -9,7 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
-class HandlePaymentWebhook
+readonly class HandlePaymentWebhook
 {
     public function __construct(
         private PaymentManager $manager,

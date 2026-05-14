@@ -24,8 +24,8 @@ class TransactionsTable
                     ->sortable()
                     ->searchable(),
 
-                TextColumn::make('type')
-                    ->label('Type')
+                TextColumn::make('transactionable_type')
+                    ->label('Reference')
                     ->badge()
                     ->sortable(),
 
@@ -65,7 +65,8 @@ class TransactionsTable
                 SelectFilter::make('direction')
                     ->options(TransactionDirection::class),
 
-                SelectFilter::make('type')
+                SelectFilter::make('transactionable_type')
+                    ->label('Reference')
                     ->options(TransactionableType::class),
             ])
             ->recordActions([

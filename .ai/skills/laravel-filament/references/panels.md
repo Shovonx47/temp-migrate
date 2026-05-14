@@ -11,6 +11,7 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Session\Middleware\StartSession;
@@ -78,7 +79,7 @@ class AdminPanelProvider extends PanelProvider
 ```php
 class OrderResource extends Resource
 {
-    protected static ?string $navigationIcon = 'heroicon-o-shopping-bag';
+    protected static string | BackedEnum | null $navigationIcon = Heroicon::OutlinedShoppingBag;
     protected static ?string $navigationGroup = 'Sales';
     protected static ?int $navigationSort = 1;
     protected static ?string $navigationLabel = 'Orders';
@@ -86,7 +87,7 @@ class OrderResource extends Resource
 
     // Dynamic
     public static function getNavigationLabel(): string { return 'Orders'; }
-    public static function getNavigationIcon(): ?string { return 'heroicon-o-shopping-bag'; }
+    public static function getNavigationIcon(): string | BackedEnum | null { return Heroicon::OutlinedShoppingBag; }
     public static function getNavigationSort(): ?int { return 1; }
     public static function getNavigationGroup(): ?string { return 'Sales'; }
 
@@ -109,7 +110,7 @@ class OrderResource extends Resource
 ->navigationItems([
     NavigationItem::make('Analytics')
         ->url('https://analytics.example.com', shouldOpenInNewTab: true)
-        ->icon('heroicon-o-chart-bar')
+        ->icon(Heroicon::OutlinedChartBar)
         ->group('External')
         ->sort(10),
 ])

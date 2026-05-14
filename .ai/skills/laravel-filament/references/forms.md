@@ -22,6 +22,7 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Wizard;
+use Filament\Support\Icons\Heroicon;
 
 // Section
 Section::make('Details')
@@ -30,7 +31,7 @@ Section::make('Details')
     ->columns(2)               // 2-column grid inside section
     ->collapsible()            // can collapse
     ->collapsed()              // starts collapsed
-    ->icon('heroicon-o-user')
+    ->icon(Heroicon::OutlinedUser)
 
 // Grid
 Grid::make(2)
@@ -40,7 +41,7 @@ Grid::make(2)
 Tabs::make('Settings')
     ->tabs([
         Tabs\Tab::make('General')
-            ->icon('heroicon-o-cog')
+            ->icon(Heroicon::OutlinedCog)
             ->schema([...]),
         Tabs\Tab::make('Advanced')
             ->schema([...])
@@ -79,11 +80,11 @@ TextInput::make('name')
     ->step(0.01)
     ->prefix('$')
     ->suffix('.00')
-    ->prefixIcon('heroicon-o-currency-dollar')
+    ->prefixIcon(Heroicon::OutlinedCurrencyDollar)
     ->placeholder('Enter name...')
     ->helperText('This will be visible to customers')
     ->hint('Max 255 characters')
-    ->hintIcon('heroicon-o-information-circle')
+    ->hintIcon(Heroicon::OutlinedInformationCircle)
     ->autocomplete('off')
     ->autofocus()
     ->live()                            // triggers reactivity on change

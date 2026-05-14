@@ -179,16 +179,16 @@ it('has the correct table columns', function () {
 
 ## Common Test Assertions
 
-| Assertion | Description |
-|---|---|
-| `assertCanSeeTableRecords($records)` | Records visible in table |
-| `assertCanNotSeeTableRecords($records)` | Records not visible |
-| `assertHasNoFormErrors()` | Form submitted without errors |
-| `assertHasFormErrors(['field' => 'rule'])` | Specific validation errors |
-| `assertFormSet(['field' => 'value'])` | Form fields match values |
-| `assertNotified()` | A notification was sent |
-| `assertNotified('Title')` | Specific notification sent |
-| `assertTableActionHidden('name', $record)` | Action hidden for record |
-| `assertTableActionVisible('name', $record)` | Action visible for record |
-| `assertFormFieldExists('name')` | Field exists in form |
-| `assertTableColumnExists('name')` | Column exists in table |
+| Assertion                                   | Description                   |
+|---------------------------------------------|-------------------------------|
+| `assertCanSeeTableRecords($records)`        | Records visible in table      |
+| `assertCanNotSeeTableRecords($records)`     | Records not visible           |
+| `assertHasNoFormErrors()`                   | Form submitted without errors |
+| `assertHasFormErrors(['field' => 'rule'])`  | Specific validation errors    |
+| `assertFormSet(['field' => 'value'])`       | Form fields match values      |
+| `assertNotified()`                          | A notification was sent       |
+| `assertNotified('Title')`                   | Specific notification sent    |
+| `assertTableActionHidden('name', $record)`  | Action hidden for record      |
+| `assertTableActionVisible('name', $record)` | Action visible for record     |
+| `assertFormFieldExists('name')`             | Field exists in form          |
+| `assertTableColumnExists('name')`           | Column exists in table        |

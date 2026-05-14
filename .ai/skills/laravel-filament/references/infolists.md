@@ -10,6 +10,7 @@ use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\KeyValueEntry;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Support\Icons\Heroicon;
 ```
 
 ## Define in Resource
@@ -98,8 +99,8 @@ TextEntry::make('tags.name')
 ```php
 IconEntry::make('is_verified')
     ->boolean()
-    ->trueIcon('heroicon-o-check-circle')
-    ->falseIcon('heroicon-o-x-circle')
+    ->trueIcon(Heroicon::OutlinedCheckCircle)
+    ->falseIcon(Heroicon::OutlinedXCircle)
     ->trueColor('success')
     ->falseColor('danger')
 ```

@@ -6,6 +6,7 @@
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -53,7 +54,7 @@ TextColumn::make('status')
         default => 'gray',
     })
     ->icon(fn (string $state): ?string => match ($state) {
-        'active' => 'heroicon-m-check-circle',
+        'active' => Heroicon::MiniCheckCircle,
         default => null,
     })
 
@@ -85,8 +86,8 @@ TextColumn::make('orders_exists')->exists('orders')
 ```php
 IconColumn::make('is_active')
     ->boolean()                                      // ✓/✗ icons
-    ->trueIcon('heroicon-o-check-circle')
-    ->falseIcon('heroicon-o-x-circle')
+    ->trueIcon(Heroicon::OutlinedCheckCircle)
+    ->falseIcon(Heroicon::OutlinedXCircle)
     ->trueColor('success')
     ->falseColor('danger')
 ```
@@ -187,11 +188,11 @@ $table
 
 All closures in column config can inject:
 
-| Parameter | Description |
-|---|---|
-| `$state` | Current cell value |
-| `$record` | Eloquent model instance |
-| `$column` | Column component instance |
-| `$table` | Table instance |
-| `$livewire` | Livewire component |
-| `$rowLoop` | Laravel loop variable |
+| Parameter   | Description               |
+|-------------|---------------------------|
+| `$state`    | Current cell value        |
+| `$record`   | Eloquent model instance   |
+| `$column`   | Column component instance |
+| `$table`    | Table instance            |
+| `$livewire` | Livewire component        |
+| `$rowLoop`  | Laravel loop variable     |

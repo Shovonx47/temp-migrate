@@ -4,6 +4,7 @@
 
 ```php
 use Filament\Notifications\Notification;
+use Filament\Support\Icons\Heroicon;
 
 // Basic
 Notification::make()
@@ -43,7 +44,7 @@ Notification::make()
 // With icon
 Notification::make()
     ->title('Email sent')
-    ->icon('heroicon-o-envelope')
+    ->icon(Heroicon::OutlinedEnvelope)
     ->iconColor('success')
     ->send();
 ```
@@ -128,7 +129,7 @@ use Filament\Notifications\Notification;
 Notification::make()
     ->title('New order received')
     ->body('Order #456 from John Doe')
-    ->icon('heroicon-o-shopping-bag')
+    ->icon(Heroicon::OutlinedShoppingBag)
     ->actions([
         Action::make('view')
             ->url(OrderResource::getUrl('view', ['record' => $order]))

@@ -10,6 +10,7 @@ php artisan make:filament-widget OrderStats --stats-overview
 namespace App\Filament\Widgets;
 
 use App\Models\Order;
+use Filament\Support\Icons\Heroicon;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
@@ -20,18 +21,18 @@ class OrderStats extends StatsOverviewWidget
         return [
             Stat::make('Total Orders', Order::count())
                 ->description('All time')
-                ->icon('heroicon-o-shopping-bag')
+                ->icon(Heroicon::OutlinedShoppingBag)
                 ->color('primary'),
 
             Stat::make('Pending', Order::where('status', 'pending')->count())
-                ->icon('heroicon-o-clock')
+                ->icon(Heroicon::OutlinedClock)
                 ->color('warning')
-                ->descriptionIcon('heroicon-m-arrow-trending-up')
+                ->descriptionIcon(Heroicon::MiniArrowTrendingUp)
                 ->description('12% increase')
                 ->chart([7, 3, 4, 5, 6, 3, 5, 3]),   // sparkline
 
             Stat::make('Revenue', '$' . number_format(Order::sum('total') / 100, 2))
-                ->icon('heroicon-o-currency-dollar')
+                ->icon(Heroicon::OutlinedCurrencyDollar)
                 ->color('success'),
         ];
     }

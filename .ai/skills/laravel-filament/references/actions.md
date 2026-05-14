@@ -6,6 +6,7 @@
 use Filament\Actions\Action;           // custom actions
 use Filament\Actions\ActionGroup;      // group actions in dropdown
 use Filament\Actions\BulkAction;       // bulk operations
+use Filament\Support\Icons\Heroicon;
 use Filament\Actions\BulkActionGroup;  // group bulk actions
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
@@ -31,7 +32,7 @@ use Filament\Actions\ViewAction;
     EditAction::make(),
     Action::make('suspend')
         ->label('Suspend')
-        ->icon('heroicon-o-no-symbol')
+        ->icon(Heroicon::OutlinedNoSymbol)
         ->color('warning')
         ->requiresConfirmation()
         ->modalHeading('Suspend Agent')
@@ -55,7 +56,7 @@ use Filament\Actions\ViewAction;
         RestoreBulkAction::make(),
         BulkAction::make('markActive')
             ->label('Mark Active')
-            ->icon('heroicon-o-check-circle')
+            ->icon(Heroicon::OutlinedCheckCircle)
             ->requiresConfirmation()
             ->action(fn ($records) => $records->each->activate())
             ->deselectRecordsAfterCompletion(),
@@ -102,7 +103,7 @@ protected function getHeaderActions(): array
 ```php
 Action::make('approve')
     ->label('Approve')
-    ->icon('heroicon-o-check')
+    ->icon(Heroicon::OutlinedCheck)
     ->color('success')                          // success, warning, danger, info, gray
     ->size(Size::Small)                          // Small, Medium, Large
     ->button()                                   // or ->link(), ->iconButton(), ->badge()
@@ -195,18 +196,18 @@ $table->maxSelectableRecords(100)   // cap total
 
 Action callbacks can inject these by parameter name:
 
-| Parameter | Type | Description |
-|---|---|---|
-| `$action` | `Action` | Current action instance |
-| `$arguments` | `array` | Arguments passed to action |
-| `$data` | `array` | Submitted modal form data |
-| `$record` | `Model` | Current Eloquent record |
-| `$records` | `Collection` | Selected records (bulk) |
-| `$livewire` | `Component` | Livewire component |
-| `$table` | `Table` | Table instance (table context) |
-| `$model` | `string` | Model FQN |
-| `$schemaGet` | `Get` | Read schema field value |
-| `$schemaSet` | `Set` | Write schema field value |
+| Parameter    | Type         | Description                    |
+|--------------|--------------|--------------------------------|
+| `$action`    | `Action`     | Current action instance        |
+| `$arguments` | `array`      | Arguments passed to action     |
+| `$data`      | `array`      | Submitted modal form data      |
+| `$record`    | `Model`      | Current Eloquent record        |
+| `$records`   | `Collection` | Selected records (bulk)        |
+| `$livewire`  | `Component`  | Livewire component             |
+| `$table`     | `Table`      | Table instance (table context) |
+| `$model`     | `string`     | Model FQN                      |
+| `$schemaGet` | `Get`        | Read schema field value        |
+| `$schemaSet` | `Set`        | Write schema field value       |
 
 ## Action Groups
 
@@ -217,7 +218,7 @@ ActionGroup::make([
     DeleteAction::make(),
 ])
 ->label('Actions')
-->icon('heroicon-m-ellipsis-vertical')
+->icon(Heroicon::MiniEllipsisVertical)
 ->color('gray')
 ```
 

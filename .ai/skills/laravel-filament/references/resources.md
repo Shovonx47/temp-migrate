@@ -38,6 +38,7 @@ use App\Filament\Resources\Customers\Tables\CustomersTable;
 use App\Models\Customer;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 
 class CustomerResource extends Resource
@@ -45,7 +46,7 @@ class CustomerResource extends Resource
     protected static ?string $model = Customer::class;
 
     // Navigation
-    protected static ?string $navigationIcon = 'heroicon-o-users';
+    protected static string | BackedEnum | null $navigationIcon = Heroicon::OutlinedUsers;
     protected static ?string $navigationGroup = 'CRM';
     protected static ?int $navigationSort = 1;
     protected static ?string $navigationLabel = 'Customers';
@@ -255,15 +256,15 @@ class EditCustomer extends EditRecord
 
 Filament auto-detects Laravel Policies. If `CustomerPolicy` exists:
 
-| Policy Method | Effect |
-|---|---|
-| `viewAny()` → false | Hidden from navigation, list page 403 |
-| `create()` → false | "New" button hidden |
-| `update()` → false | Edit action/page hidden |
-| `delete()` → false | Delete action hidden |
-| `forceDelete()` → false | Force-delete hidden |
-| `restore()` → false | Restore action hidden |
-| `reorder()` → false | Reorder disabled |
+| Policy Method           | Effect                                |
+|-------------------------|---------------------------------------|
+| `viewAny()` → false     | Hidden from navigation, list page 403 |
+| `create()` → false      | "New" button hidden                   |
+| `update()` → false      | Edit action/page hidden               |
+| `delete()` → false      | Delete action hidden                  |
+| `forceDelete()` → false | Force-delete hidden                   |
+| `restore()` → false     | Restore action hidden                 |
+| `reorder()` → false     | Reorder disabled                      |
 
 Skip authorization (rare): `protected static bool $shouldSkipAuthorization = true;`
 

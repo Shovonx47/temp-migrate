@@ -31,6 +31,7 @@ effort: high
 
 <EXTREMELY-IMPORTANT>
 This skill exists to keep Filament work aligned with v5, not to duplicate the entire reference library.
+</EXTREMELY-IMPORTANT>
 
 Non-negotiable rules:
 1. Read `references/namespaces.md` first.

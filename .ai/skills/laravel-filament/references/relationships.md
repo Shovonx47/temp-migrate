@@ -2,13 +2,13 @@
 
 ## Choosing the Right Tool
 
-| Relationship Type | Best Tool | When |
-|---|---|---|
-| HasMany, HasManyThrough, MorphMany | Relation Manager | Interactive table below form |
-| HasMany, MorphMany (few fields) | Repeater | Fields inline in owner form |
-| BelongsTo, MorphTo | Select | Dropdown picker |
-| BelongsToMany | Select (multiple) or CheckboxList | Choose existing records |
-| HasOne, MorphOne, BelongsTo | Layout component with `->relationship()` | Fields inline in owner form |
+| Relationship Type                  | Best Tool                                | When                         |
+|------------------------------------|------------------------------------------|------------------------------|
+| HasMany, HasManyThrough, MorphMany | Relation Manager                         | Interactive table below form |
+| HasMany, MorphMany (few fields)    | Repeater                                 | Fields inline in owner form  |
+| BelongsTo, MorphTo                 | Select                                   | Dropdown picker              |
+| BelongsToMany                      | Select (multiple) or CheckboxList        | Choose existing records      |
+| HasOne, MorphOne, BelongsTo        | Layout component with `->relationship()` | Fields inline in owner form  |
 
 ## Relation Managers
 

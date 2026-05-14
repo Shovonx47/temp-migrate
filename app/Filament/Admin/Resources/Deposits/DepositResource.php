@@ -26,7 +26,7 @@ class DepositResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
 
-    protected static string|null|\UnitEnum $navigationGroup = 'Payments';
+    protected static string|\UnitEnum|null $navigationGroup = 'Billing';
 
     protected static ?string $navigationLabel = 'Deposits';
 

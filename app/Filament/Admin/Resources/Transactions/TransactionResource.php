@@ -20,9 +20,9 @@ class TransactionResource extends Resource
 {
     protected static ?string $model = Transaction::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedArrowsRightLeft;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedReceiptPercent;
 
-    protected static string|null|\UnitEnum $navigationGroup = 'Payments';
+    protected static string|\UnitEnum|null $navigationGroup = 'Billing';
 
     protected static ?string $navigationLabel = 'Transactions';
 

@@ -16,7 +16,7 @@ class ListDeposits extends ListRecords
         return [
             ExportAction::make()
                 ->exporter(DepositExporter::class)
-                ->columnMappingColumns(3)
+                ->columnMappingColumns(3),
         ];
     }
 }

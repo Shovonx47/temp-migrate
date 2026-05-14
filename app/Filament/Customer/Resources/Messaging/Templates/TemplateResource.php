@@ -7,6 +7,7 @@ use App\Filament\Customer\Resources\Messaging\Templates\Pages\CreateTemplate;
 use App\Filament\Customer\Resources\Messaging\Templates\Pages\EditTemplate;
 use App\Filament\Customer\Resources\Messaging\Templates\Pages\ListTemplates;
 use App\Filament\Customer\Resources\Messaging\Templates\Pages\ViewTemplate;
+use App\Filament\Customer\Resources\Messaging\Templates\RelationManagers\CampaignsRelationManager;
 use App\Filament\Customer\Resources\Messaging\Templates\Schemas\TemplateForm;
 use App\Filament\Customer\Resources\Messaging\Templates\Schemas\TemplateInfolist;
 use App\Filament\Customer\Resources\Messaging\Templates\Tables\TemplatesTable;
@@ -27,6 +28,10 @@ class TemplateResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = CustomerNavigationGroup::Messaging;
 
+    protected static ?int $navigationSort = 2;
+
+    protected static ?string $recordTitleAttribute = 'name';
+
     public static function form(Schema $schema): Schema
     {
         return TemplateForm::configure($schema);
@@ -45,7 +50,7 @@ class TemplateResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            CampaignsRelationManager::class,
         ];
     }
 

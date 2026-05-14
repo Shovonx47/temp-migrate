@@ -5,6 +5,7 @@ namespace App\Filament\Customer\Resources\Settings\Senders;
 use App\Enums\CustomerNavigationGroup;
 use App\Filament\Customer\Resources\Settings\Senders\Pages\ListSenders;
 use App\Filament\Customer\Resources\Settings\Senders\Pages\ViewSender;
+use App\Filament\Customer\Resources\Settings\Senders\RelationManagers\CampaignsRelationManager;
 use App\Filament\Customer\Resources\Settings\Senders\Schemas\SenderInfolist;
 use App\Filament\Customer\Resources\Settings\Senders\Tables\SendersTable;
 use App\Models\Sender;
@@ -24,6 +25,10 @@ class SenderResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = CustomerNavigationGroup::Settings;
 
+    protected static ?int $navigationSort = 1;
+
+    protected static ?string $recordTitleAttribute = 'sender_id';
+
     public static function table(Table $table): Table
     {
         return SendersTable::configure($table);
@@ -37,7 +42,7 @@ class SenderResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            CampaignsRelationManager::class,
         ];
     }
 

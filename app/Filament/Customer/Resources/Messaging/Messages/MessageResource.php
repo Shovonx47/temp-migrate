@@ -5,6 +5,7 @@ namespace App\Filament\Customer\Resources\Messaging\Messages;
 use App\Enums\CustomerNavigationGroup;
 use App\Filament\Customer\Resources\Messaging\Messages\Pages\ListMessages;
 use App\Filament\Customer\Resources\Messaging\Messages\Pages\ViewMessage;
+use App\Filament\Customer\Resources\Messaging\Messages\RelationManagers\DeliveryReportsRelationManager;
 use App\Filament\Customer\Resources\Messaging\Messages\Schemas\MessageInfolist;
 use App\Filament\Customer\Resources\Messaging\Messages\Tables\MessagesTable;
 use App\Models\Message;
@@ -24,6 +25,10 @@ class MessageResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = CustomerNavigationGroup::Messaging;
 
+    protected static ?int $navigationSort = 3;
+
+    protected static ?string $recordTitleAttribute = 'uid';
+
     public static function table(Table $table): Table
     {
         return MessagesTable::configure($table);
@@ -37,7 +42,7 @@ class MessageResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            DeliveryReportsRelationManager::class,
         ];
     }
 

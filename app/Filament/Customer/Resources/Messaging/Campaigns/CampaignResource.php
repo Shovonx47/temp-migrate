@@ -7,6 +7,7 @@ use App\Filament\Customer\Resources\Messaging\Campaigns\Pages\CreateCampaign;
 use App\Filament\Customer\Resources\Messaging\Campaigns\Pages\EditCampaign;
 use App\Filament\Customer\Resources\Messaging\Campaigns\Pages\ListCampaigns;
 use App\Filament\Customer\Resources\Messaging\Campaigns\Pages\ViewCampaign;
+use App\Filament\Customer\Resources\Messaging\Campaigns\RelationManagers\MessagesRelationManager;
 use App\Filament\Customer\Resources\Messaging\Campaigns\Schemas\CampaignForm;
 use App\Filament\Customer\Resources\Messaging\Campaigns\Schemas\CampaignInfolist;
 use App\Filament\Customer\Resources\Messaging\Campaigns\Tables\CampaignsTable;
@@ -27,6 +28,10 @@ class CampaignResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = CustomerNavigationGroup::Messaging;
 
+    protected static ?int $navigationSort = 1;
+
+    protected static ?string $recordTitleAttribute = 'name';
+
     public static function form(Schema $schema): Schema
     {
         return CampaignForm::configure($schema);
@@ -45,7 +50,7 @@ class CampaignResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            MessagesRelationManager::class,
         ];
     }
 

@@ -24,7 +24,11 @@ class DepositResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = CustomerNavigationGroup::Billing;
 
+    protected static ?int $navigationSort = 1;
+
     protected static ?string $navigationLabel = 'Deposits';
+
+    protected static ?string $recordTitleAttribute = 'transaction_id';
 
     public static function table(Table $table): Table
     {

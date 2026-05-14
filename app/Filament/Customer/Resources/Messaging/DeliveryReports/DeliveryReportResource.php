@@ -24,6 +24,14 @@ class DeliveryReportResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = CustomerNavigationGroup::Messaging;
 
+    protected static ?int $navigationSort = 4;
+
+    protected static ?string $recordTitleAttribute = 'id';
+
+    protected static ?string $navigationLabel = 'Delivery Reports';
+
+    protected static ?string $modelLabel = 'Delivery Report';
+
     public static function table(Table $table): Table
     {
         return DeliveryReportsTable::configure($table);

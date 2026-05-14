@@ -7,6 +7,7 @@ use App\Filament\Customer\Resources\Audience\Groups\Pages\CreateGroup;
 use App\Filament\Customer\Resources\Audience\Groups\Pages\EditGroup;
 use App\Filament\Customer\Resources\Audience\Groups\Pages\ListGroups;
 use App\Filament\Customer\Resources\Audience\Groups\Pages\ViewGroup;
+use App\Filament\Customer\Resources\Audience\Groups\RelationManagers\ContactsRelationManager;
 use App\Filament\Customer\Resources\Audience\Groups\Schemas\GroupForm;
 use App\Filament\Customer\Resources\Audience\Groups\Schemas\GroupInfolist;
 use App\Filament\Customer\Resources\Audience\Groups\Tables\GroupsTable;
@@ -27,6 +28,10 @@ class GroupResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = CustomerNavigationGroup::Audience;
 
+    protected static ?int $navigationSort = 2;
+
+    protected static ?string $recordTitleAttribute = 'name';
+
     public static function form(Schema $schema): Schema
     {
         return GroupForm::configure($schema);
@@ -45,7 +50,7 @@ class GroupResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            ContactsRelationManager::class,
         ];
     }
 

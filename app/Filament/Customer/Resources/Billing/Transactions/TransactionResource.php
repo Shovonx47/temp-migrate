@@ -24,7 +24,11 @@ class TransactionResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = CustomerNavigationGroup::Billing;
 
+    protected static ?int $navigationSort = 2;
+
     protected static ?string $navigationLabel = 'Transactions';
+
+    protected static ?string $recordTitleAttribute = 'id';
 
     public static function table(Table $table): Table
     {

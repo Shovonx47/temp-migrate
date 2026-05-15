@@ -30,6 +30,7 @@ class CustomerPanelProvider extends PanelProvider
             // Identify
             ->id('customer')
             ->path('/')
+            ->viteTheme('resources/css/app.css')
 
             // Authentication
             ->login()
@@ -95,7 +96,6 @@ class CustomerPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ])
-
             ->plugins([
                 FilamentDeveloperLoginsPlugin::make()
                     ->enabled(app()->environment('local') && request()->ip() === '127.0.0.1')

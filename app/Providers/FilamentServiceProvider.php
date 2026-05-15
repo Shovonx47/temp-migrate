@@ -10,7 +10,9 @@ use Filament\Forms\Components\Select;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Section;
+use Filament\Support\Assets\Js;
 use Filament\Support\Enums\Size;
+use Filament\Support\Facades\FilamentAsset;
 use Filament\Tables\Columns\Column;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -18,6 +20,7 @@ use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Number;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -32,6 +35,7 @@ class FilamentServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->registerAssets();
         $this->configureMacros();
         $this->configureTable();
         $this->configureActions();
@@ -39,6 +43,13 @@ class FilamentServiceProvider extends ServiceProvider
         $this->configureColumns();
         $this->configureFilters();
         $this->configureEntries();
+    }
+
+    protected function registerAssets(): void
+    {
+        FilamentAsset::register([
+            Js::make('app', Vite::asset('resources/js/app.ts'))->module()
+        ]);
     }
 
     protected function configureMacros(): void

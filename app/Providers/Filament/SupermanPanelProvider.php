@@ -31,6 +31,7 @@ class SupermanPanelProvider extends PanelProvider
             ->default()
             ->id('superman')
             ->path('superman')
+            ->viteTheme('resources/css/app.css')
 
             // Authentication
             ->login()

@@ -23,6 +23,7 @@
         >
             <input
                 type="file"
+                x-ref="fileInput"
                 accept=".csv,.txt,.xlsx,.xls"
                 x-on:change="handleFileInput($event)"
                 class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
@@ -63,7 +64,7 @@
         >
             <x-filament::icon
                 icon="heroicon-o-exclamation-triangle"
-                class="h-5 w-5 text-danger-600 dark:text-danger-400 flex-shrink-0 mt-0.5"
+                class="h-5 w-5 text-danger-600 dark:text-danger-400 shrink-0 mt-0.5"
             />
             <p class="text-sm text-danger-700 dark:text-danger-300" x-text="error"></p>
         </div>
@@ -79,7 +80,7 @@
                 <div class="flex items-center gap-3 min-w-0">
                     <x-filament::icon
                         icon="heroicon-o-document-text"
-                        class="h-5 w-5 text-gray-500 dark:text-gray-400 flex-shrink-0"
+                        class="h-5 w-5 text-gray-500 dark:text-gray-400 shrink-0"
                     />
                     <div class="min-w-0">
                         <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" x-text="fileName"></p>
@@ -101,50 +102,49 @@
             </div>
 
             {{-- Preview table --}}
-            <div
-                x-show="previewRows.length > 0"
-                class="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden"
-            >
-                <div class="px-4 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
-                    <p class="text-xs font-medium text-gray-700 dark:text-gray-300">
-                        Preview (first <span x-text="previewRows.length"></span> rows)
-                    </p>
-                </div>
+            <template x-if="previewRows.length > 0 && headers.length > 0">
+                <div class="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
+                    <div class="px-4 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+                        <p class="text-xs font-medium text-gray-700 dark:text-gray-300">
+                            Preview (first <span x-text="previewRows.length"></span> rows)
+                        </p>
+                    </div>
 
-                <div class="overflow-x-auto" x-show="headers.length > 0">
-                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
-                        <thead class="bg-gray-50 dark:bg-gray-900">
-                        <tr>
-                            <template x-for="(header, idx) in headers" :key="idx">
-                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                                    <span x-text="header"></span>
-                                </th>
-                            </template>
-                        </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200 dark:divide-gray-800 bg-white dark:bg-gray-950">
-                        <template x-for="(row, rowIdx) in previewRows" :key="rowIdx">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+                            <thead class="bg-gray-50 dark:bg-gray-900">
                             <tr>
-                                <template x-for="(cell, cellIdx) in row" :key="cellIdx">
-                                    <td class="px-3 py-2 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                                        <span x-text="cell"></span>
-                                    </td>
+                                <template x-for="(header, idx) in headers" :key="idx">
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                                        <span x-text="header"></span>
+                                    </th>
                                 </template>
                             </tr>
-                        </template>
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 dark:divide-gray-800 bg-white dark:bg-gray-950">
+                            <template x-for="(row, rowIdx) in previewRows" :key="rowIdx">
+                                <tr>
+                                    <template x-for="(cell, cellIdx) in row" :key="cellIdx">
+                                        <td class="px-3 py-2 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                                            <span x-text="cell"></span>
+                                        </td>
+                                    </template>
+                                </tr>
+                            </template>
+                            </tbody>
+                        </table>
+                    </div>
 
-                <div
-                    x-show="rows.length > previewRows.length"
-                    class="px-4 py-2 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800"
-                >
-                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                        + <span x-text="rows.length - previewRows.length"></span> more rows
-                    </p>
+                    <div
+                        x-show="rows.length > previewRows.length"
+                        class="px-4 py-2 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800"
+                    >
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            + <span x-text="rows.length - previewRows.length"></span> more rows
+                        </p>
+                    </div>
                 </div>
-            </div>
+            </template>
         </div>
     </div>
 </x-dynamic-component>

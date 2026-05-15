@@ -2,8 +2,8 @@
 
 namespace App\Filament\Customer\Resources\Messaging\Messages\Schemas;
 
+use App\Filament\Forms\Components\MappingComponent;
 use App\Filament\Forms\Components\RecipientUpload;
-use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -29,7 +29,8 @@ class MessageForm
                 Wizard::make([
                     self::composeStep(),
                     self::recipientStep(),
-                ])
+                    self::mappingStep(),
+                ]),
             ]);
     }
 
@@ -42,7 +43,7 @@ class MessageForm
                 Select::make('sender_id')
                     ->label('Sender ID')
                     ->prefixIcon(Heroicon::Identification)
-                    ->options(fn() => Auth::user()
+                    ->options(fn () => Auth::user()
                         ->senders()
                         ->select(['senders.sender_id', 'senders.id'])
                         ->pluck('sender_id', 'id')
@@ -54,7 +55,7 @@ class MessageForm
                     ->exists(
                         table: 'sender_user',
                         column: 'sender_id',
-                        modifyRuleUsing: fn(Exists $rule) => $rule->where('user_id', Auth::id())
+                        modifyRuleUsing: fn (Exists $rule) => $rule->where('user_id', Auth::id())
                     ),
                 Select::make('source')
                     ->label('Source')
@@ -92,13 +93,13 @@ class MessageForm
             ->schema([
                 // Manual entry repeater will only be visible if 'Manual' is selected as the source
                 Repeater::make('recipients')
-                    ->visible(fn(Get $get) => $get('source') === 'manual')
-                    ->required(fn(Get $get) => $get('source') === 'group')
+                    ->visible(fn (Get $get) => $get('source') === 'manual')
+                    ->required(fn (Get $get) => $get('source') === 'group')
                     ->table(function (Get $get) {
                         $columns = [
                             Repeater\TableColumn::make('Phone')
                                 ->alignLeft()
-                                ->markAsRequired()
+                                ->markAsRequired(),
                         ];
 
                         foreach ($get('variables') ?? [] as $variable) {
@@ -110,7 +111,7 @@ class MessageForm
                     })
                     ->schema(function (Get $get) {
                         $fields = [
-                            PhoneInput::make('phone')
+                            PhoneInput::make('phone'),
                         ];
 
                         foreach ($get('variables') ?? [] as $variable) {
@@ -125,14 +126,14 @@ class MessageForm
                 // Group selection will only be visible if 'Group' is selected as the source
                 Select::make('groups')
                     ->label('Groups')
-                    ->options(fn(): array => auth()->user()
+                    ->options(fn (): array => auth()->user()
                         ->groups()
                         ->latest()
                         ->limit(50)
                         ->pluck('name', 'id')
                         ->all()
                     )
-                    ->getSearchResultsUsing(fn(string $search): array => auth()->user()
+                    ->getSearchResultsUsing(fn (string $search): array => auth()->user()
                         ->groups()
                         ->whereLike('name', "%{$search}%")
                         ->limit(50)
@@ -143,18 +144,28 @@ class MessageForm
                     ->searchable()
                     ->preload()
                     ->live()
-                    ->visible(fn(Get $get) => $get('source') === 'group')
-                    ->required(fn(Get $get) => $get('source') === 'group'),
+                    ->visible(fn (Get $get) => $get('source') === 'group')
+                    ->required(fn (Get $get) => $get('source') === 'group'),
 
                 // Upload field will only be visible if 'Upload' is selected as the source
 
                 RecipientUpload::make('file')
-                    ->visible(fn(Get $get) => $get('source') === 'upload')
-                    ->required(fn(Get $get) => $get('source') === 'upload')
+                    ->visible(fn (Get $get) => $get('source') === 'upload')
+                    ->required(fn (Get $get) => $get('source') === 'upload')
                     ->afterStateUpdatedJs(<<<'JS'
-                        console.log($state.headers)
+                        console.log(JSON.parse(JSON.stringify($state)))
                     JS
                     ),
+            ]);
+    }
+
+    private static function mappingStep()
+    {
+        return Step::make('Mapping')
+            ->icon(Heroicon::Square2Stack)
+            ->schema([
+                MappingComponent::make('mapping')
+                    ->hiddenLabel(),
             ]);
     }
 }

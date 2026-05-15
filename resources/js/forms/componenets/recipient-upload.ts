@@ -1,5 +1,3 @@
-// resources/js/filament/components/RecipientUpload.ts
-
 import Papa from 'papaparse';
 import ExcelJS from 'exceljs';
 
@@ -20,6 +18,8 @@ interface AlpineComponent {
     hasHeaderRow: boolean;
     previewRows: string[][];
     state: any; // Filament wire state
+    $refs?: Record<string, HTMLElement>;
+    $dispatch?(event: string, detail?: any): void;
 
     init(): void;
     handleDrop(e: DragEvent): void;
@@ -213,6 +213,9 @@ export default function recipientUpload(initialState: any = {}): AlpineComponent
             this.rows = [];
             this.hasHeaderRow = false;
             this.previewRows = [];
+            // Clear file input so the same file can be re-selected
+            const input = this.$refs?.fileInput as HTMLInputElement | undefined;
+            if (input) input.value = '';
             this.syncState();
         },
 
@@ -226,7 +229,7 @@ export default function recipientUpload(initialState: any = {}): AlpineComponent
                 rowCount: this.rows.length,
             };
             // Trigger Livewire/Alpine state sync
-            this.$dispatch('recipient-upload-changed', this.state);
+            this.$dispatch?.('recipient-upload-changed', this.state);
         },
     };
 }

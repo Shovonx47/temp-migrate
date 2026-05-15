@@ -2,16 +2,16 @@
 
 namespace App\Filament\Customer\Resources\Messaging\Messages\Pages;
 
+use App\Enums\CampaignStatus;
 use App\Filament\Customer\Resources\Messaging\Messages\MessageResource;
-use App\Models\Contact;
-use Filament\Actions\Action;
+use App\Jobs\ProcessCampaignJob;
+use App\Models\Campaign;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
-use Propaganistas\LaravelPhone\PhoneNumber;
 
 class CreateMessage extends CreateRecord
 {
@@ -19,149 +19,78 @@ class CreateMessage extends CreateRecord
 
     protected static bool $canCreateAnother = false;
 
-    protected function mutateFormDataBeforeCreate(array $data): array
+    protected function handleRecordCreation(array $data): Model
     {
         $source = $data['source'] ?? 'manual';
         $body = $data['body'] ?? '';
-        $mapping = $data['mapping'] ?? [];
-        $phoneColumn = $mapping['phone'] ?? null;
-        $variableMappings = $mapping['variables'] ?? [];
         $bodyVariables = $data['body_variables'] ?? [];
 
-        $recipients = match ($source) {
-            'manual' => $data['recipients'] ?? [],
-            'upload' => $this->resolveUploadRecipients(
-                $data['file'] ?? [],
-                $phoneColumn,
-                $variableMappings
-            ),
-            'group' => $this->resolveGroupRecipients($data['groups'] ?? []),
+        $campaign = Campaign::create([
+            'user_id' => Auth::id(),
+            'sender_id' => $data['sender_id'] ?? null,
+            'name' => $this->generateCampaignName($body),
+            'body' => $body,
+            'status' => CampaignStatus::Draft,
+        ]);
+
+        $config = match ($source) {
+            'manual' => ['recipients' => $data['recipients'] ?? []],
+            'upload' => [
+                'disk' => 'local',
+                'file_path' => $this->relocateUploadedFile($data['file'] ?? null, $campaign),
+                'mapping' => $data['mapping'] ?? [],
+            ],
+            'group' => ['group_ids' => $data['groups'] ?? []],
             default => [],
         };
 
-        // Group source doesn't support variable substitution — send body as-is.
-        $data['recipients'] = array_map(
-            fn (array $r): array => [
-                'phone' => $r['phone'] ?? '',
-                'body' => $source === 'group'
-                    ? $body
-                    : $this->resolveBody($body, $bodyVariables, $r['values'] ?? []),
-            ],
-            $recipients
-        );
+        ProcessCampaignJob::dispatch($campaign, $source, $config, $body, $bodyVariables)
+            ->afterCommit();
 
-        unset($data['file'], $data['mapping'], $data['groups'], $data['body_variables']);
+        Notification::make()
+            ->title('Campaign is being processed')
+            ->body('We will notify you when the recipients are ready to send.')
+            ->icon(Heroicon::Inbox)
+            ->info()
+            ->send();
 
-        return $data;
+        return $campaign;
     }
 
-    protected function handleRecordCreation(array $data): Model
+    protected function getCreatedNotification(): ?Notification
     {
-        $now = now();
-        $messages = [];
-        $failed = [];
+        return null;
+    }
 
-        foreach ($data['recipients'] as $recipient) {
-            $phone = new PhoneNumber($recipient['phone'], 'BD');
+    protected function getRedirectUrl(): string
+    {
+        return MessageResource::getUrl('index');
+    }
 
-            if (! $phone->isValid()) {
-                $failed[] = [
-                    'phone' => $recipient['phone'] ?? '',
-                    'reason' => 'Invalid phone number format',
-                ];
-
-                continue;
-            }
-
-            $messages[] = [
-                'user_id' => auth()->id(),
-                'sender_id' => $data['sender_id'] ?? null,
-                'to' => $phone,
-                'body' => $recipient['body'],
-                'status' => 'pending',
-                'created_at' => $now,
-                'updated_at' => $now,
-            ];
+    private function relocateUploadedFile(mixed $state, Campaign $campaign): ?string
+    {
+        // FileUpload (single, ->storeFiles(true)) returns a disk-relative path after upload.
+        // Older Livewire/Filament shapes can hand back an array — handle that defensively.
+        if (is_array($state)) {
+            $state = reset($state);
         }
 
-        if (! empty($failed)) {
-            $reportFilename = $this->saveFailedReport($failed);
-
-            Notification::make()
-                ->icon(Heroicon::ExclamationTriangle)
-                ->title('Some recipients were invalid')
-                ->body('Please review the failed recipients and correct their phone numbers.')
-                ->danger()
-                ->actions([
-                    Action::make('download_report')
-                        ->label('Download Report')
-                        ->icon(Heroicon::ArrowDownTray)
-                        ->url(route('customer.messages.failed-report', ['filename' => $reportFilename]))
-                        ->openUrlInNewTab(),
-                ])
-                ->sendToDatabase(auth()->user())
-                ->send();
+        if (! is_string($state) || $state === '' || ! Storage::disk('local')->exists($state)) {
+            return null;
         }
 
-        // Do not do anything now, currently i'm testing it.
-        $this->halt(true);
-        dd($messages, $failed);
+        $extension = strtolower(pathinfo($state, PATHINFO_EXTENSION)) ?: 'csv';
+        $destination = 'campaigns/'.$campaign->id.'/source.'.$extension;
+
+        Storage::disk('local')->move($state, $destination);
+
+        return $destination;
     }
 
-    private function resolveUploadRecipients(array $file, ?string $phoneCol, array $varCols): array
+    private function generateCampaignName(string $body): string
     {
-        $headers = $file['headers'] ?? [];
-        $rows = $file['rows'] ?? [];
+        $snippet = trim(mb_substr($body, 0, 40));
 
-        return array_map(function (array $row) use ($headers, $phoneCol, $varCols): array {
-            $lookup = array_combine($headers, array_pad($row, count($headers), ''));
-
-            return [
-                'phone' => $phoneCol ? ($lookup[$phoneCol] ?? '') : '',
-                'values' => array_map(
-                    fn (?string $col) => $col ? ($lookup[$col] ?? '') : '',
-                    $varCols
-                ),
-            ];
-        }, $rows);
-    }
-
-    private function resolveGroupRecipients(array $groupIds): array
-    {
-        return Contact::query()
-            ->whereHas('groups', fn ($q) => $q->whereIn('groups.id', $groupIds))
-            ->where('is_blocked', false)
-            ->get()
-            ->map(fn (Contact $contact): array => ['phone' => $contact->phone])
-            ->all();
-    }
-
-    private function resolveBody(string $body, array $bodyVariables, array $values): string
-    {
-        foreach ($bodyVariables as $name) {
-            $body = str_replace("{{$name}}", $values[$name] ?? '', $body);
-        }
-
-        return $body;
-    }
-
-    /**
-     * @param  array<int, array{phone: string, reason: string}>  $failed
-     */
-    private function saveFailedReport(array $failed): string
-    {
-        $filename = 'failed-recipients-'.now()->format('Ymd-His').'-'.Str::random(8).'.csv';
-        $path = 'failed-reports/'.auth()->id().'/'.$filename;
-
-        $handle = fopen('php://temp', 'r+');
-        fputcsv($handle, ['Phone', 'Reason']);
-        foreach ($failed as $row) {
-            fputcsv($handle, [$row['phone'], $row['reason']]);
-        }
-        rewind($handle);
-        Storage::disk('local')->put($path, stream_get_contents($handle));
-        fclose($handle);
-
-        return $filename;
+        return ($snippet === '' ? 'Untitled campaign' : $snippet).' · '.now()->format('Y-m-d H:i');
     }
 }

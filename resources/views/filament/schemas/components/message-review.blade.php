@@ -26,11 +26,11 @@
             $sampleRow = $row;
         }
     } elseif ($source === 'upload') {
-        $rows = $get('file.rows') ?? [];
-        $headers = $get('file.headers') ?? [];
-        $recipientCount = count($rows);
-        if ($rows && $headers) {
-            $first = array_combine($headers, array_pad($rows[0], count($headers), ''));
+        $headers = $get('file_headers') ?? [];
+        $sample = $get('file_sample') ?? [];
+        $recipientCount = (int) ($get('file_total_rows') ?? 0);
+        if ($sample && $headers) {
+            $first = $sample[0] ?? [];
             $sampleHeaders = ['Phone', ...array_map('ucfirst', $bodyVariables)];
             $row = [$phoneCol ? ($first[$phoneCol] ?? '—') : '—'];
             foreach ($bodyVariables as $v) {

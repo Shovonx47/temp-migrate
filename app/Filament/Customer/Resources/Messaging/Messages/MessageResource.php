@@ -3,9 +3,11 @@
 namespace App\Filament\Customer\Resources\Messaging\Messages;
 
 use App\Enums\CustomerNavigationGroup;
+use App\Filament\Customer\Resources\Messaging\Messages\Pages\CreateMessage;
 use App\Filament\Customer\Resources\Messaging\Messages\Pages\ListMessages;
 use App\Filament\Customer\Resources\Messaging\Messages\Pages\ViewMessage;
 use App\Filament\Customer\Resources\Messaging\Messages\RelationManagers\DeliveryReportsRelationManager;
+use App\Filament\Customer\Resources\Messaging\Messages\Schemas\MessageForm;
 use App\Filament\Customer\Resources\Messaging\Messages\Schemas\MessageInfolist;
 use App\Filament\Customer\Resources\Messaging\Messages\Tables\MessagesTable;
 use App\Models\Message;
@@ -34,6 +36,11 @@ class MessageResource extends Resource
         return MessagesTable::configure($table);
     }
 
+    public static function form(Schema $schema): Schema
+    {
+        return MessageForm::configure($schema);
+    }
+
     public static function infolist(Schema $schema): Schema
     {
         return MessageInfolist::configure($schema);
@@ -50,6 +57,7 @@ class MessageResource extends Resource
     {
         return [
             'index' => ListMessages::route('/'),
+            'create' => CreateMessage::route('/create'),
             'view' => ViewMessage::route('/{record}'),
         ];
     }

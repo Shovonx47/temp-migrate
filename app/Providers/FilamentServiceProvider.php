@@ -34,7 +34,6 @@ class FilamentServiceProvider extends ServiceProvider
     {
         $this->configureMacros();
         $this->configureTable();
-        $this->configureSections();
         $this->configureActions();
         $this->configureField();
         $this->configureColumns();
@@ -65,15 +64,6 @@ class FilamentServiceProvider extends ServiceProvider
                 ->defaultSort('created_at', 'desc')
                 ->deferFilters(false)
                 ->paginationPageOptions([10, 25, 50]);
-        });
-    }
-
-    protected function configureSections(): void
-    {
-        Section::configureUsing(static function (Section $section) {
-            $section
-                ->collapsible()
-                ->persistCollapsed();
         });
     }
 

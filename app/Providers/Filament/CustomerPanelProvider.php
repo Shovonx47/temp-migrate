@@ -53,7 +53,7 @@ class CustomerPanelProvider extends PanelProvider
             ->collapsibleNavigationGroups()
             ->sidebarWidth('300px')
             ->maxContentWidth(Width::Full)
-            ->colors(['primary' => Color::Amber])
+            ->colors(['primary' => Color::Emerald])
 
             // Resources
             ->discoverResources(

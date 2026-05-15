@@ -18,10 +18,17 @@ class GroupsTable
     {
         return $table
             ->columns([
-                TextColumn::make('name')->searchable()->sortable(),
-                TextColumn::make('status')->badge()->sortable(),
-                TextColumn::make('contacts_count')->counts('contacts')->label('Contacts'),
-                TextColumn::make('created_at')->dateTime()->sortable()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('name')
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('contacts_count')
+                    ->counts('contacts')
+                    ->label('Contacts'),
+                TextColumn::make('description')
+                    ->searchable()
+                    ->limit(20)
+                    ->tooltip(fn($record) => $record->description),
+                TextColumn::make('created_at'),
             ])
             ->recordActions([
                 ActionGroup::make([

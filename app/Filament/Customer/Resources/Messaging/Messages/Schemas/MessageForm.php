@@ -76,6 +76,18 @@ class MessageForm
                     ->helperText('Use {variable_name} for dynamic placeholders.')
                     ->rows(4)
                     ->live(debounce: 500)
+                    ->afterStateUpdated(function (?string $state, Get $get, Set $set) {
+                        $newVars = FileParser::extractVariables($state);
+                        $currentVars = $get('mapping.variables') ?? [];
+
+                        $stale = array_diff_key($currentVars, array_flip($newVars));
+
+                        if (! empty($stale)) {
+                            foreach (array_keys($stale) as $key) {
+                                $set("mapping.variables.{$key}", null);
+                            }
+                        }
+                    })
                     ->required(),
 
                 TextEntry::make('detected_variables')
@@ -88,7 +100,7 @@ class MessageForm
                         }
 
                         $badges = collect($vars)
-                            ->map(fn($v) => '<span class="fi-color fi-color-primary fi-text-color-700 dark:fi-text-color-300 fi-badge fi-size-sm">{' . e($v) . '}</span>')
+                            ->map(fn ($v) => '<span class="fi-color fi-color-primary fi-text-color-700 dark:fi-text-color-300 fi-badge fi-size-sm">{'.e($v).'}</span>')
                             ->implode('');
 
                         return new HtmlString($badges);
@@ -103,9 +115,9 @@ class MessageForm
 
                         return new HtmlString(
                             "<div class='text-sm space-y-1'>"
-                            . "<div><strong>{$cost['char_count']}</strong> chars · <strong>{$cost['parts']}</strong> SMS part(s) · {$encoding}</div>"
-                            . "<div class='text-gray-500'>Per recipient: ৳" . number_format($cost['per_recipient'], 2) . "</div>"
-                            . "</div>"
+                            ."<div><strong>{$cost['char_count']}</strong> chars · <strong>{$cost['parts']}</strong> SMS part(s) · {$encoding}</div>"
+                            ."<div class='text-gray-500'>Per recipient: ৳".number_format($cost['per_recipient'], 2).'</div>'
+                            .'</div>'
                         );
                     })
                     ->html(),
@@ -119,7 +131,7 @@ class MessageForm
             ->schema([
                 // MANUAL
                 Section::make('Manual entry')
-                    ->visible(fn(Get $get) => $get('source') === 'manual')
+                    ->visible(fn (Get $get) => $get('source') === 'manual')
                     ->schema([
                         TagsInput::make('manual_numbers')
                             ->label('Phone numbers')
@@ -128,16 +140,16 @@ class MessageForm
                             ->reorderable()
                             ->nestedRecursiveRules(['phone:BD,mobile'])
                             ->validationMessages(['phone' => 'Invalid BD phone number'])
-                            ->required(fn(Get $get) => $get('source') === 'manual')
+                            ->required(fn (Get $get) => $get('source') === 'manual')
                             ->dehydrated(false)
                             ->live()
                             ->afterStateUpdated(function ($state, Set $set) {
-                                if (!is_array($state)) {
+                                if (! is_array($state)) {
                                     return;
                                 }
 
                                 $formatted = collect($state)
-                                    ->map(fn($n) => FileParser::formatPhone($n))
+                                    ->map(fn ($n) => FileParser::formatPhone($n))
                                     ->filter()
                                     ->unique()
                                     ->values()
@@ -149,18 +161,18 @@ class MessageForm
 
                 // GROUP
                 Section::make('Select group')
-                    ->visible(fn(Get $get) => $get('source') === 'group')
+                    ->visible(fn (Get $get) => $get('source') === 'group')
                     ->schema([
                         Select::make('group_id')
                             ->label('Group')
-                            ->options(fn(): array => auth()->user()
+                            ->options(fn (): array => auth()->user()
                                 ->groups()
                                 ->latest()
                                 ->limit(50)
                                 ->pluck('name', 'id')
                                 ->all()
                             )
-                            ->getSearchResultsUsing(fn(string $search): array => auth()->user()
+                            ->getSearchResultsUsing(fn (string $search): array => auth()->user()
                                 ->groups()
                                 ->whereLike('name', "%{$search}%")
                                 ->limit(50)
@@ -170,16 +182,16 @@ class MessageForm
                             ->searchable()
                             ->preload()
                             ->live()
-                            ->required(fn(Get $get) => $get('source') === 'group')
+                            ->required(fn (Get $get) => $get('source') === 'group')
                             ->dehydrated(false),
 
                         TextEntry::make('group_count')
                             ->label('Group size')
-                            ->visible(fn(Get $get) => filled($get('group_id')))
+                            ->visible(fn (Get $get) => filled($get('group_id')))
                             ->state(function (Get $get): string {
                                 $groupId = $get('group_id');
 
-                                if (!$groupId) {
+                                if (! $groupId) {
                                     return '—';
                                 }
 
@@ -196,7 +208,7 @@ class MessageForm
 
                 // UPLOAD
                 Section::make('Upload file')
-                    ->visible(fn(Get $get) => $get('source') === 'upload')
+                    ->visible(fn (Get $get) => $get('source') === 'upload')
                     ->schema([
                         FileUpload::make('recipients_file')
                             ->label('CSV or Excel file')
@@ -208,11 +220,11 @@ class MessageForm
                             ])
                             ->maxSize(20480)
                             ->storeFiles(false)
-                            ->required(fn(Get $get) => $get('source') === 'upload')
+                            ->required(fn (Get $get) => $get('source') === 'upload')
                             ->dehydrated(false)
                             ->live()
                             ->afterStateUpdated(function ($state, Set $set) {
-                                if (!$state) {
+                                if (! $state) {
                                     $set('file_headers', []);
                                     $set('file_preview', []);
                                     $set('file_all_rows', []);
@@ -232,7 +244,7 @@ class MessageForm
 
                         TextEntry::make('file_summary')
                             ->label('')
-                            ->visible(fn(Get $get) => !empty($get('file_headers')))
+                            ->visible(fn (Get $get) => ! empty($get('file_headers')))
                             ->state(function (Get $get): HtmlString {
                                 $total = $get('file_total') ?? 0;
                                 $cols = count($get('file_headers') ?? []);
@@ -250,7 +262,7 @@ class MessageForm
     {
         return Step::make('Map columns')
             ->icon('heroicon-o-link')
-            ->visible(fn(Get $get) => $get('source') === 'upload')
+            ->visible(fn (Get $get) => $get('source') === 'upload')
             ->schema([
                 TextEntry::make('mapping_help')
                     ->hiddenLabel()
@@ -261,23 +273,19 @@ class MessageForm
                     ->schema([
                         Select::make('mapping.phone')
                             ->label('Phone Number')
-                            ->options(fn(Get $get) => self::columnOptions($get('file_headers') ?? []))
-                            ->required(fn(Get $get) => $get('source') === 'upload')
+                            ->options(fn (Get $get) => self::columnOptions($get('file_headers') ?? []))
+                            ->required(fn (Get $get) => $get('source') === 'upload')
                             ->live()
                             ->dehydrated(false),
                     ]),
 
                 Section::make('Template variables')
-                    ->visible(fn(Get $get) => !empty(FileParser::extractVariables($get('body'))))
+                    ->visible(fn (Get $get) => ! empty(FileParser::extractVariables($get('body'))))
                     ->schema(function (Get $get): array {
-                        $variables = FileParser::extractVariables($get('body'));
-                        $headers = $get('file_headers') ?? [];
-                        $options = self::columnOptions($headers);
-
-                        return collect($variables)
-                            ->map(fn($var) => Select::make("mapping.variables.{$var}")
-                                ->label(new HtmlString("{" . e($var) . "}"))
-                                ->options($options)
+                        return collect(FileParser::extractVariables($get('body')))
+                            ->map(fn ($var) => Select::make("mapping.variables.{$var}")
+                                ->label(new HtmlString('{'.e($var).'}'))
+                                ->options(fn (Get $get) => self::columnOptions($get('file_headers') ?? []))
                                 ->placeholder('— Skip this variable —')
                                 ->live()
                                 ->dehydrated(false)
@@ -288,28 +296,28 @@ class MessageForm
                 TextEntry::make('mapping_preview')
                     ->label('Live preview')
                     ->state(function (Get $get): HtmlString {
-                        $mapping = $get('mapping') ?? [];
+                        $phoneCol = $get('mapping.phone');
                         $rows = $get('file_preview') ?? [];
                         $body = $get('body') ?? '';
 
-                        if (empty($mapping['phone']) || empty($rows)) {
+                        if ($phoneCol === null || $phoneCol === '' || empty($rows)) {
                             return new HtmlString('<em class="text-sm text-gray-500">Select a phone column to see preview.</em>');
                         }
 
                         $html = '<div class="space-y-2">';
                         foreach (array_slice($rows, 0, 3) as $row) {
-                            $phone = FileParser::formatPhone($row[$mapping['phone']] ?? '');
-                            $rendered = preg_replace_callback('/\{(\w+)\}/', function ($m) use ($row, $mapping) {
-                                $col = $mapping['variables'][$m[1]] ?? null;
+                            $phone = FileParser::formatPhone($row[$phoneCol] ?? '');
+                            $rendered = preg_replace_callback('/\{(\w+)\}/', function ($m) use ($row, $get) {
+                                $col = $get("mapping.variables.{$m[1]}");
 
                                 return $col !== null ? e($row[$col] ?? '') : $m[0];
                             }, $body);
 
                             $phoneDisplay = $phone ?: '<span class="text-red-500">invalid</span>';
                             $html .= "<div class='p-3 rounded border border-gray-200 dark:border-gray-700 text-sm'>"
-                                . "<div class='font-mono text-xs text-gray-500'>To: {$phoneDisplay}</div>"
-                                . "<div class='mt-1'>" . e($rendered) . "</div>"
-                                . "</div>";
+                                ."<div class='font-mono text-xs text-gray-500'>To: {$phoneDisplay}</div>"
+                                ."<div class='mt-1'>".e($rendered).'</div>'
+                                .'</div>';
                         }
                         $html .= '</div>';
 
@@ -331,7 +339,7 @@ class MessageForm
                         TextEntry::make('summary_sender')
                             ->label('Sender')
                             ->badge()
-                            ->state(fn(Get $get) => auth()->user()
+                            ->state(fn (Get $get) => auth()->user()
                                 ->senders()
                                 ->select('senders.sender_id', 'senders.id')
                                 ->where('id', $get('sender_id'))
@@ -340,7 +348,7 @@ class MessageForm
                         TextEntry::make('summary_source')
                             ->label('Source')
                             ->badge()
-                            ->state(fn(Get $get) => match ($get('source')) {
+                            ->state(fn (Get $get) => match ($get('source')) {
                                 'manual' => 'Manual',
                                 'group' => 'Group',
                                 'upload' => 'Upload',
@@ -350,7 +358,7 @@ class MessageForm
                         TextEntry::make('summary_recipient')
                             ->label('Recipients')
                             ->badge()
-                            ->state(fn(Get $get) => (string) self::estimateRecipientCount($get)),
+                            ->state(fn (Get $get) => (string) self::estimateRecipientCount($get)),
 
                         TextEntry::make('summary_parts')
                             ->label('Parts')
@@ -359,6 +367,7 @@ class MessageForm
                             ->tooltip('Number of SMS parts per recipient. Messages longer than 160 chars may be split into multiple parts.')
                             ->state(function (Get $get) {
                                 $cost = CostCalculator::calculate($get('body'), 1);
+
                                 return (string) $cost['parts'];
                             }),
 
@@ -367,6 +376,7 @@ class MessageForm
                             ->badge()
                             ->state(function (Get $get) {
                                 $cost = CostCalculator::calculate($get('body'), 1);
+
                                 return $cost['is_unicode'] ? 'Unicode' : 'GSM-7';
                             }),
 
@@ -377,6 +387,7 @@ class MessageForm
                             ->state(function (Get $get) {
                                 $count = self::estimateRecipientCount($get);
                                 $cost = CostCalculator::calculate($get('body'), $count);
+
                                 return $cost['total'];
                             }),
 
@@ -386,7 +397,7 @@ class MessageForm
                             ->schema([
                                 TextEntry::make('body_preview')
                                     ->hiddenLabel()
-                                    ->state(fn(Get $get) => $get('body') ?? '')
+                                    ->state(fn (Get $get) => $get('body') ?? '')
                                     ->helperText('Variables will be replaced with actual values.'),
                             ]),
                     ]),
@@ -395,6 +406,7 @@ class MessageForm
                     ->visible(function (Get $get): bool {
                         $count = self::estimateRecipientCount($get);
                         $cost = CostCalculator::calculate($get('body'), $count);
+
                         return $cost['total'] < 1000;
                     })
                     ->heading('Balance check')
@@ -407,7 +419,7 @@ class MessageForm
     {
         return match ($get('source')) {
             'manual' => count($get('manual_numbers') ?? []),
-            'group' => (int)(auth()->user()
+            'group' => (int) (auth()->user()
                 ->groups()
                 ->where('groups.id', $get('group_id'))
                 ->withCount('contacts')
@@ -415,7 +427,10 @@ class MessageForm
                 ?->contacts_count ?? 0),
             'upload' => count(FileParser::applyMapping(
                 $get('file_all_rows') ?? [],
-                $get('mapping') ?? []
+                [
+                    'phone' => $get('mapping.phone'),
+                    'variables' => $get('mapping.variables') ?? [],
+                ]
             )),
             default => 0,
         };
@@ -424,7 +439,7 @@ class MessageForm
     protected static function columnOptions(array $headers): array
     {
         return collect($headers)
-            ->mapWithKeys(fn($header, $index) => [$index => $header])
+            ->mapWithKeys(fn ($header, $index) => [$index => $header])
             ->all();
     }
 }

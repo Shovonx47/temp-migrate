@@ -9,12 +9,15 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Callout;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\View;
 use Filament\Schemas\Components\Wizard;
 use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\HtmlString;
 use Illuminate\Validation\Rules\Exists;
 use Ysfkaya\FilamentPhoneInput\Forms\PhoneInput;
 
@@ -25,11 +28,12 @@ class MessageForm
         return $schema
             ->columns(1)
             ->components([
-                Hidden::make('variables'),
+                Hidden::make('body_variables')->default([]),
                 Wizard::make([
                     self::composeStep(),
                     self::recipientStep(),
                     self::mappingStep(),
+                    self::reviewStep(),
                 ]),
             ]);
     }
@@ -66,22 +70,35 @@ class MessageForm
                         'upload' => 'Upload',
                     ])
                     ->default('manual')
+                    ->live()
                     ->required(),
                 Textarea::make('body')
                     ->label('Message')
                     ->placeholder('Hi {name}, your order {order_id} is confirmed.')
                     ->columnSpanFull()
                     ->rows(5)
+                    ->required()
+                    ->live(onBlur: true)
+                    ->extraInputAttributes(['data-sms-body' => 'true'])
                     ->afterStateUpdatedJs(<<<'JS'
-                        const variables = [];
-                        const regex = /{(\w+)}/g;
-                        let match;
-                        while ((match = regex.exec($state)) !== null) {
-                            variables.push(match[1]);
-                        }
-
-                        $set('variables', variables);
+                        const matches = ($state ?? '').matchAll(/{(\w+)}/g);
+                        const variables = [...new Set([...matches].map(m => m[1]))];
+                        $set('body_variables', variables);
                     JS
+                    ),
+                View::make('filament.schemas.components.sms-stats')
+                    ->columnSpanFull(),
+                Callout::make('Variables are not supported for group messages.')
+                    ->description(function (Get $get): HtmlString {
+                        $vars = $get('body_variables') ?? [];
+                        $list = implode(', ', array_map(fn (string $v) => '<strong>{'.$v.'}</strong>', $vars));
+
+                        return new HtmlString("Your message contains $list — these placeholders will be sent as-is to every contact. Switch to Upload or Manual if you need per-recipient values.");
+                    })
+                    ->warning()
+                    ->columnSpanFull()
+                    ->visible(fn (Get $get) => $get('source') === 'group'
+                        && ! empty($get('body_variables'))
                     ),
             ]);
     }
@@ -94,7 +111,7 @@ class MessageForm
                 // Manual entry repeater will only be visible if 'Manual' is selected as the source
                 Repeater::make('recipients')
                     ->visible(fn (Get $get) => $get('source') === 'manual')
-                    ->required(fn (Get $get) => $get('source') === 'group')
+                    ->required(fn (Get $get) => $get('source') === 'manual')
                     ->table(function (Get $get) {
                         $columns = [
                             Repeater\TableColumn::make('Phone')
@@ -102,7 +119,7 @@ class MessageForm
                                 ->markAsRequired(),
                         ];
 
-                        foreach ($get('variables') ?? [] as $variable) {
+                        foreach ($get('body_variables') ?? [] as $variable) {
                             $columns[] = Repeater\TableColumn::make(ucfirst($variable))
                                 ->alignLeft();
                         }
@@ -111,11 +128,11 @@ class MessageForm
                     })
                     ->schema(function (Get $get) {
                         $fields = [
-                            PhoneInput::make('phone'),
+                            PhoneInput::make('phone')->required(),
                         ];
 
-                        foreach ($get('variables') ?? [] as $variable) {
-                            $fields[] = TextInput::make("variables.{$variable}")
+                        foreach ($get('body_variables') ?? [] as $variable) {
+                            $fields[] = TextInput::make("values.{$variable}")
                                 ->label(ucfirst($variable))
                                 ->placeholder("Value for {$variable}");
                         }
@@ -143,19 +160,13 @@ class MessageForm
                     ->multiple()
                     ->searchable()
                     ->preload()
-                    ->live()
                     ->visible(fn (Get $get) => $get('source') === 'group')
                     ->required(fn (Get $get) => $get('source') === 'group'),
 
                 // Upload field will only be visible if 'Upload' is selected as the source
-
                 RecipientUpload::make('file')
                     ->visible(fn (Get $get) => $get('source') === 'upload')
-                    ->required(fn (Get $get) => $get('source') === 'upload')
-                    ->afterStateUpdatedJs(<<<'JS'
-                        console.log(JSON.parse(JSON.stringify($state)))
-                    JS
-                    ),
+                    ->required(fn (Get $get) => $get('source') === 'upload'),
             ]);
     }
 
@@ -163,9 +174,21 @@ class MessageForm
     {
         return Step::make('Mapping')
             ->icon(Heroicon::Square2Stack)
+            ->visible(fn (Get $get) => $get('source') === 'upload'
+                && ! empty($get('body_variables'))
+            )
             ->schema([
                 MappingComponent::make('mapping')
                     ->hiddenLabel(),
+            ]);
+    }
+
+    private static function reviewStep()
+    {
+        return Step::make('Review')
+            ->icon(Heroicon::CheckBadge)
+            ->schema([
+                View::make('filament.schemas.components.message-review'),
             ]);
     }
 }

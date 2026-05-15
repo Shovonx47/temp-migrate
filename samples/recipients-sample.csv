@@ -1,0 +1,11 @@
+phone,name,balance
+01711000001,Rahim,1200
+01811000002,Karim,540
++8801911000003,Sumi,8900
+01511000004,Nadia,75
+8801611000005,Tanvir,3300
+123,InvalidShort,10
+notaphone,InvalidText,20
+017110,InvalidIncomplete,30
+01711000abc,InvalidLetters,40
+,MissingPhone,50

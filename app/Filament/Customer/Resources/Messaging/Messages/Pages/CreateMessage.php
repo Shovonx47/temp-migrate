@@ -4,10 +4,14 @@ namespace App\Filament\Customer\Resources\Messaging\Messages\Pages;
 
 use App\Filament\Customer\Resources\Messaging\Messages\MessageResource;
 use App\Models\Contact;
-use App\Models\Message;
+use Filament\Actions\Action;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Propaganistas\LaravelPhone\PhoneNumber;
 
 class CreateMessage extends CreateRecord
 {
@@ -17,13 +21,12 @@ class CreateMessage extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        dd($data);
         $source = $data['source'] ?? 'manual';
         $body = $data['body'] ?? '';
         $mapping = $data['mapping'] ?? [];
         $phoneColumn = $mapping['phone'] ?? null;
         $variableMappings = $mapping['variables'] ?? [];
-        $variables = $data['variables'] ?? [];
+        $bodyVariables = $data['body_variables'] ?? [];
 
         $recipients = match ($source) {
             'manual' => $data['recipients'] ?? [],
@@ -32,44 +35,77 @@ class CreateMessage extends CreateRecord
                 $phoneColumn,
                 $variableMappings
             ),
-            'group' => $this->resolveGroupRecipients(
-                $data['groups'] ?? [],
-                $variableMappings
-            ),
+            'group' => $this->resolveGroupRecipients($data['groups'] ?? []),
             default => [],
         };
 
-        // Resolve body template for each recipient
+        // Group source doesn't support variable substitution — send body as-is.
         $data['recipients'] = array_map(
             fn (array $r): array => [
                 'phone' => $r['phone'] ?? '',
-                'body' => $this->resolveBody($body, $variables, $r['variables'] ?? []),
+                'body' => $source === 'group'
+                    ? $body
+                    : $this->resolveBody($body, $bodyVariables, $r['values'] ?? []),
             ],
             $recipients
         );
 
-        unset($data['file'], $data['mapping'], $data['groups']);
+        unset($data['file'], $data['mapping'], $data['groups'], $data['body_variables']);
 
         return $data;
     }
 
     protected function handleRecordCreation(array $data): Model
     {
-        $first = null;
+        $now = now();
+        $messages = [];
+        $failed = [];
 
         foreach ($data['recipients'] as $recipient) {
-            $message = Message::create([
+            $phone = new PhoneNumber($recipient['phone'], 'BD');
+
+            if (! $phone->isValid()) {
+                $failed[] = [
+                    'phone' => $recipient['phone'] ?? '',
+                    'reason' => 'Invalid phone number format',
+                ];
+
+                continue;
+            }
+
+            $messages[] = [
                 'user_id' => auth()->id(),
                 'sender_id' => $data['sender_id'] ?? null,
-                'to' => $recipient['phone'],
+                'to' => $phone,
                 'body' => $recipient['body'],
                 'status' => 'pending',
-            ]);
-
-            $first ??= $message;
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
         }
 
-        return $first ?? new Message;
+        if (! empty($failed)) {
+            $reportFilename = $this->saveFailedReport($failed);
+
+            Notification::make()
+                ->icon(Heroicon::ExclamationTriangle)
+                ->title('Some recipients were invalid')
+                ->body('Please review the failed recipients and correct their phone numbers.')
+                ->danger()
+                ->actions([
+                    Action::make('download_report')
+                        ->label('Download Report')
+                        ->icon(Heroicon::ArrowDownTray)
+                        ->url(route('customer.messages.failed-report', ['filename' => $reportFilename]))
+                        ->openUrlInNewTab(),
+                ])
+                ->sendToDatabase(auth()->user())
+                ->send();
+        }
+
+        // Do not do anything now, currently i'm testing it.
+        $this->halt(true);
+        dd($messages, $failed);
     }
 
     private function resolveUploadRecipients(array $file, ?string $phoneCol, array $varCols): array
@@ -82,7 +118,7 @@ class CreateMessage extends CreateRecord
 
             return [
                 'phone' => $phoneCol ? ($lookup[$phoneCol] ?? '') : '',
-                'variables' => array_map(
+                'values' => array_map(
                     fn (?string $col) => $col ? ($lookup[$col] ?? '') : '',
                     $varCols
                 ),
@@ -90,56 +126,42 @@ class CreateMessage extends CreateRecord
         }, $rows);
     }
 
-    private function resolveGroupRecipients(array $groupIds, array $varCols): array
+    private function resolveGroupRecipients(array $groupIds): array
     {
-        $contacts = Contact::query()
+        return Contact::query()
             ->whereHas('groups', fn ($q) => $q->whereIn('groups.id', $groupIds))
             ->where('is_blocked', false)
-            ->get();
-
-        return $this->contactsToRecipients($contacts, $varCols);
+            ->get()
+            ->map(fn (Contact $contact): array => ['phone' => $contact->phone])
+            ->all();
     }
 
-    private function contactsToRecipients(Collection $contacts, array $varCols): array
+    private function resolveBody(string $body, array $bodyVariables, array $values): string
     {
-        return $contacts->map(function (Contact $contact) use ($varCols): array {
-            return [
-                'phone' => $contact->phone,
-                'variables' => array_map(
-                    fn (?string $field) => $this->resolveContactField($contact, $field),
-                    $varCols
-                ),
-            ];
-        })->all();
-    }
-
-    private function resolveContactField(Contact $contact, ?string $field): string
-    {
-        if (! $field) {
-            return '';
-        }
-
-        // Handle meta.* fields
-        if (str_starts_with($field, 'meta.')) {
-            $key = substr($field, 5);
-
-            return (string) ($contact->meta[$key] ?? '');
-        }
-
-        // Direct attribute access
-        return (string) ($contact->{$field} ?? '');
-    }
-
-    private function resolveBody(string $body, array $variables, array $values): string
-    {
-        foreach ($variables as $i => $name) {
-            $body = str_replace(
-                "{{$name}}",
-                $values[$name] ?? $values[$i] ?? '',
-                $body
-            );
+        foreach ($bodyVariables as $name) {
+            $body = str_replace("{{$name}}", $values[$name] ?? '', $body);
         }
 
         return $body;
+    }
+
+    /**
+     * @param  array<int, array{phone: string, reason: string}>  $failed
+     */
+    private function saveFailedReport(array $failed): string
+    {
+        $filename = 'failed-recipients-'.now()->format('Ymd-His').'-'.Str::random(8).'.csv';
+        $path = 'failed-reports/'.auth()->id().'/'.$filename;
+
+        $handle = fopen('php://temp', 'r+');
+        fputcsv($handle, ['Phone', 'Reason']);
+        foreach ($failed as $row) {
+            fputcsv($handle, [$row['phone'], $row['reason']]);
+        }
+        rewind($handle);
+        Storage::disk('local')->put($path, stream_get_contents($handle));
+        fclose($handle);
+
+        return $filename;
     }
 }

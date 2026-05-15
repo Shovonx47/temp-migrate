@@ -4,11 +4,11 @@ interface MappingState {
 }
 
 interface MappingData {
-    source: 'upload' | 'group' | 'manual';
+    source: 'upload';
     options: string[];
     sample: Record<string, string>;
     body: string;
-    variables: string[];
+    bodyVariables: string[];
     state: MappingState;
 }
 
@@ -17,13 +17,12 @@ interface AlpineMapping {
     options: string[];
     sample: Record<string, string>;
     body: string;
-    variables: string[];
+    bodyVariables: string[];
     phone: string | null;
     variableMappings: Record<string, string | null>;
     resolvedBody: string;
     resolvedPhone: string;
     showComponent: boolean;
-    isGroup: boolean;
     $dispatch?(event: string, detail?: any): void;
 
     init(): void;
@@ -39,22 +38,18 @@ export default function mappingComponent(initial: MappingData): AlpineMapping {
         options: initial.options,
         sample: initial.sample,
         body: initial.body,
-        variables: initial.variables,
-        phone: initial.state?.phone ?? (initial.source === 'group' ? 'phone' : null),
+        bodyVariables: initial.bodyVariables,
+        phone: initial.state?.phone ?? null,
         variableMappings: initial.state?.variables ?? {},
         resolvedBody: '',
         resolvedPhone: '',
 
         get showComponent(): boolean {
-            return this.source === 'upload' || this.source === 'group';
-        },
-
-        get isGroup(): boolean {
-            return this.source === 'group';
+            return this.source === 'upload';
         },
 
         init() {
-            for (const v of this.variables) {
+            for (const v of this.bodyVariables) {
                 if (!(v in this.variableMappings)) {
                     this.variableMappings[v] = null;
                 }
@@ -63,19 +58,12 @@ export default function mappingComponent(initial: MappingData): AlpineMapping {
         },
 
         resolve() {
-            // For groups, phone is always from the contact's phone field
-            // For upload, resolve from the mapped column
-            if (this.isGroup) {
-                this.resolvedPhone = this.sample['phone'] || '—';
-            } else {
-                this.resolvedPhone = this.phone && this.sample[this.phone]
-                    ? this.sample[this.phone]
-                    : '—';
-            }
+            this.resolvedPhone = this.phone && this.sample[this.phone]
+                ? this.sample[this.phone]
+                : '—';
 
-            // Resolve body by substituting variables with sample data
             let result = this.body;
-            for (const v of this.variables) {
+            for (const v of this.bodyVariables) {
                 const col = this.variableMappings[v];
                 const value = col && this.sample[col] ? this.sample[col] : `{${v}}`;
                 result = result.replaceAll(`{${v}}`, value);
@@ -89,7 +77,7 @@ export default function mappingComponent(initial: MappingData): AlpineMapping {
 
         sync() {
             this.$dispatch?.('mapping-updated', {
-                phone: this.isGroup ? 'phone' : this.phone,
+                phone: this.phone,
                 variables: { ...this.variableMappings },
             });
         },

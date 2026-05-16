@@ -46,6 +46,7 @@ class CustomerPanelProvider extends PanelProvider
             // Database
             ->databaseTransactions()
             ->databaseNotifications()
+            ->databaseNotificationsPolling(30)
 
             // Layout
             ->sidebarCollapsibleOnDesktop()
@@ -99,6 +100,8 @@ class CustomerPanelProvider extends PanelProvider
                     ->users([
                         'Customer' => 'customer@example.com',
                     ]),
-            ]);
+            ])
+            ->spa()
+            ->unsavedChangesAlerts();
     }
 }

@@ -50,6 +50,7 @@ class SupermanPanelProvider extends PanelProvider
             // Database
             ->databaseTransactions()
             ->databaseNotifications()
+            ->databaseNotificationsPolling(30)
 
             // Discovery
             ->discoverResources(
@@ -96,6 +97,8 @@ class SupermanPanelProvider extends PanelProvider
                     ->users([
                         'Superman' => 'superman@example.com',
                     ]),
-            ]);
+            ])
+            ->spa()
+            ->unsavedChangesAlerts();
     }
 }

@@ -3,7 +3,8 @@
 namespace App\Filament\Customer\Resources\Messaging\Messages;
 
 use App\Enums\CustomerNavigationGroup;
-use App\Filament\Customer\Resources\Messaging\Messages\Pages\CreateMessage;
+use App\Filament\Customer\Resources\Messaging\Messages\Pages\CreateQuickMessage;
+use App\Filament\Customer\Resources\Messaging\Messages\Pages\CreateSmartMessage;
 use App\Filament\Customer\Resources\Messaging\Messages\Pages\ListMessages;
 use App\Filament\Customer\Resources\Messaging\Messages\Pages\ViewMessage;
 use App\Filament\Customer\Resources\Messaging\Messages\RelationManagers\DeliveryReportsRelationManager;
@@ -55,7 +56,8 @@ class MessageResource extends Resource
     {
         return [
             'index' => ListMessages::route('/'),
-            'create' => CreateMessage::route('/create'),
+            'create-smart' => CreateSmartMessage::route('/smart'),
+            'create-quick' => CreateQuickMessage::route('/quick'),
             'view' => ViewMessage::route('/{record}'),
         ];
     }

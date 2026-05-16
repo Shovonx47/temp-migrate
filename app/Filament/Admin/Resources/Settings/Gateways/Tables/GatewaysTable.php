@@ -28,12 +28,10 @@ class GatewaysTable
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('daily_limit')
-                    ->numeric()
                     ->abbreviate()
                     ->sortable()
                     ->placeholder('Unlimited'),
                 TextColumn::make('monthly_limit')
-                    ->numeric()
                     ->abbreviate()
                     ->sortable()
                     ->placeholder('Unlimited'),

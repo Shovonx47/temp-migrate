@@ -25,12 +25,18 @@ class MessageBatchFactory extends Factory
 
     public function completed(): static
     {
-        return $this->state(fn (): array => [
-            'status' => MessageBatchStatus::Completed,
-            'total_messages' => fake()->numberBetween(1, 100),
-            'started_at' => now()->subMinutes(5),
-            'completed_at' => now(),
-        ]);
+        return $this->state(function (): array {
+            $total = fake()->numberBetween(1, 100);
+
+            return [
+                'status' => MessageBatchStatus::Completed,
+                'total_recipients' => $total,
+                'valid_count' => $total,
+                'invalid_count' => 0,
+                'started_at' => now()->subMinutes(5),
+                'completed_at' => now(),
+            ];
+        });
     }
 
     public function failed(): static

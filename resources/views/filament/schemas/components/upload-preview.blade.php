@@ -14,7 +14,7 @@
                     class="h-5 w-5 text-gray-500 dark:text-gray-400 shrink-0"
                 />
                 <div>
-                    <span class="font-medium">{{ number_format($totalRows) }}</span>
+                    <span class="font-medium">{{ Number::abbreviate($totalRows) }}</span>
                     {{ Str::plural('row', $totalRows) }} &middot;
                     <span class="font-medium">{{ count($headers) }}</span>
                     {{ Str::plural('column', count($headers)) }}

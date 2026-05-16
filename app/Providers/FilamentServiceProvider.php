@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Closure;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\Exports\ExportColumn;
@@ -9,7 +10,6 @@ use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Select;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
-use Filament\Schemas\Components\Section;
 use Filament\Support\Assets\Js;
 use Filament\Support\Enums\Size;
 use Filament\Support\Facades\FilamentAsset;
@@ -20,6 +20,7 @@ use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Number;
 use Illuminate\Support\ServiceProvider;
@@ -50,13 +51,12 @@ class FilamentServiceProvider extends ServiceProvider
     protected function registerAssets(): void
     {
         FilamentAsset::register([
-            Js::make('app', Vite::asset('resources/js/app.ts'))->module()
+            Js::make('app', Vite::asset('resources/js/app.ts'))->module(),
         ]);
     }
 
     protected function configureMacros(): void
     {
-
         Stringable::macro('acronym', function (): Stringable {
             $acronyms = config('data.acronyms');
 
@@ -67,6 +67,22 @@ class FilamentServiceProvider extends ServiceProvider
                     return $acronyms[strtolower($matches[1])] ?? $matches[0];
                 }
             );
+        });
+
+        TextColumn::macro('relative', function (string | Closure | null $timezone = null): static {
+            $this->isDateTime = true;
+
+            $this->formatStateUsing(static function (TextColumn $column, $state) use ($timezone): ?string {
+                if (blank($state)) {
+                    return null;
+                }
+
+                return Carbon::parse($state)
+                    ->setTimezone($column->evaluate($timezone) ?? $column->getTimezone())
+                    ->diffForHumans(short: true);
+            });
+
+            return $this;
         });
     }
 
@@ -155,10 +171,11 @@ class FilamentServiceProvider extends ServiceProvider
             }
 
             $component
-                ->since()
+                ->relative()
                 ->dateTimeTooltip('M j, Y \a\t h:i A')
                 ->sortable()
-                ->toggleable(isToggledHiddenByDefault: $component->getName() !== 'created_at');
+                ->toggleable(isToggledHiddenByDefault: in_array($component->getName(), ['created_at', 'updated_at', 'deleted_at'])
+                );
         });
 
         ExportColumn::configureUsing(static function (ExportColumn $exportColumn) {
@@ -188,12 +205,7 @@ class FilamentServiceProvider extends ServiceProvider
         });
 
         TextColumn::macro('abbreviate', function (): TextColumn {
-            /** @var TextColumn $this */
-            if (! $this->isNumeric()) {
-                throw new \LogicException('The abbreviate column can only be used on numeric columns.');
-            }
-
-            return $this->formatStateUsing(function ($state) {
+            return $this->numeric()->formatStateUsing(function ($state) {
                 return Number::abbreviate($state);
             });
         });

@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Enums\MessageBatchSource;
 use App\Enums\MessageBatchStatus;
 use App\Jobs\ProcessMessageBatchJob;
 use Database\Factories\MessageBatchFactory;
 use Illuminate\Database\Eloquent\Attributes\Guarded;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +23,7 @@ class MessageBatch extends Model
     {
         return [
             'source_config' => 'array',
+            'source_type' => MessageBatchSource::class,
             'status' => MessageBatchStatus::class,
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
@@ -42,19 +45,63 @@ class MessageBatch extends Model
         return $this->hasMany(Message::class);
     }
 
+    protected function processedCount(): Attribute
+    {
+        return Attribute::get(fn (): int => (int) $this->valid_count + (int) $this->invalid_count);
+    }
+
+    protected function progressPercent(): Attribute
+    {
+        return Attribute::get(function (): int {
+            $total = (int) $this->total_recipients;
+
+            if ($total === 0) {
+                return 0;
+            }
+
+            return (int) floor($this->processed_count / $total * 100);
+        });
+    }
+
+    protected function progressLabel(): Attribute
+    {
+        return Attribute::get(function (): string {
+            $total = (int) $this->total_recipients;
+            $processed = $this->processed_count;
+
+            if ($total === 0) {
+                return $processed > 0 ? (string) $processed : '—';
+            }
+
+            return "{$this->progress_percent}% ({$processed} / {$total})";
+        });
+    }
+
+    protected function progressRemaining(): Attribute
+    {
+        return Attribute::get(function (): int {
+            $total = (int) $this->total_recipients;
+            $processed = $this->processed_count;
+
+            return max($total - $processed, 0);
+        });
+    }
+
     public function retry(): void
     {
         $this->update([
             'status' => MessageBatchStatus::Processing,
             'started_at' => null,
             'completed_at' => null,
-            'failed_count' => 0,
+            'total_recipients' => 0,
+            'valid_count' => 0,
+            'invalid_count' => 0,
             'failed_report_path' => null,
         ]);
 
         ProcessMessageBatchJob::dispatch(
             $this,
-            $this->source_type,
+            $this->source_type instanceof MessageBatchSource ? $this->source_type->value : (string) $this->source_type,
             $this->source_config ?? [],
             $this->body,
             $this->extractBodyVariables(),

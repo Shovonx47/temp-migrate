@@ -13,14 +13,21 @@ class MessagesTable
     {
         return $table
             ->columns([
-                TextColumn::make('uid')->label('UID')->searchable()->sortable(),
-                TextColumn::make('campaign.name')->searchable()->sortable(),
-                TextColumn::make('to')->label('Recipient')->searchable()->sortable(),
-                TextColumn::make('status')->badge()->sortable(),
-                TextColumn::make('cost')->money('BDT')->sortable(),
-                TextColumn::make('segments')->numeric()->sortable(),
-                TextColumn::make('sent_at')->dateTime()->sortable(),
-                TextColumn::make('created_at')->dateTime()->sortable()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('to')
+                    ->label('Recipient')
+                    ->searchable(),
+                TextColumn::make('status')
+                    ->badge()
+                    ->sortable(),
+                TextColumn::make('cost')
+                    ->money('BDT'),
+                TextColumn::make('body')
+                    ->limit(50)
+                    ->tooltip(fn ($record) => $record->body),
+                TextColumn::make('campaign.name')
+                    ->placeholder('-'),
+                TextColumn::make('sent_at'),
+                TextColumn::make('created_at'),
             ])
             ->recordActions([
                 ActionGroup::make([

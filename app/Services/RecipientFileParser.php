@@ -64,6 +64,26 @@ class RecipientFileParser
         ];
     }
 
+    public function countRecipients(string $path): int
+    {
+        $this->assertReadable($path);
+
+        $count = 0;
+        $first = true;
+
+        foreach ($this->rawRows($path) as $rawRow) {
+            if ($first) {
+                $first = false;
+                if ($this->looksLikeHeader($rawRow)) {
+                    continue;
+                }
+            }
+            $count++;
+        }
+
+        return $count;
+    }
+
     /**
      * Yield each data row as an associative array keyed by the resolved headers.
      *

@@ -16,14 +16,18 @@ return new class extends Migration
             $table->string('source_type'); // manual, upload, group
             $table->json('source_config'); // mapping, group_ids, file_path, etc.
             $table->string('status')->default('processing'); // processing, completed, failed
-            $table->unsignedInteger('total_messages')->default(0);
-            $table->unsignedInteger('failed_count')->default(0);
+            $table->unsignedInteger('total_recipients')->default(0);
+            $table->unsignedInteger('valid_count')->default(0);
+            $table->unsignedInteger('invalid_count')->default(0);
             $table->string('failed_report_path')->nullable();
             $table->timestamp('started_at')->nullable();
             $table->timestamp('completed_at')->nullable();
             $table->timestamps();
 
-            $table->index('status');
+            $table->index(['user_id', 'created_at']);
+            $table->index(['user_id', 'sent_at']);
+            $table->index(['user_id', 'status']);
+            $table->index(['user_id', 'to']);
         });
     }
 

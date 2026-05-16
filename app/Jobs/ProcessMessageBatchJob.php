@@ -13,6 +13,7 @@ use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Propaganistas\LaravelPhone\PhoneNumber;
 use Throwable;
@@ -31,10 +32,10 @@ class ProcessMessageBatchJob implements ShouldQueue
 
     /**
      * @param  array<string, mixed>  $config
-     *                                        Source-specific config:
-     *                                        - manual: ['recipients' => array<int, array{phone: string, values: array<string,string>}>]
-     *                                        - upload: ['file_path' => string, 'disk' => string, 'mapping' => array{phone: string, variables: array<string,string>}]
-     *                                        - group:  ['group_ids' => int[]]
+     * Source-specific config:
+     * - manual: ['recipients' => array<int, array{phone: string, values: array<string,string>}>]
+     * - upload: ['file_path' => string, 'disk' => string, 'mapping' => array{phone: string, variables: array<string,string>}]
+     * - group:  ['group_ids' => int[]]
      * @param  string[]  $bodyVariables
      */
     public function __construct(
@@ -56,11 +57,15 @@ class ProcessMessageBatchJob implements ShouldQueue
         $batch->update([
             'status' => MessageBatchStatus::Processing,
             'started_at' => now(),
+            'total_recipients' => $this->computeTotalRecipients($parser),
+            'valid_count' => 0,
+            'invalid_count' => 0,
         ]);
 
         $rows = [];
         $failed = [];
         $successCount = 0;
+        $processedSinceFlush = 0;
         $now = now();
 
         try {
@@ -69,6 +74,8 @@ class ProcessMessageBatchJob implements ShouldQueue
 
                 if ($phoneRaw === '') {
                     $failed[] = $this->failedRow($recipient, 'Phone number missing');
+                    $processedSinceFlush++;
+                    $this->maybeFlushProgress($batch->id, $successCount, count($failed), $processedSinceFlush);
 
                     continue;
                 }
@@ -77,11 +84,27 @@ class ProcessMessageBatchJob implements ShouldQueue
                     $phone = new PhoneNumber($phoneRaw, self::DEFAULT_COUNTRY);
                     if (! $phone->isValid()) {
                         $failed[] = $this->failedRow($recipient, 'Invalid phone number format');
+                        $processedSinceFlush++;
+                        $this->maybeFlushProgress($batch->id, $successCount, count($failed), $processedSinceFlush);
 
                         continue;
                     }
                 } catch (Throwable) {
                     $failed[] = $this->failedRow($recipient, 'Invalid phone number format');
+                    $processedSinceFlush++;
+                    $this->maybeFlushProgress($batch->id, $successCount, count($failed), $processedSinceFlush);
+
+                    continue;
+                }
+
+                $missingVariables = $this->missingVariables($recipient);
+                if ($missingVariables !== []) {
+                    $failed[] = $this->failedRow(
+                        $recipient,
+                        'Missing value for: '.implode(', ', $missingVariables),
+                    );
+                    $processedSinceFlush++;
+                    $this->maybeFlushProgress($batch->id, $successCount, count($failed), $processedSinceFlush);
 
                     continue;
                 }
@@ -99,11 +122,14 @@ class ProcessMessageBatchJob implements ShouldQueue
                     'updated_at' => $now,
                 ];
                 $successCount++;
+                $processedSinceFlush++;
 
                 if (count($rows) >= self::BATCH_SIZE) {
                     Message::insert($rows);
                     $rows = [];
                 }
+
+                $this->maybeFlushProgress($batch->id, $successCount, count($failed), $processedSinceFlush);
             }
 
             if (! empty($rows)) {
@@ -114,8 +140,8 @@ class ProcessMessageBatchJob implements ShouldQueue
 
             $batch->update([
                 'status' => MessageBatchStatus::Completed,
-                'total_messages' => $successCount,
-                'failed_count' => count($failed),
+                'valid_count' => $successCount,
+                'invalid_count' => count($failed),
                 'failed_report_path' => $reportPath,
                 'completed_at' => now(),
             ]);
@@ -155,6 +181,58 @@ class ProcessMessageBatchJob implements ShouldQueue
             'group' => $this->iterateGroup(),
             default => [],
         };
+    }
+
+    private function computeTotalRecipients(RecipientFileParser $parser): int
+    {
+        return match ($this->sourceType) {
+            'manual' => count($this->config['recipients'] ?? []),
+            'upload' => $this->countUploadRecipients($parser),
+            'group' => $this->countGroupRecipients(),
+            default => 0,
+        };
+    }
+
+    private function countUploadRecipients(RecipientFileParser $parser): int
+    {
+        $disk = $this->config['disk'] ?? 'local';
+        $relativePath = (string) ($this->config['file_path'] ?? '');
+
+        if ($relativePath === '' || ! Storage::disk($disk)->exists($relativePath)) {
+            return 0;
+        }
+
+        return $parser->countRecipients(Storage::disk($disk)->path($relativePath));
+    }
+
+    private function countGroupRecipients(): int
+    {
+        $groupIds = $this->config['group_ids'] ?? [];
+
+        if (empty($groupIds)) {
+            return 0;
+        }
+
+        return Contact::query()
+            ->whereHas('groups', fn ($q) => $q->whereIn('groups.id', $groupIds))
+            ->where('is_blocked', false)
+            ->count();
+    }
+
+    private function maybeFlushProgress(int $batchId, int $valid, int $invalid, int &$processedSinceFlush): void
+    {
+        if ($processedSinceFlush < self::BATCH_SIZE) {
+            return;
+        }
+
+        DB::table('message_batches')
+            ->where('id', $batchId)
+            ->update([
+                'valid_count' => $valid,
+                'invalid_count' => $invalid,
+            ]);
+
+        $processedSinceFlush = 0;
     }
 
     /**
@@ -228,6 +306,27 @@ class ProcessMessageBatchJob implements ShouldQueue
 
     /**
      * @param  array{phone: string, values: array<string, string>, raw: array<string, mixed>}  $recipient
+     * @return string[]
+     */
+    private function missingVariables(array $recipient): array
+    {
+        if ($this->sourceType === 'group') {
+            return [];
+        }
+
+        $missing = [];
+        foreach ($this->bodyVariables as $var) {
+            $value = $recipient['values'][$var] ?? '';
+            if (trim((string) $value) === '') {
+                $missing[] = $var;
+            }
+        }
+
+        return $missing;
+    }
+
+    /**
+     * @param  array{phone: string, values: array<string, string>, raw: array<string, mixed>}  $recipient
      */
     private function resolveBody(array $recipient): string
     {
@@ -288,7 +387,7 @@ class ProcessMessageBatchJob implements ShouldQueue
 
         $title = "Batch processed: {$sent} message".($sent === 1 ? '' : 's').' ready to send';
         $body = $failed > 0
-            ? "{$failed} recipient".($failed === 1 ? '' : 's').' had invalid phone numbers and were skipped.'
+            ? "{$failed} recipient".($failed === 1 ? '' : 's').' were skipped. Download the report for details.'
             : 'All recipients were processed successfully.';
 
         $notification = Notification::make()
@@ -307,6 +406,7 @@ class ProcessMessageBatchJob implements ShouldQueue
                         'batch' => $batch->id,
                         'filename' => basename($reportPath),
                     ]))
+                    ->markAsRead()
                     ->openUrlInNewTab(),
             ]);
         }

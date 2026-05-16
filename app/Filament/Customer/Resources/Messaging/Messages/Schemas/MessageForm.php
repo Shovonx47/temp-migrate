@@ -129,7 +129,8 @@ class MessageForm
 
                         foreach ($get('body_variables') ?? [] as $variable) {
                             $columns[] = Repeater\TableColumn::make(ucfirst($variable))
-                                ->alignLeft();
+                                ->alignLeft()
+                                ->markAsRequired();
                         }
 
                         return $columns;
@@ -142,7 +143,8 @@ class MessageForm
                         foreach ($get('body_variables') ?? [] as $variable) {
                             $fields[] = TextInput::make("values.{$variable}")
                                 ->label(ucfirst($variable))
-                                ->placeholder("Value for {$variable}");
+                                ->placeholder("Value for {$variable}")
+                                ->required();
                         }
 
                         return $fields;
@@ -181,7 +183,8 @@ class MessageForm
                         'application/vnd.ms-excel',
                         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                     ])
-                    ->maxSize(50 * 1024)
+                    ->helperText('Upload a CSV or Excel file with a "phone" column and any variables used in your message body.')
+                    ->maxSize(100 * 1024) // 100 MB
                     ->preserveFilenames()
                     ->live()
                     ->afterStateUpdated(fn ($state, Set $set) => self::parseUploadedFile($state, $set))

@@ -3,7 +3,7 @@
 namespace App\Filament\Customer\Resources\Messaging\Messages\Schemas;
 
 use App\Filament\Customer\Resources\Messaging\Campaigns\CampaignResource;
-use App\Filament\Customer\Resources\Settings\Senders\SenderResource;
+use App\Filament\Customer\Resources\Messaging\Senders\SenderResource;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;

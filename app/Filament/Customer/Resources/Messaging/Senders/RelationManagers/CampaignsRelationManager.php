@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Customer\Resources\Settings\Senders\RelationManagers;
+namespace App\Filament\Customer\Resources\Messaging\Senders\RelationManagers;
 
 use App\Filament\Customer\Resources\Messaging\Campaigns\CampaignResource;
 use Filament\Resources\RelationManagers\RelationManager;

@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Filament\Customer\Resources\Settings\Senders\Pages;
+namespace App\Filament\Customer\Resources\Messaging\Senders\Pages;
 
-use App\Filament\Customer\Resources\Settings\Senders\SenderResource;
+use App\Filament\Customer\Resources\Messaging\Senders\SenderResource;
 use Filament\Resources\Pages\ViewRecord;
 
 class ViewSender extends ViewRecord

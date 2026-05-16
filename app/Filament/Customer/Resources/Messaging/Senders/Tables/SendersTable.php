@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Customer\Resources\Settings\Senders\Tables;
+namespace App\Filament\Customer\Resources\Messaging\Senders\Tables;
 
 use Filament\Actions\ActionGroup;
 use Filament\Actions\ViewAction;

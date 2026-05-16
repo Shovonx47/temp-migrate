@@ -15,6 +15,15 @@ enum SenderType: string implements HasColor, HasIcon, HasLabel
     case AlphaNumeric = 'alphanumeric';
     case Shortcode = 'shortcode';
 
+    /**
+     * Numeric sender IDs are non-masking (just a phone number). Alphanumeric and
+     * shortcode senders carry a brand name and are billed at the masking rate.
+     */
+    public function isMasking(): bool
+    {
+        return $this !== self::Numeric;
+    }
+
     public function getLabel(): string|Htmlable|null
     {
         return match ($this) {

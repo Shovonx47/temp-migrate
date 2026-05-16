@@ -1,12 +1,11 @@
 <?php
 
-use App\Filament\Customer\Resources\Settings\Senders\Pages\ListSenders;
-use App\Filament\Customer\Resources\Settings\Senders\Pages\ViewSender;
-use App\Filament\Customer\Resources\Settings\Senders\SenderResource;
+use App\Filament\Customer\Resources\Messaging\Senders\Pages\ListSenders;
+use App\Filament\Customer\Resources\Messaging\Senders\Pages\ViewSender;
+use App\Filament\Customer\Resources\Messaging\Senders\SenderResource;
 use App\Models\Sender;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-
 use function Pest\Livewire\livewire;
 
 uses(RefreshDatabase::class);

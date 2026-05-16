@@ -2,11 +2,17 @@
 
 use App\Enums\MessageBatchStatus;
 use App\Enums\MessageStatus;
+use App\Enums\SenderType;
+use App\Enums\TransactionDirection;
 use App\Jobs\ProcessMessageBatchJob;
 use App\Models\Contact;
+use App\Models\Country;
 use App\Models\Group;
 use App\Models\Message;
 use App\Models\MessageBatch;
+use App\Models\Operator;
+use App\Models\Sender;
+use App\Models\Transaction;
 use App\Models\User;
 use App\Services\RecipientFileParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -17,15 +23,47 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     Storage::fake('local');
+    seedDefaultPricing();
 });
 
-function makeMessageBatch(?User $user = null): MessageBatch
+function seedDefaultPricing(float $masking = 0.5, float $nonMasking = 0.3): Country
+{
+    $bd = Country::firstOrCreate(
+        ['code' => '880'],
+        ['name' => 'Bangladesh', 'iso_alpha2' => 'BD', 'is_active' => true],
+    );
+
+    $operators = [
+        ['name' => 'Grameenphone', 'codes' => [13, 17]],
+        ['name' => 'Banglalink', 'codes' => [14, 19]],
+        ['name' => 'Teletalk', 'codes' => [15]],
+        ['name' => 'Airtel', 'codes' => [16]],
+        ['name' => 'Robi', 'codes' => [18]],
+    ];
+
+    foreach ($operators as $row) {
+        Operator::updateOrCreate(
+            ['country_id' => $bd->id, 'name' => $row['name']],
+            [
+                'codes' => $row['codes'],
+                'masking_price' => $masking,
+                'non_masking_price' => $nonMasking,
+                'is_active' => true,
+            ],
+        );
+    }
+
+    return $bd;
+}
+
+function makeMessageBatch(?User $user = null, SenderType $senderType = SenderType::Numeric): MessageBatch
 {
     $user ??= User::factory()->create();
+    $sender = Sender::factory()->state(['type' => $senderType])->create();
 
     return MessageBatch::factory()
         ->for($user)
-        ->state(['sender_id' => null])
+        ->state(['sender_id' => $sender->id])
         ->create();
 }
 
@@ -446,6 +484,218 @@ test('concurrent retry guard: job aborts if batch status is not Processing', fun
     // Job should have exited early without inserting anything or changing status.
     expect(Message::count())->toBe(0)
         ->and($batch->fresh()->status)->toBe(MessageBatchStatus::Failed);
+});
+
+test('inserted messages carry parts, rate, and cost resolved per operator', function () {
+    // seedDefaultPricing in beforeEach sets non_masking 0.3 for all operators
+    $user = User::factory()->create(['balance' => 100]);
+    $batch = makeMessageBatch($user, SenderType::Numeric);
+
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [
+            ['phone' => '01711000001', 'values' => []], // GP
+            ['phone' => '01711000002', 'values' => []], // GP
+        ]],
+        body: 'Hi',
+    );
+
+    $messages = Message::orderBy('id')->get();
+
+    expect($messages)->toHaveCount(2)
+        ->and($messages->pluck('parts')->all())->toBe([1, 1])
+        ->and($messages->pluck('rate')->map(fn ($r): float => (float) $r)->all())->toBe([0.3, 0.3])
+        ->and($messages->pluck('cost')->map(fn ($c): float => (float) $c)->all())->toBe([0.3, 0.3]);
+});
+
+test('user balance is debited by the sum of message costs', function () {
+    $user = User::factory()->create(['balance' => 100]);
+    $batch = makeMessageBatch($user, SenderType::Numeric);
+
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [
+            ['phone' => '01711000001', 'values' => []],
+            ['phone' => '01711000002', 'values' => []],
+            ['phone' => '01711000003', 'values' => []],
+        ]],
+        body: 'Hi',
+    );
+
+    // 3 messages × 0.3 non_masking_price = 0.9 debit
+    expect((float) $user->fresh()->balance)->toBe(99.1);
+});
+
+test('one debit Transaction is created per inserted message with running balance', function () {
+    $user = User::factory()->create(['balance' => 50]);
+    $batch = makeMessageBatch($user, SenderType::Numeric);
+
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [
+            ['phone' => '01711000001', 'values' => []],
+            ['phone' => '01711000002', 'values' => []],
+        ]],
+        body: 'Hi',
+    );
+
+    $txns = Transaction::where('user_id', $user->id)
+        ->orderBy('id')
+        ->get();
+
+    expect($txns)->toHaveCount(2)
+        ->and($txns->pluck('direction')->all())->toBe([TransactionDirection::Debit, TransactionDirection::Debit])
+        ->and($txns->pluck('amount')->map(fn ($a): float => (float) $a)->all())->toBe([0.3, 0.3])
+        ->and((float) $txns[0]->balance_before)->toBe(50.0)
+        ->and((float) $txns[0]->balance_after)->toBe(49.7)
+        ->and((float) $txns[1]->balance_before)->toBe(49.7)
+        ->and((float) $txns[1]->balance_after)->toBe(49.4);
+
+    expect($txns[0]->transactionable_id)->toBe(Message::orderBy('id')->first()->id);
+});
+
+test('multi-part message charges rate times parts', function () {
+    $user = User::factory()->create(['balance' => 100]);
+    $batch = makeMessageBatch($user, SenderType::Numeric);
+
+    $longBody = str_repeat('a', 200); // 200 chars -> 2 parts in GSM-7
+
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [['phone' => '01711000001', 'values' => []]]],
+        body: $longBody,
+    );
+
+    $message = Message::first();
+
+    expect($message->parts)->toBe(2)
+        ->and((float) $message->cost)->toBe(0.6)             // 0.3 × 2
+        ->and((float) $user->fresh()->balance)->toBe(99.4);  // 100 - 0.6
+});
+
+test('masking sender uses the masking_price, non-masking uses non_masking_price', function () {
+    $user = User::factory()->create(['balance' => 100]);
+
+    $maskingBatch = makeMessageBatch($user, SenderType::AlphaNumeric);
+    runBatchJob(
+        $maskingBatch,
+        'manual',
+        ['recipients' => [['phone' => '01711000001', 'values' => []]]],
+        body: 'Hi',
+    );
+
+    expect((float) Message::orderBy('id')->first()->rate)->toBe(0.5);
+
+    $nonMaskingBatch = makeMessageBatch($user, SenderType::Numeric);
+    runBatchJob(
+        $nonMaskingBatch,
+        'manual',
+        ['recipients' => [['phone' => '01811000001', 'values' => []]]], // Robi (18)
+        body: 'Hi',
+    );
+
+    expect((float) Message::orderBy('id', 'desc')->first()->rate)->toBe(0.3);
+});
+
+test('user-specific operator rate override beats the operator default', function () {
+    $user = User::factory()->create(['balance' => 100]);
+    $gp = Operator::where('name', 'Grameenphone')->first();
+    $user->operatorRates()->create([
+        'operator_id' => $gp->id,
+        'masking_price' => null,
+        'non_masking_price' => 0.10, // override only non-masking
+    ]);
+
+    $batch = makeMessageBatch($user, SenderType::Numeric);
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [['phone' => '01711000001', 'values' => []]]], // GP
+        body: 'Hi',
+    );
+
+    expect((float) Message::first()->rate)->toBe(0.10);
+});
+
+test('operator without rate set causes the batch to Fail with a notification', function () {
+    seedDefaultPricing(masking: 0.5, nonMasking: 0.3);
+    // Wipe one operator's non_masking_price so the batch hits the strict failure
+    Operator::where('name', 'Grameenphone')->update(['non_masking_price' => null]);
+
+    $user = User::factory()->create(['balance' => 100]);
+    $batch = makeMessageBatch($user, SenderType::Numeric);
+
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [['phone' => '01711000001', 'values' => []]]], // GP -> no rate
+        body: 'Hi',
+    );
+
+    expect($batch->fresh()->status)->toBe(MessageBatchStatus::Failed)
+        ->and(Message::count())->toBe(0)
+        ->and($user->fresh()->notifications()->first()->data['title'] ?? null)
+        ->toContain('pricing not configured');
+});
+
+test('batch without a sender Fails with a sender-required notification', function () {
+    $user = User::factory()->create(['balance' => 100]);
+
+    $batch = MessageBatch::factory()
+        ->for($user)
+        ->state(['sender_id' => null])
+        ->create();
+
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [['phone' => '01711000001', 'values' => []]]],
+        body: 'Hi',
+    );
+
+    expect($batch->fresh()->status)->toBe(MessageBatchStatus::Failed)
+        ->and($user->fresh()->notifications()->first()->data['title'] ?? null)
+        ->toContain('sender missing');
+});
+
+test('insufficient balance halts batch with Failed status and inserts nothing in that chunk', function () {
+    $user = User::factory()->create(['balance' => 0.2]); // < 0.3 per message
+    $batch = makeMessageBatch($user, SenderType::Numeric);
+
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [
+            ['phone' => '01711000001', 'values' => []],
+            ['phone' => '01711000002', 'values' => []],
+        ]],
+        body: 'Hi',
+    );
+
+    expect(Message::count())->toBe(0)
+        ->and(Transaction::count())->toBe(0)
+        ->and((float) $user->fresh()->balance)->toBe(0.2)
+        ->and($batch->fresh()->status)->toBe(MessageBatchStatus::Failed);
+});
+
+test('insufficient balance notifies the user with a top-up message', function () {
+    $user = User::factory()->create(['balance' => 0.1]);
+    $batch = makeMessageBatch($user, SenderType::Numeric);
+
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [['phone' => '01711000001', 'values' => []]]],
+        body: 'Hi',
+    );
+
+    $notification = $user->fresh()->notifications()->first();
+    expect($notification)->not->toBeNull()
+        ->and($notification->data['title'] ?? null)->toContain('insufficient balance');
 });
 
 test('missing upload file is treated as zero recipients, not a fatal error', function () {

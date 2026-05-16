@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Customer\Resources\Settings\Senders\Schemas;
+namespace App\Filament\Customer\Resources\Messaging\Senders\Schemas;
 
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;

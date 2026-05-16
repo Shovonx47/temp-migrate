@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Filament\Customer\Resources\Settings\Senders;
+namespace App\Filament\Customer\Resources\Messaging\Senders;
 
 use App\Enums\CustomerNavigationGroup;
-use App\Filament\Customer\Resources\Settings\Senders\Pages\ListSenders;
-use App\Filament\Customer\Resources\Settings\Senders\Pages\ViewSender;
-use App\Filament\Customer\Resources\Settings\Senders\RelationManagers\CampaignsRelationManager;
-use App\Filament\Customer\Resources\Settings\Senders\Schemas\SenderInfolist;
-use App\Filament\Customer\Resources\Settings\Senders\Tables\SendersTable;
+use App\Filament\Customer\Resources\Messaging\Senders\Pages\ListSenders;
+use App\Filament\Customer\Resources\Messaging\Senders\Pages\ViewSender;
+use App\Filament\Customer\Resources\Messaging\Senders\RelationManagers\CampaignsRelationManager;
+use App\Filament\Customer\Resources\Messaging\Senders\Schemas\SenderInfolist;
+use App\Filament\Customer\Resources\Messaging\Senders\Tables\SendersTable;
 use App\Models\Sender;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -23,7 +23,7 @@ class SenderResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedIdentification;
 
-    protected static string|UnitEnum|null $navigationGroup = CustomerNavigationGroup::Settings;
+    protected static string|UnitEnum|null $navigationGroup = CustomerNavigationGroup::Messaging;
 
     protected static ?int $navigationSort = 1;
 

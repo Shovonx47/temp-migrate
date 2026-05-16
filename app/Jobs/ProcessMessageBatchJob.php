@@ -3,11 +3,17 @@
 namespace App\Jobs;
 
 use App\Enums\MessageBatchStatus;
+use App\Exceptions\InsufficientBalanceException;
+use App\Exceptions\OperatorRateNotConfiguredException;
+use App\Exceptions\SenderRequiredException;
 use App\Models\Contact;
 use App\Models\Message;
 use App\Models\MessageBatch;
+use App\Models\Sender;
 use App\Models\User;
 use App\Services\RecipientFileParser;
+use App\Services\Sms\MessageMetrics;
+use App\Services\Sms\OperatorRateResolver;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
@@ -40,6 +46,10 @@ class ProcessMessageBatchJob implements ShouldQueue
     private ?string $resolvedUploadPath = null;
 
     private bool $uploadPathResolved = false;
+
+    private ?OperatorRateResolver $rateResolver = null;
+
+    private bool $isMaskingSender = false;
 
     /**
      * @param  array<string, mixed>  $config
@@ -91,6 +101,8 @@ class ProcessMessageBatchJob implements ShouldQueue
         $now = now();
 
         try {
+            $this->initialiseBilling($batch);
+
             foreach ($this->iterateRecipients($parser, $cursor) as $recipient) {
                 $latestCursor = $recipient['cursor'];
                 $phoneRaw = (string) ($recipient['phone'] ?? '');
@@ -137,15 +149,16 @@ class ProcessMessageBatchJob implements ShouldQueue
                     continue;
                 }
 
+                $body = $this->resolveBody($recipient);
                 $rows[] = [
                     'user_id' => $batch->user_id,
                     'campaign_id' => null,
                     'message_batch_id' => $batch->id,
                     'sender_id' => $batch->sender_id,
                     'to' => $phone->formatE164(),
-                    'body' => $this->resolveBody($recipient),
+                    'body' => $body,
                     'status' => 'pending',
-                    'cost' => 0,
+                    'parts' => MessageMetrics::for($body)->parts,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];
@@ -165,6 +178,33 @@ class ProcessMessageBatchJob implements ShouldQueue
             ]);
 
             $this->notifyCompletion($batch, $successCount, $failedCount, $this->failedReportPath);
+        } catch (InsufficientBalanceException $e) {
+            $this->closeFailedReport();
+
+            $batch->update([
+                'status' => MessageBatchStatus::Failed,
+                'failed_report_path' => $this->failedReportPath,
+                'completed_at' => now(),
+            ]);
+            $this->notifyInsufficientBalance($batch, $e);
+        } catch (SenderRequiredException $e) {
+            $this->closeFailedReport();
+
+            $batch->update([
+                'status' => MessageBatchStatus::Failed,
+                'failed_report_path' => $this->failedReportPath,
+                'completed_at' => now(),
+            ]);
+            $this->notifySenderRequired($batch);
+        } catch (OperatorRateNotConfiguredException $e) {
+            $this->closeFailedReport();
+
+            $batch->update([
+                'status' => MessageBatchStatus::Failed,
+                'failed_report_path' => $this->failedReportPath,
+                'completed_at' => now(),
+            ]);
+            $this->notifyOperatorRateMissing($batch, $e);
         } catch (Throwable $e) {
             $this->closeFailedReport();
 
@@ -214,7 +254,12 @@ class ProcessMessageBatchJob implements ShouldQueue
     }
 
     /**
-     * Atomically inserts buffered message rows and advances the cursor/counts on the batch.
+     * Atomically prices the buffered rows, debits the user's balance, inserts the
+     * messages with per-message Transaction rows, and advances the batch cursor.
+     *
+     * Throws InsufficientBalanceException (rolling back the entire chunk) if the
+     * user can't afford this group — the outer handler marks the batch Failed
+     * with the cursor preserved so a top-up + retry can resume cleanly.
      *
      * @param  array<int, array<string, mixed>>  $rows
      */
@@ -231,7 +276,7 @@ class ProcessMessageBatchJob implements ShouldQueue
 
         DB::transaction(function () use ($batch, &$rows, $successCount, $failedCount, $latestCursor): void {
             if ($rows !== []) {
-                Message::insert($rows);
+                $this->priceInsertAndDebit($batch, $rows);
             }
 
             $updates = [
@@ -247,6 +292,87 @@ class ProcessMessageBatchJob implements ShouldQueue
         });
 
         $rows = [];
+    }
+
+    /**
+     * Locks the user, ensures the chunk is affordable, inserts the messages,
+     * and writes one debit Transaction row per inserted message.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    private function priceInsertAndDebit(MessageBatch $batch, array &$rows): void
+    {
+        $user = User::query()
+            ->whereKey($batch->user_id)
+            ->lockForUpdate()
+            ->firstOrFail();
+
+        $resolver = $this->rateResolver;
+
+        if ($resolver === null) {
+            throw new SenderRequiredException;
+        }
+
+        $totalCost = 0.0;
+
+        foreach ($rows as &$row) {
+            $rate = $resolver->resolve((string) $row['to'], $this->isMaskingSender);
+            $row['rate'] = $rate;
+            $row['cost'] = round($rate * (int) $row['parts'], 4);
+            $totalCost = round($totalCost + $row['cost'], 4);
+        }
+        unset($row);
+
+        $balanceBefore = (float) $user->balance;
+
+        if ($balanceBefore < $totalCost) {
+            throw new InsufficientBalanceException(
+                required: $totalCost,
+                available: $balanceBefore,
+            );
+        }
+
+        $balanceAfter = round($balanceBefore - $totalCost, 4);
+        $user->forceFill(['balance' => $balanceAfter])->save();
+
+        $maxIdBefore = (int) DB::table('messages')
+            ->where('message_batch_id', $batch->id)
+            ->max('id');
+
+        Message::insert($rows);
+
+        $inserted = DB::table('messages')
+            ->where('message_batch_id', $batch->id)
+            ->where('id', '>', $maxIdBefore)
+            ->orderBy('id')
+            ->get(['id', 'cost'])
+            ->all();
+
+        $now = now();
+        $running = $balanceBefore;
+        $txnRows = [];
+
+        foreach ($inserted as $msg) {
+            $cost = (float) $msg->cost;
+            $next = round($running - $cost, 4);
+            $txnRows[] = [
+                'user_id' => $batch->user_id,
+                'transactionable_type' => 'message',
+                'transactionable_id' => (int) $msg->id,
+                'amount' => $cost,
+                'direction' => 'debit',
+                'balance_before' => $running,
+                'balance_after' => $next,
+                'description' => 'SMS cost reserved',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+            $running = $next;
+        }
+
+        if ($txnRows !== []) {
+            DB::table('transactions')->insert($txnRows);
+        }
     }
 
     /**
@@ -547,5 +673,72 @@ class ProcessMessageBatchJob implements ShouldQueue
             ->icon(Heroicon::ExclamationTriangle)
             ->danger()
             ->sendToDatabase($user);
+    }
+
+    private function notifyInsufficientBalance(MessageBatch $batch, InsufficientBalanceException $e): void
+    {
+        $user = User::find($batch->user_id);
+        if (! $user) {
+            return;
+        }
+
+        $shortfall = number_format(max($e->required - $e->available, 0), 2);
+
+        Notification::make()
+            ->title('Batch paused: insufficient balance')
+            ->body("You need ৳{$shortfall} more to continue. Top up your balance and retry the batch.")
+            ->icon(Heroicon::Banknotes)
+            ->danger()
+            ->sendToDatabase($user);
+    }
+
+    private function notifySenderRequired(MessageBatch $batch): void
+    {
+        $user = User::find($batch->user_id);
+        if (! $user) {
+            return;
+        }
+
+        Notification::make()
+            ->title('Batch failed: sender missing')
+            ->body('This batch has no sender selected. Pricing depends on the sender type, so we cannot process it.')
+            ->icon(Heroicon::ExclamationTriangle)
+            ->danger()
+            ->sendToDatabase($user);
+    }
+
+    private function notifyOperatorRateMissing(MessageBatch $batch, OperatorRateNotConfiguredException $e): void
+    {
+        $user = User::find($batch->user_id);
+        if (! $user) {
+            return;
+        }
+
+        $type = $e->isMasking ? 'masking' : 'non-masking';
+        $operator = $e->operatorName ?? 'unknown operator';
+
+        Notification::make()
+            ->title('Batch failed: pricing not configured')
+            ->body("No {$type} rate is configured for {$operator}. Please contact support.")
+            ->icon(Heroicon::ExclamationTriangle)
+            ->danger()
+            ->sendToDatabase($user);
+    }
+
+    private function initialiseBilling(MessageBatch $batch): void
+    {
+        if ($batch->sender_id === null) {
+            throw new SenderRequiredException;
+        }
+
+        $sender = Sender::find($batch->sender_id);
+        if (! $sender || $sender->type === null) {
+            throw new SenderRequiredException;
+        }
+
+        $user = User::findOrFail($batch->user_id);
+
+        $this->isMaskingSender = $sender->type->isMasking();
+        $this->rateResolver = OperatorRateResolver::forUser($user);
     }
 }

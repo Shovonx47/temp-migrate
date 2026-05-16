@@ -2,8 +2,8 @@
 
 namespace App\Filament\Customer\Resources\Messaging\Campaigns\Schemas;
 
+use App\Filament\Customer\Resources\Messaging\Senders\SenderResource;
 use App\Filament\Customer\Resources\Messaging\Templates\TemplateResource;
-use App\Filament\Customer\Resources\Settings\Senders\SenderResource;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;

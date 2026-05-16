@@ -46,8 +46,14 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
             'approval' => UserApproval::class,
             'phone' => E164PhoneNumberCast::class,
             'password' => 'hashed',
+            'balance' => 'float',
             'email_verified_at' => 'datetime',
         ];
+    }
+
+    public function operatorRates(): HasMany
+    {
+        return $this->hasMany(UserOperatorRate::class);
     }
 
     public function canAccessPanel(Panel $panel): bool

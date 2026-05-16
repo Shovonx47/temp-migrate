@@ -26,16 +26,27 @@ class ProcessMessageBatchJob implements ShouldQueue
 
     private const string DEFAULT_COUNTRY = 'BD';
 
+    private const string BD_PHONE_PATTERN = '/^(?:\+?88)?01[3-9]\d{8}$/';
+
     public int $timeout = 0;
 
     public int $tries = 1;
 
+    /** @var resource|null */
+    private $failedReportHandle = null;
+
+    private ?string $failedReportPath = null;
+
+    private ?string $resolvedUploadPath = null;
+
+    private bool $uploadPathResolved = false;
+
     /**
      * @param  array<string, mixed>  $config
-     * Source-specific config:
-     * - manual: ['recipients' => array<int, array{phone: string, values: array<string,string>}>]
-     * - upload: ['file_path' => string, 'disk' => string, 'mapping' => array{phone: string, variables: array<string,string>}]
-     * - group:  ['group_ids' => int[]]
+     *                                        Source-specific config:
+     *                                        - manual: ['recipients' => array<int, array{phone: string, values: array<string,string>}>]
+     *                                        - upload: ['file_path' => string, 'disk' => string, 'mapping' => array{phone: string, variables: array<string,string>}]
+     *                                        - group:  ['group_ids' => int[]]
      * @param  string[]  $bodyVariables
      */
     public function __construct(
@@ -63,8 +74,8 @@ class ProcessMessageBatchJob implements ShouldQueue
         ]);
 
         $rows = [];
-        $failed = [];
         $successCount = 0;
+        $failedCount = 0;
         $processedSinceFlush = 0;
         $now = now();
 
@@ -73,9 +84,13 @@ class ProcessMessageBatchJob implements ShouldQueue
                 $phoneRaw = (string) ($recipient['phone'] ?? '');
 
                 if ($phoneRaw === '') {
-                    $failed[] = $this->failedRow($recipient, 'Phone number missing');
-                    $processedSinceFlush++;
-                    $this->maybeFlushProgress($batch->id, $successCount, count($failed), $processedSinceFlush);
+                    $this->recordFailure($batch->id, '', 'Phone number missing', $successCount, $failedCount, $processedSinceFlush);
+
+                    continue;
+                }
+
+                if (! $this->looksLikePhone($phoneRaw)) {
+                    $this->recordFailure($batch->id, $phoneRaw, 'Invalid phone number format', $successCount, $failedCount, $processedSinceFlush);
 
                     continue;
                 }
@@ -83,28 +98,26 @@ class ProcessMessageBatchJob implements ShouldQueue
                 try {
                     $phone = new PhoneNumber($phoneRaw, self::DEFAULT_COUNTRY);
                     if (! $phone->isValid()) {
-                        $failed[] = $this->failedRow($recipient, 'Invalid phone number format');
-                        $processedSinceFlush++;
-                        $this->maybeFlushProgress($batch->id, $successCount, count($failed), $processedSinceFlush);
+                        $this->recordFailure($batch->id, $phoneRaw, 'Invalid phone number format', $successCount, $failedCount, $processedSinceFlush);
 
                         continue;
                     }
                 } catch (Throwable) {
-                    $failed[] = $this->failedRow($recipient, 'Invalid phone number format');
-                    $processedSinceFlush++;
-                    $this->maybeFlushProgress($batch->id, $successCount, count($failed), $processedSinceFlush);
+                    $this->recordFailure($batch->id, $phoneRaw, 'Invalid phone number format', $successCount, $failedCount, $processedSinceFlush);
 
                     continue;
                 }
 
                 $missingVariables = $this->missingVariables($recipient);
                 if ($missingVariables !== []) {
-                    $failed[] = $this->failedRow(
-                        $recipient,
+                    $this->recordFailure(
+                        $batch->id,
+                        $phoneRaw,
                         'Missing value for: '.implode(', ', $missingVariables),
+                        $successCount,
+                        $failedCount,
+                        $processedSinceFlush,
                     );
-                    $processedSinceFlush++;
-                    $this->maybeFlushProgress($batch->id, $successCount, count($failed), $processedSinceFlush);
 
                     continue;
                 }
@@ -129,25 +142,27 @@ class ProcessMessageBatchJob implements ShouldQueue
                     $rows = [];
                 }
 
-                $this->maybeFlushProgress($batch->id, $successCount, count($failed), $processedSinceFlush);
+                $this->maybeFlushProgress($batch->id, $successCount, $failedCount, $processedSinceFlush);
             }
 
             if (! empty($rows)) {
                 Message::insert($rows);
             }
 
-            $reportPath = ! empty($failed) ? $this->writeFailedReport($batch, $failed) : null;
+            $this->closeFailedReport();
 
             $batch->update([
                 'status' => MessageBatchStatus::Completed,
                 'valid_count' => $successCount,
-                'invalid_count' => count($failed),
-                'failed_report_path' => $reportPath,
+                'invalid_count' => $failedCount,
+                'failed_report_path' => $this->failedReportPath,
                 'completed_at' => now(),
             ]);
 
-            $this->notifyCompletion($batch, $successCount, count($failed), $reportPath);
+            $this->notifyCompletion($batch, $successCount, $failedCount, $this->failedReportPath);
         } catch (Throwable $e) {
+            $this->closeFailedReport();
+
             $batch->update([
                 'status' => MessageBatchStatus::Failed,
                 'completed_at' => now(),
@@ -160,6 +175,8 @@ class ProcessMessageBatchJob implements ShouldQueue
 
     public function failed(Throwable $e): void
     {
+        $this->closeFailedReport();
+
         $batch = $this->batch->fresh();
         if ($batch && $batch->status !== MessageBatchStatus::Failed) {
             $batch->update([
@@ -195,14 +212,9 @@ class ProcessMessageBatchJob implements ShouldQueue
 
     private function countUploadRecipients(RecipientFileParser $parser): int
     {
-        $disk = $this->config['disk'] ?? 'local';
-        $relativePath = (string) ($this->config['file_path'] ?? '');
+        $path = $this->resolveUploadPath();
 
-        if ($relativePath === '' || ! Storage::disk($disk)->exists($relativePath)) {
-            return 0;
-        }
-
-        return $parser->countRecipients(Storage::disk($disk)->path($relativePath));
+        return $path === null ? 0 : $parser->countRecipients($path);
     }
 
     private function countGroupRecipients(): int
@@ -235,6 +247,78 @@ class ProcessMessageBatchJob implements ShouldQueue
         $processedSinceFlush = 0;
     }
 
+    private function recordFailure(
+        int $batchId,
+        string $phone,
+        string $reason,
+        int $successCount,
+        int &$failedCount,
+        int &$processedSinceFlush,
+    ): void {
+        $this->writeFailedRow($phone, $reason);
+        $failedCount++;
+        $processedSinceFlush++;
+        $this->maybeFlushProgress($batchId, $successCount, $failedCount, $processedSinceFlush);
+    }
+
+    private function writeFailedRow(string $phone, string $reason): void
+    {
+        if ($this->failedReportHandle === null) {
+            $this->openFailedReport();
+        }
+
+        fputcsv($this->failedReportHandle, [$phone, $reason], escape: '\\');
+    }
+
+    private function openFailedReport(): void
+    {
+        $this->failedReportPath = sprintf(
+            'message-batches/%d/failed-recipients-%s.csv',
+            $this->batch->id,
+            now()->format('Ymd-His'),
+        );
+
+        $disk = Storage::disk('local');
+        $disk->makeDirectory(dirname($this->failedReportPath));
+
+        $absolutePath = $disk->path($this->failedReportPath);
+        $this->failedReportHandle = fopen($absolutePath, 'w');
+        fputcsv($this->failedReportHandle, ['Phone', 'Reason'], escape: '\\');
+    }
+
+    private function closeFailedReport(): void
+    {
+        if ($this->failedReportHandle !== null) {
+            fclose($this->failedReportHandle);
+            $this->failedReportHandle = null;
+        }
+    }
+
+    private function looksLikePhone(string $raw): bool
+    {
+        $cleaned = preg_replace('/[\s\-().]/', '', $raw) ?? '';
+
+        return preg_match(self::BD_PHONE_PATTERN, $cleaned) === 1;
+    }
+
+    private function resolveUploadPath(): ?string
+    {
+        if ($this->uploadPathResolved) {
+            return $this->resolvedUploadPath;
+        }
+
+        $disk = $this->config['disk'] ?? 'local';
+        $relativePath = (string) ($this->config['file_path'] ?? '');
+
+        $this->uploadPathResolved = true;
+
+        if ($relativePath === '' || ! Storage::disk($disk)->exists($relativePath)) {
+            return $this->resolvedUploadPath = null;
+        }
+
+        return $this->resolvedUploadPath = Storage::disk($disk)->path($relativePath);
+    }
+
     /**
      * @return iterable<int, array{phone: string, values: array<string, string>, raw: array<string, mixed>}>
      */
@@ -254,17 +338,15 @@ class ProcessMessageBatchJob implements ShouldQueue
      */
     private function iterateUpload(RecipientFileParser $parser): iterable
     {
-        $disk = $this->config['disk'] ?? 'local';
-        $relativePath = (string) ($this->config['file_path'] ?? '');
-        $mapping = $this->config['mapping'] ?? [];
-        $phoneCol = $mapping['phone'] ?? null;
-        $variableCols = $mapping['variables'] ?? [];
+        $absolutePath = $this->resolveUploadPath();
 
-        if ($relativePath === '' || ! Storage::disk($disk)->exists($relativePath)) {
+        if ($absolutePath === null) {
             return;
         }
 
-        $absolutePath = Storage::disk($disk)->path($relativePath);
+        $mapping = $this->config['mapping'] ?? [];
+        $phoneCol = $mapping['phone'] ?? null;
+        $variableCols = $mapping['variables'] ?? [];
 
         foreach ($parser->stream($absolutePath) as $row) {
             $values = [];
@@ -340,42 +422,6 @@ class ProcessMessageBatchJob implements ShouldQueue
         }
 
         return $body;
-    }
-
-    /**
-     * @param  array<string, mixed>  $recipient
-     * @return array{phone: string, reason: string, raw: array<string, mixed>}
-     */
-    private function failedRow(array $recipient, string $reason): array
-    {
-        return [
-            'phone' => (string) ($recipient['phone'] ?? ''),
-            'reason' => $reason,
-            'raw' => $recipient['raw'] ?? [],
-        ];
-    }
-
-    /**
-     * @param  array<int, array{phone: string, reason: string, raw: array<string, mixed>}>  $failed
-     */
-    private function writeFailedReport(MessageBatch $batch, array $failed): string
-    {
-        $path = sprintf(
-            'message-batches/%d/failed-recipients-%s.csv',
-            $batch->id,
-            now()->format('Ymd-His'),
-        );
-
-        $handle = fopen('php://temp', 'r+');
-        fputcsv($handle, ['Phone', 'Reason'], escape: '\\');
-        foreach ($failed as $row) {
-            fputcsv($handle, [$row['phone'], $row['reason']], escape: '\\');
-        }
-        rewind($handle);
-        Storage::disk('local')->put($path, stream_get_contents($handle));
-        fclose($handle);
-
-        return $path;
     }
 
     private function notifyCompletion(MessageBatch $batch, int $sent, int $failed, ?string $reportPath): void

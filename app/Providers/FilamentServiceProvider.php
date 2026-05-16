@@ -25,6 +25,8 @@ use Illuminate\Support\Number;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Support\Stringable;
+use Ysfkaya\FilamentPhoneInput\Forms\PhoneInput;
+use Ysfkaya\FilamentPhoneInput\PhoneInputNumberType;
 
 class FilamentServiceProvider extends ServiceProvider
 {
@@ -110,6 +112,19 @@ class FilamentServiceProvider extends ServiceProvider
 
         Select::configureUsing(static function (Select $select) {
             $select->native(false)->selectablePlaceholder(false);
+        });
+
+        PhoneInput::configureUsing(static function (PhoneInput $phoneInput) {
+            $phoneInput->onlyCountries(['BD'])
+                ->defaultCountry('BD')
+                ->initialCountry('BD')
+                ->disableLookup()
+                ->disallowDropdown()
+                ->strictMode()
+                ->displayNumberFormat(PhoneInputNumberType::E164)
+                ->inputNumberFormat(PhoneInputNumberType::E164)
+                ->focusNumberFormat(PhoneInputNumberType::E164)
+                ->placeholder('+8801322635808');
         });
     }
 

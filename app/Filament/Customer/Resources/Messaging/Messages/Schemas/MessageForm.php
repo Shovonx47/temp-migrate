@@ -188,6 +188,11 @@ class MessageForm
                     ->dehydrated()
                     ->visible(fn (Get $get) => $get('source') === 'upload')
                     ->required(fn (Get $get) => $get('source') === 'upload'),
+
+                View::make('filament.schemas.components.upload-preview')
+                    ->visible(fn (Get $get) => $get('source') === 'upload'
+                        && ! empty($get('file_headers'))
+                    ),
             ]);
     }
 

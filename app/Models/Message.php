@@ -41,6 +41,11 @@ class Message extends Model implements Transactionable
         return $this->belongsTo(Campaign::class);
     }
 
+    public function messageBatch(): BelongsTo
+    {
+        return $this->belongsTo(MessageBatch::class);
+    }
+
     public function sender(): BelongsTo
     {
         return $this->belongsTo(Sender::class);

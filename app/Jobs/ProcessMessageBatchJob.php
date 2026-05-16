@@ -2,10 +2,10 @@
 
 namespace App\Jobs;
 
-use App\Enums\CampaignStatus;
-use App\Models\Campaign;
+use App\Enums\MessageBatchStatus;
 use App\Models\Contact;
 use App\Models\Message;
+use App\Models\MessageBatch;
 use App\Models\User;
 use App\Services\RecipientFileParser;
 use Filament\Actions\Action;
@@ -17,13 +17,13 @@ use Illuminate\Support\Facades\Storage;
 use Propaganistas\LaravelPhone\PhoneNumber;
 use Throwable;
 
-class ProcessCampaignJob implements ShouldQueue
+class ProcessMessageBatchJob implements ShouldQueue
 {
     use Queueable;
 
-    private const BATCH_SIZE = 1000;
+    private const int BATCH_SIZE = 1000;
 
-    private const DEFAULT_COUNTRY = 'BD';
+    private const string DEFAULT_COUNTRY = 'BD';
 
     public int $timeout = 0;
 
@@ -38,7 +38,7 @@ class ProcessCampaignJob implements ShouldQueue
      * @param  string[]  $bodyVariables
      */
     public function __construct(
-        public readonly Campaign $campaign,
+        public readonly MessageBatch $batch,
         public readonly string $sourceType,
         public readonly array $config,
         public readonly string $body,
@@ -47,18 +47,18 @@ class ProcessCampaignJob implements ShouldQueue
 
     public function handle(RecipientFileParser $parser): void
     {
-        $campaign = $this->campaign->fresh();
+        $batch = $this->batch->fresh();
 
-        if (! $campaign) {
+        if (! $batch) {
             return;
         }
 
-        $campaign->update([
-            'status' => CampaignStatus::Running,
+        $batch->update([
+            'status' => MessageBatchStatus::Processing,
             'started_at' => now(),
         ]);
 
-        $batch = [];
+        $rows = [];
         $failed = [];
         $successCount = 0;
         $now = now();
@@ -86,10 +86,11 @@ class ProcessCampaignJob implements ShouldQueue
                     continue;
                 }
 
-                $batch[] = [
-                    'user_id' => $campaign->user_id,
-                    'campaign_id' => $campaign->id,
-                    'sender_id' => $campaign->sender_id,
+                $rows[] = [
+                    'user_id' => $batch->user_id,
+                    'campaign_id' => null,
+                    'message_batch_id' => $batch->id,
+                    'sender_id' => $batch->sender_id,
                     'to' => $phone->formatE164(),
                     'body' => $this->resolveBody($recipient),
                     'status' => 'pending',
@@ -99,30 +100,33 @@ class ProcessCampaignJob implements ShouldQueue
                 ];
                 $successCount++;
 
-                if (count($batch) >= self::BATCH_SIZE) {
-                    Message::insert($batch);
-                    $batch = [];
+                if (count($rows) >= self::BATCH_SIZE) {
+                    Message::insert($rows);
+                    $rows = [];
                 }
             }
 
-            if (! empty($batch)) {
-                Message::insert($batch);
+            if (! empty($rows)) {
+                Message::insert($rows);
             }
 
-            $reportPath = ! empty($failed) ? $this->writeFailedReport($campaign, $failed) : null;
+            $reportPath = ! empty($failed) ? $this->writeFailedReport($batch, $failed) : null;
 
-            $campaign->update([
-                'status' => CampaignStatus::Completed,
+            $batch->update([
+                'status' => MessageBatchStatus::Completed,
+                'total_messages' => $successCount,
+                'failed_count' => count($failed),
+                'failed_report_path' => $reportPath,
                 'completed_at' => now(),
             ]);
 
-            $this->notifyCompletion($campaign, $successCount, count($failed), $reportPath);
+            $this->notifyCompletion($batch, $successCount, count($failed), $reportPath);
         } catch (Throwable $e) {
-            $campaign->update([
-                'status' => CampaignStatus::Failed,
+            $batch->update([
+                'status' => MessageBatchStatus::Failed,
                 'completed_at' => now(),
             ]);
-            $this->notifyFailure($campaign, $e);
+            $this->notifyFailure($batch, $e);
 
             throw $e;
         }
@@ -130,13 +134,13 @@ class ProcessCampaignJob implements ShouldQueue
 
     public function failed(Throwable $e): void
     {
-        $campaign = $this->campaign->fresh();
-        if ($campaign && $campaign->status !== CampaignStatus::Failed) {
-            $campaign->update([
-                'status' => CampaignStatus::Failed,
+        $batch = $this->batch->fresh();
+        if ($batch && $batch->status !== MessageBatchStatus::Failed) {
+            $batch->update([
+                'status' => MessageBatchStatus::Failed,
                 'completed_at' => now(),
             ]);
-            $this->notifyFailure($campaign, $e);
+            $this->notifyFailure($batch, $e);
         }
     }
 
@@ -227,7 +231,6 @@ class ProcessCampaignJob implements ShouldQueue
      */
     private function resolveBody(array $recipient): string
     {
-        // Group sends body verbatim; no per-recipient variable substitution.
         if ($this->sourceType === 'group') {
             return $this->body;
         }
@@ -256,11 +259,11 @@ class ProcessCampaignJob implements ShouldQueue
     /**
      * @param  array<int, array{phone: string, reason: string, raw: array<string, mixed>}>  $failed
      */
-    private function writeFailedReport(Campaign $campaign, array $failed): string
+    private function writeFailedReport(MessageBatch $batch, array $failed): string
     {
         $path = sprintf(
-            'campaigns/%d/failed-recipients-%s.csv',
-            $campaign->id,
+            'message-batches/%d/failed-recipients-%s.csv',
+            $batch->id,
             now()->format('Ymd-His'),
         );
 
@@ -276,14 +279,14 @@ class ProcessCampaignJob implements ShouldQueue
         return $path;
     }
 
-    private function notifyCompletion(Campaign $campaign, int $sent, int $failed, ?string $reportPath): void
+    private function notifyCompletion(MessageBatch $batch, int $sent, int $failed, ?string $reportPath): void
     {
-        $user = User::find($campaign->user_id);
+        $user = User::find($batch->user_id);
         if (! $user) {
             return;
         }
 
-        $title = "Campaign queued: {$sent} message".($sent === 1 ? '' : 's').' ready to send';
+        $title = "Batch processed: {$sent} message".($sent === 1 ? '' : 's').' ready to send';
         $body = $failed > 0
             ? "{$failed} recipient".($failed === 1 ? '' : 's').' had invalid phone numbers and were skipped.'
             : 'All recipients were processed successfully.';
@@ -300,8 +303,8 @@ class ProcessCampaignJob implements ShouldQueue
                 Action::make('download_report')
                     ->label('Download failed recipients')
                     ->icon(Heroicon::ArrowDownTray)
-                    ->url(route('customer.campaigns.failed-report', [
-                        'campaign' => $campaign->id,
+                    ->url(route('customer.messages.failed-report', [
+                        'batch' => $batch->id,
                         'filename' => basename($reportPath),
                     ]))
                     ->openUrlInNewTab(),
@@ -311,15 +314,15 @@ class ProcessCampaignJob implements ShouldQueue
         $notification->sendToDatabase($user);
     }
 
-    private function notifyFailure(Campaign $campaign, Throwable $e): void
+    private function notifyFailure(MessageBatch $batch, Throwable $e): void
     {
-        $user = User::find($campaign->user_id);
+        $user = User::find($batch->user_id);
         if (! $user) {
             return;
         }
 
         Notification::make()
-            ->title('Campaign processing failed')
+            ->title('Message batch processing failed')
             ->body($e->getMessage())
             ->icon(Heroicon::ExclamationTriangle)
             ->danger()

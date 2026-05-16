@@ -19,6 +19,10 @@ return new class extends Migration
             $table->unsignedInteger('total_recipients')->default(0);
             $table->unsignedInteger('valid_count')->default(0);
             $table->unsignedInteger('invalid_count')->default(0);
+
+            $table->unsignedBigInteger('last_processed_cursor')->nullable();
+
+
             $table->string('failed_report_path')->nullable();
             $table->timestamp('started_at')->nullable();
             $table->timestamp('completed_at')->nullable();

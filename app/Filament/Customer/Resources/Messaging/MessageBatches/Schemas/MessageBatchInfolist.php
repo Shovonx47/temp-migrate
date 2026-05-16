@@ -52,12 +52,20 @@ class MessageBatchInfolist
                                 && (int) $record->invalid_count > 0),
                     ])
                     ->schema([
-                        Grid::make(4)
+                        Grid::make(2)
                             ->schema([
                                 TextEntry::make('total_recipients')
                                     ->label('Total')
                                     ->numeric()
                                     ->icon(Heroicon::UserGroup),
+                                TextEntry::make('progress_label')
+                                    ->label('Progress')
+                                    ->icon(Heroicon::ChartBar)
+                                    ->color(fn ($record): string => match (true) {
+                                        (int) $record->total_recipients === 0 => 'gray',
+                                        $record->processed_count >= (int) $record->total_recipients => 'success',
+                                        default => 'primary',
+                                    }),
                                 TextEntry::make('valid_count')
                                     ->label('Valid')
                                     ->numeric()
@@ -68,14 +76,6 @@ class MessageBatchInfolist
                                     ->numeric()
                                     ->color('danger')
                                     ->icon(Heroicon::XCircle),
-                                TextEntry::make('progress_label')
-                                    ->label('Progress')
-                                    ->icon(Heroicon::ChartBar)
-                                    ->color(fn ($record): string => match (true) {
-                                        (int) $record->total_recipients === 0 => 'gray',
-                                        $record->processed_count >= (int) $record->total_recipients => 'success',
-                                        default => 'primary',
-                                    }),
                             ]),
                     ]),
 

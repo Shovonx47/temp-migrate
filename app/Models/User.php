@@ -88,6 +88,11 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         return $this->hasMany(Message::class, 'user_id');
     }
 
+    public function deposits(): HasMany
+    {
+        return $this->hasMany(Deposit::class, 'user_id');
+    }
+
     public function transactions(): HasMany
     {
         return $this->hasMany(Transaction::class, 'user_id');

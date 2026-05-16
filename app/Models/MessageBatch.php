@@ -89,14 +89,13 @@ class MessageBatch extends Model
 
     public function retry(): void
     {
+        if ($this->status !== MessageBatchStatus::Failed) {
+            return;
+        }
+
         $this->update([
             'status' => MessageBatchStatus::Processing,
-            'started_at' => null,
             'completed_at' => null,
-            'total_recipients' => 0,
-            'valid_count' => 0,
-            'invalid_count' => 0,
-            'failed_report_path' => null,
         ]);
 
         ProcessMessageBatchJob::dispatch(

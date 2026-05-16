@@ -220,15 +220,16 @@ test('writes a database notification for the user when the batch completes', fun
     expect($user->notifications()->count())->toBe(1);
 });
 
-test('retry re-dispatches the job and resets batch state', function () {
+test('retry re-dispatches the job and preserves progress for resume', function () {
     Bus::fake();
 
     $batch = makeMessageBatch();
     $batch->forceFill([
         'status' => MessageBatchStatus::Failed,
         'total_recipients' => 5,
-        'valid_count' => 0,
-        'invalid_count' => 5,
+        'valid_count' => 3,
+        'invalid_count' => 2,
+        'last_processed_cursor' => 4,
         'failed_report_path' => 'some/old/report.csv',
         'completed_at' => now(),
         'body' => 'Hi {name}, your code is {code}',
@@ -240,10 +241,10 @@ test('retry re-dispatches the job and resets batch state', function () {
 
     $fresh = $batch->fresh();
     expect($fresh->status)->toBe(MessageBatchStatus::Processing)
-        ->and($fresh->total_recipients)->toBe(0)
-        ->and($fresh->valid_count)->toBe(0)
-        ->and($fresh->invalid_count)->toBe(0)
-        ->and($fresh->failed_report_path)->toBeNull()
+        ->and($fresh->valid_count)->toBe(3)
+        ->and($fresh->invalid_count)->toBe(2)
+        ->and($fresh->last_processed_cursor)->toBe(4)
+        ->and($fresh->failed_report_path)->toBe('some/old/report.csv')
         ->and($fresh->completed_at)->toBeNull();
 
     Bus::assertDispatched(
@@ -251,6 +252,200 @@ test('retry re-dispatches the job and resets batch state', function () {
         fn (ProcessMessageBatchJob $job): bool => $job->batch->id === $batch->id
             && $job->bodyVariables === ['name', 'code']
     );
+});
+
+test('retry refuses to dispatch when batch is not in Failed status', function () {
+    Bus::fake();
+
+    $batch = makeMessageBatch();
+    $batch->forceFill([
+        'status' => MessageBatchStatus::Processing,
+        'body' => 'Hi',
+        'source_type' => 'manual',
+        'source_config' => ['recipients' => []],
+    ])->save();
+
+    $batch->retry();
+
+    Bus::assertNotDispatched(ProcessMessageBatchJob::class);
+});
+
+test('manual source resumes from cursor and skips already-processed entries', function () {
+    $batch = makeMessageBatch();
+    $batch->forceFill([
+        'status' => MessageBatchStatus::Processing,
+        'valid_count' => 2,
+        'invalid_count' => 0,
+        'last_processed_cursor' => 1, // already processed indexes 0 and 1
+        'failed_report_path' => null,
+    ])->save();
+
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [
+            ['phone' => '01711000001', 'values' => []], // already done
+            ['phone' => '01711000002', 'values' => []], // already done (cursor stops here)
+            ['phone' => '01711000003', 'values' => []], // should be processed
+            ['phone' => '01711000004', 'values' => []], // should be processed
+        ]],
+    );
+
+    expect(Message::count())->toBe(2)
+        ->and(Message::pluck('to')->map(fn ($p): string => (string) $p)->all())->toBe(['+8801711000003', '+8801711000004'])
+        ->and($batch->fresh()->valid_count)->toBe(4)
+        ->and($batch->fresh()->invalid_count)->toBe(0)
+        ->and($batch->fresh()->last_processed_cursor)->toBe(3)
+        ->and($batch->fresh()->status)->toBe(MessageBatchStatus::Completed);
+});
+
+test('upload source resumes from cursor based on csv row index', function () {
+    $batch = makeMessageBatch();
+
+    $csv = "phone\n01711000001\n01711000002\n01711000003\n01711000004\n";
+    Storage::disk('local')->put('message-batches/'.$batch->id.'/recipients.csv', $csv);
+
+    $batch->forceFill([
+        'status' => MessageBatchStatus::Processing,
+        'valid_count' => 2,
+        'invalid_count' => 0,
+        'last_processed_cursor' => 1, // already processed rows 0 and 1
+    ])->save();
+
+    runBatchJob(
+        $batch,
+        'upload',
+        [
+            'disk' => 'local',
+            'file_path' => 'message-batches/'.$batch->id.'/recipients.csv',
+            'mapping' => ['phone' => 'phone', 'variables' => []],
+        ],
+    );
+
+    expect(Message::count())->toBe(2)
+        ->and(Message::pluck('to')->map(fn ($p): string => (string) $p)->all())->toBe(['+8801711000003', '+8801711000004'])
+        ->and($batch->fresh()->last_processed_cursor)->toBe(3);
+});
+
+test('group source resumes from cursor based on contact id', function () {
+    $user = User::factory()->create();
+    $group = Group::factory()->for($user)->create();
+
+    $contacts = collect(range(1, 4))->map(
+        fn (int $i): Contact => Contact::factory()->for($user)->create([
+            'phone' => "+880171000000{$i}",
+        ])
+    );
+    $contacts->each(fn (Contact $c) => $c->groups()->attach($group));
+
+    $batch = makeMessageBatch($user);
+    $batch->forceFill([
+        'status' => MessageBatchStatus::Processing,
+        'valid_count' => 2,
+        'last_processed_cursor' => $contacts[1]->id, // already processed first two
+    ])->save();
+
+    runBatchJob(
+        $batch,
+        'group',
+        ['group_ids' => [$group->id]],
+    );
+
+    expect(Message::count())->toBe(2)
+        ->and(Message::pluck('to')->map(fn ($p): string => (string) $p)->all())->toBe([
+            (string) $contacts[2]->phone,
+            (string) $contacts[3]->phone,
+        ])
+        ->and($batch->fresh()->last_processed_cursor)->toBe($contacts[3]->id);
+});
+
+test('first run advances cursor and a subsequent retry resumes from where it stopped', function () {
+    $batch = makeMessageBatch();
+
+    // First run: complete batch end-to-end.
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [
+            ['phone' => '01711000001', 'values' => []],
+            ['phone' => '01711000002', 'values' => []],
+        ]],
+    );
+
+    $afterFirst = $batch->fresh();
+    expect(Message::count())->toBe(2)
+        ->and($afterFirst->last_processed_cursor)->toBe(1)
+        ->and($afterFirst->valid_count)->toBe(2);
+
+    // Simulate the batch having failed mid-run after processing 2 items, then resume with more recipients.
+    $batch->refresh();
+    $batch->update(['status' => MessageBatchStatus::Processing]);
+
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [
+            ['phone' => '01711000001', 'values' => []], // already processed
+            ['phone' => '01711000002', 'values' => []], // already processed
+            ['phone' => '01711000003', 'values' => []], // new
+        ]],
+    );
+
+    expect(Message::count())->toBe(3)
+        ->and($batch->fresh()->valid_count)->toBe(3)
+        ->and($batch->fresh()->last_processed_cursor)->toBe(2);
+});
+
+test('failed report is appended to on retry rather than recreated', function () {
+    $batch = makeMessageBatch();
+
+    // First run produces one invalid row.
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [
+            ['phone' => 'bad-1', 'values' => []],
+        ]],
+    );
+
+    $firstPath = $batch->fresh()->failed_report_path;
+    expect($firstPath)->not->toBeNull();
+
+    // Simulate retry: keep the existing cursor and failed_report_path; flip status back to Processing.
+    $batch->refresh();
+    $batch->update(['status' => MessageBatchStatus::Processing]);
+
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [
+            ['phone' => 'bad-1', 'values' => []], // already processed (cursor 0)
+            ['phone' => 'bad-2', 'values' => []], // new invalid
+        ]],
+    );
+
+    expect($batch->fresh()->failed_report_path)->toBe($firstPath);
+
+    $content = Storage::disk('local')->get($firstPath);
+    // Header appears once, both invalid rows present.
+    expect(substr_count($content, 'Phone,Reason'))->toBe(1)
+        ->and($content)->toContain('bad-1')
+        ->and($content)->toContain('bad-2');
+});
+
+test('concurrent retry guard: job aborts if batch status is not Processing', function () {
+    $batch = makeMessageBatch();
+    $batch->forceFill(['status' => MessageBatchStatus::Failed])->save();
+
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [['phone' => '01711000001', 'values' => []]]],
+    );
+
+    // Job should have exited early without inserting anything or changing status.
+    expect(Message::count())->toBe(0)
+        ->and($batch->fresh()->status)->toBe(MessageBatchStatus::Failed);
 });
 
 test('missing upload file is treated as zero recipients, not a fatal error', function () {

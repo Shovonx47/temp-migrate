@@ -14,11 +14,11 @@ use Maatwebsite\Excel\Facades\Excel;
  */
 class RecipientFileParser
 {
-    private const CSV_EXTENSIONS = ['csv', 'txt'];
+    private const array CSV_EXTENSIONS = ['csv', 'txt'];
 
-    private const EXCEL_EXTENSIONS = ['xlsx', 'xls'];
+    private const array EXCEL_EXTENSIONS = ['xlsx', 'xls'];
 
-    private const BD_PHONE_PATTERN = '/^(?:\+?88)?01[3-9]\d{8}$/';
+    private const string BD_PHONE_PATTERN = '/^(?:\+?88)?01[3-9]\d{8}$/';
 
     /**
      * @return array{headers: string[], sample: array<int, array<string, string>>, total_rows: int, has_header_row: bool}

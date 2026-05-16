@@ -105,7 +105,7 @@ class MessageBatch extends Model
             $this->source_config ?? [],
             $this->body,
             $this->extractBodyVariables(),
-        );
+        )->onQueue('message-batches');
     }
 
     /**

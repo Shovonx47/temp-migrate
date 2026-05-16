@@ -197,7 +197,7 @@ return [
     */
 
     'defaults' => [
-        'supervisor-1' => [
+        'default-1' => [
             'connection' => 'redis',
             'queue' => ['default'],
             'balance' => 'auto',
@@ -210,20 +210,44 @@ return [
             'timeout' => 60,
             'nice' => 0,
         ],
+
+        'message-batches' => [
+            'connection' => 'redis',
+            'queue' => ['message-batches'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 1,
+            'timeout' => 3600,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [
         'production' => [
-            'supervisor-1' => [
+            'default-1' => [
                 'maxProcesses' => 10,
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
+            ],
+
+            'message-batches' => [
+                'maxProcesses' => 2,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
         ],
 
         'local' => [
-            'supervisor-1' => [
+            'default-1' => [
                 'maxProcesses' => 3,
+            ],
+
+            'message-batches' => [
+                'maxProcesses' => 1,
             ],
         ],
     ],

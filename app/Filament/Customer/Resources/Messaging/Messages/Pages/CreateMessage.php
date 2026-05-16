@@ -47,7 +47,7 @@ class CreateMessage extends CreateRecord
             $batch->source_config,
             $body,
             $bodyVariables,
-        )->afterCommit();
+        )->onQueue('message-batches')->afterCommit();
 
         Notification::make()
             ->title('Messages are being processed')

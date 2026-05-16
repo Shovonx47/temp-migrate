@@ -29,8 +29,6 @@ class MessageResource extends Resource
 
     protected static ?int $navigationSort = 3;
 
-    protected static ?string $recordTitleAttribute = 'uid';
-
     public static function table(Table $table): Table
     {
         return MessagesTable::configure($table);

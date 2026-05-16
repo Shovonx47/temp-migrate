@@ -5,6 +5,7 @@ namespace App\Providers;
 use Closure;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\EditAction;
 use Filament\Actions\Exports\ExportColumn;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Select;
@@ -13,6 +14,7 @@ use Filament\Notifications\Notification;
 use Filament\Support\Assets\Js;
 use Filament\Support\Enums\Size;
 use Filament\Support\Facades\FilamentAsset;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\Column;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -69,7 +71,7 @@ class FilamentServiceProvider extends ServiceProvider
             );
         });
 
-        TextColumn::macro('relative', function (string | Closure | null $timezone = null): static {
+        TextColumn::macro('relative', function (string|Closure|null $timezone = null): static {
             $this->isDateTime = true;
 
             $this->formatStateUsing(static function (TextColumn $column, $state) use ($timezone): ?string {
@@ -108,6 +110,10 @@ class FilamentServiceProvider extends ServiceProvider
 
         Action::configureUsing(static function (Action $action) {
             $action->outlined();
+        });
+
+        EditAction::configureUsing(static function (EditAction $action) {
+            $action->icon(Heroicon::OutlinedPencilSquare);
         });
     }
 

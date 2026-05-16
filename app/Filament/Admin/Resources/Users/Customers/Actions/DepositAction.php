@@ -8,22 +8,30 @@ use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
+use Filament\Support\Enums\Width;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\DB;
 
-class AddBalance
+class DepositAction
 {
-    public static function make(?string $name = 'add_balance'): Action
+    public static function make(?string $name = 'deposit'): Action
     {
         return Action::make($name)
-            ->label('Add Balance')
-            ->modalHeading('Add Balance')
+            ->icon(Heroicon::OutlinedPlus)
+            ->label('Make Deposit')
+            ->modalHeading('Add Balance to Customer')
             ->modalDescription("Enter the amount to add to the customer's balance.")
+            ->modalWidth(Width::Medium)
+            ->requiresConfirmation()
+            ->visible(fn (User $record) => $record->approval->isApproved())
             ->schema([
                 TextInput::make('amount')
+                    ->prefix('BDT')
                     ->label('Amount')
+                    ->placeholder('Enter amount')
                     ->numeric()
                     ->required()
-                    ->minValue(50),
+                    ->minValue(0),
             ])
             ->action(function (array $data, User $record) {
                 DB::transaction(function () use ($data, $record) {
@@ -40,6 +48,7 @@ class AddBalance
                     ]);
 
                     $deposit->transactions()->create([
+                        'user_id' => $record->id,
                         'amount' => $data['amount'],
                         'direction' => 'credit',
                         'balance_before' => $record->balance - $data['amount'],
@@ -51,6 +60,12 @@ class AddBalance
                         ->title('Balance Added')
                         ->body("Successfully added {$data['amount']} to the customer's balance.")
                         ->sendToDatabase($record);
+
+                    Notification::make()
+                        ->title('Balance Added to Customer')
+                        ->body("Added {$data['amount']} to {$record->name}'s balance.")
+                        ->icon(Heroicon::User)
+                        ->send();
                 });
             });
     }

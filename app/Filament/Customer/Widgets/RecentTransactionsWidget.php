@@ -24,13 +24,21 @@ class RecentTransactionsWidget extends BaseWidget
                     ->limit(10)
             )
             ->columns([
-                TextColumn::make('created_at')->label('Date')->dateTime()->sortable(),
-                TextColumn::make('description')->label('Description')->limit(50)->searchable(),
-                TextColumn::make('transactionable_type')->label('Type')->badge(),
-                TextColumn::make('direction')->badge(),
-                TextColumn::make('amount')->money('BDT')->sortable()
+                TextColumn::make('created_at')
+                    ->label('Date')
+                    ->toggleable(false),
+                TextColumn::make('transactionable_type')
+                    ->label('Type')
+                    ->badge(),
+                TextColumn::make('direction')
+                    ->badge(),
+                TextColumn::make('amount')
+                    ->money('BDT')
+                    ->sortable()
                     ->color(fn ($record) => $record->direction?->value === 'debit' ? 'danger' : 'success'),
-                TextColumn::make('balance_after')->money('BDT')->label('Balance'),
+                TextColumn::make('balance_after')
+                    ->money('BDT')
+                    ->label('Balance'),
             ])
             ->paginated(false);
     }

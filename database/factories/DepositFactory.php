@@ -18,7 +18,7 @@ class DepositFactory extends Factory
             'user_id' => User::factory(),
             'amount' => fake()->randomFloat(2, 10, 10000),
             'currency' => 'BDT',
-            'payment_method' => fake()->randomElement(['sslcommerz', 'stripe', 'manual']),
+            'payment_method' => fake()->randomElement(['piprapay', 'manual']),
             'transaction_id' => fake()->unique()->uuid(),
             'status' => fake()->randomElement(DepositStatus::cases()),
             'meta' => null,

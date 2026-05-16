@@ -27,7 +27,7 @@ class GroupsTable
                 TextColumn::make('description')
                     ->searchable()
                     ->limit(20)
-                    ->tooltip(fn($record) => $record->description),
+                    ->tooltip(fn ($record) => $record->description),
                 TextColumn::make('created_at'),
             ])
             ->recordActions([

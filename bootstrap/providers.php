@@ -1,10 +1,17 @@
 <?php
 
+use App\Providers\AppServiceProvider;
+use App\Providers\Filament\CustomerPanelProvider;
+use App\Providers\Filament\SupermanPanelProvider;
+use App\Providers\FilamentServiceProvider;
+use App\Providers\HorizonServiceProvider;
+use App\Providers\TelescopeServiceProvider;
+
 return [
-    App\Providers\AppServiceProvider::class,
-    App\Providers\FilamentServiceProvider::class,
-    App\Providers\Filament\CustomerPanelProvider::class,
-    App\Providers\Filament\SupermanPanelProvider::class,
-    App\Providers\HorizonServiceProvider::class,
-    App\Providers\TelescopeServiceProvider::class,
+    AppServiceProvider::class,
+    FilamentServiceProvider::class,
+    CustomerPanelProvider::class,
+    SupermanPanelProvider::class,
+    HorizonServiceProvider::class,
+    TelescopeServiceProvider::class,
 ];

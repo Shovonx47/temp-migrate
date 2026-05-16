@@ -3,7 +3,6 @@
 namespace App\Filament\Admin\Resources\Billing\Deposits;
 
 use App\Enums\AdminNavigationGroup;
-use App\Filament\Admin\Resources\Billing\Deposits\Pages\EditDeposit;
 use App\Filament\Admin\Resources\Billing\Deposits\Pages\ListDeposits;
 use App\Filament\Admin\Resources\Billing\Deposits\Pages\ViewDeposit;
 use App\Filament\Admin\Resources\Billing\Deposits\Schemas\DepositForm;
@@ -56,7 +55,6 @@ class DepositResource extends Resource
         return [
             'index' => ListDeposits::route('/'),
             'view' => ViewDeposit::route('/{record}'),
-            'edit' => EditDeposit::route('/{record}/edit'),
         ];
     }
 

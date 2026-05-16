@@ -16,7 +16,7 @@ class ListMessages extends ListRecords
         return [
             CreateAction::make()
                 ->label('Send Message')
-                ->icon(Heroicon::OutlinedPaperAirplane)
+                ->icon(Heroicon::OutlinedPaperAirplane),
         ];
     }
 }

@@ -2,7 +2,6 @@
 
 namespace App\Filament\Customer\Widgets;
 
-use App\Models\Message;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
@@ -12,25 +11,29 @@ class MessageUsageWidget extends BaseWidget
 
     public function getStats(): array
     {
-        $userId = auth()->id();
-        $messages = Message::where('user_id', $userId);
+        $stats = auth()->user()->messages()
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw("COALESCE(SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END), 0) as delivered")
+            ->selectRaw("COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) as failed")
+            ->selectRaw('COALESCE(SUM(cost), 0) as total_cost')
+            ->first();
 
         return [
-            Stat::make('Total Messages', number_format($messages->count()))
+            Stat::make('Total Messages', number_format((int) $stats->total))
                 ->description('Messages sent')
                 ->icon('heroicon-o-chat-bubble-left-ellipsis'),
 
-            Stat::make('Delivered', number_format((clone $messages)->where('status', 'delivered')->count()))
+            Stat::make('Delivered', number_format((int) $stats->delivered))
                 ->description('Successfully delivered')
                 ->color('success')
                 ->icon('heroicon-o-check-badge'),
 
-            Stat::make('Failed', number_format((clone $messages)->where('status', 'failed')->count()))
+            Stat::make('Failed', number_format((int) $stats->failed))
                 ->description('Delivery failures')
                 ->color('danger')
                 ->icon('heroicon-o-x-circle'),
 
-            Stat::make('Total Cost', number_format((float) $messages->sum('cost'), 2).' BDT')
+            Stat::make('Total Cost', number_format((float) $stats->total_cost, 2).' BDT')
                 ->description('Total spend')
                 ->color('gray')
                 ->icon('heroicon-o-currency-dollar'),

@@ -2,7 +2,9 @@
 
 namespace App\Filament\Admin\Resources\Billing\Deposits\Tables;
 
+use App\Enums\DepositPaymentMethod;
 use App\Enums\DepositStatus;
+use App\Filament\Admin\Resources\Users\Customers\CustomerResource;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
@@ -18,27 +20,29 @@ class DepositsTable
                 TextColumn::make('id')
                     ->label('ID')
                     ->sortable(),
-
                 TextColumn::make('user.name')
                     ->label('Customer')
                     ->sortable()
-                    ->searchable(),
-
+                    ->searchable()
+                    ->url(fn ($record) => $record->user
+                        ? CustomerResource::getUrl('view', ['record' => $record->user_id])
+                        : null
+                    ),
                 TextColumn::make('amount')
                     ->label('Amount')
-                    ->money('BDT')
-                    ->sortable(),
-
-                TextColumn::make('currency')
-                    ->label('Currency'),
-
+                    ->money(fn ($record) => $record->currency)
+                    ->sortable()
+                    ->alignRight(),
                 TextColumn::make('payment_method')
-                    ->label('Method'),
-
+                    ->label('Method')
+                    ->sortable()
+                    ->alignCenter()
+                    ->badge(),
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
-                    ->sortable(),
+                    ->sortable()
+                    ->alignCenter(),
 
                 TextColumn::make('paid_at'),
                 TextColumn::make('created_at'),
@@ -48,10 +52,7 @@ class DepositsTable
                     ->options(DepositStatus::class),
 
                 SelectFilter::make('payment_method')
-                    ->options([
-                        'piprapay' => 'PipraPay',
-                        'manual' => 'Manual',
-                    ]),
+                    ->options(DepositPaymentMethod::class),
             ])
             ->recordActions([
                 ActionGroup::make([

@@ -87,7 +87,6 @@ class DemoSeeder extends Seeder
     private function seedGateways(): void
     {
         $gateways = [
-            ['name' => 'SSLCommerz SMS', 'driver' => 'sslcommerz', 'is_enabled' => true,  'supports_bulk' => false],
             ['name' => 'Twilio',         'driver' => 'twilio',     'is_enabled' => true,  'supports_bulk' => true],
             ['name' => 'Vonage',         'driver' => 'vonage',     'is_enabled' => true,  'supports_bulk' => true],
             ['name' => 'Infobip',        'driver' => 'infobip',    'is_enabled' => false, 'supports_bulk' => true],
@@ -110,10 +109,6 @@ class DemoSeeder extends Seeder
         $sendersData = [];
 
         $senderSpecs = [
-            'sslcommerz' => [
-                ['sender_id' => 'SENDORA', 'type' => SenderType::AlphaNumeric, 'is_enabled' => true],
-                ['sender_id' => '8809613000001', 'type' => SenderType::Numeric, 'is_enabled' => false],
-            ],
             'twilio' => [
                 ['sender_id' => '+14155238886', 'type' => SenderType::Numeric, 'is_enabled' => true],
                 ['sender_id' => 'TXTSVC', 'type' => SenderType::AlphaNumeric, 'is_enabled' => true],
@@ -457,7 +452,7 @@ class DemoSeeder extends Seeder
 
     private function seedDeposits(): void
     {
-        $methods = ['sslcommerz', 'stripe', 'manual'];
+        $methods = ['piprapay', 'manual'];
         $depositsData = [];
 
         foreach ($this->customers as $customer) {

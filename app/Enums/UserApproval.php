@@ -37,4 +37,14 @@ enum UserApproval: string implements HasColor, HasIcon, HasLabel
             self::Rejected => Heroicon::OutlinedXCircle,
         };
     }
+
+    public function isPending(): bool
+    {
+        return $this === self::Pending;
+    }
+
+    public function isApproved(): bool
+    {
+        return $this === self::Approved;
+    }
 }

@@ -12,11 +12,14 @@ use App\Services\Sms\MessageMetrics;
 use App\Services\Sms\OperatorRateResolver;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
+use Filament\Support\Exceptions\Halt;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Number;
+use Throwable;
 
 class CreateMessage extends CreateRecord
 {
@@ -24,6 +27,10 @@ class CreateMessage extends CreateRecord
 
     protected static bool $canCreateAnother = false;
 
+    /**
+     * @throws Halt
+     * @throws Throwable
+     */
     protected function handleRecordCreation(array $data): Model
     {
         $source = $data['source'] ?? 'manual';
@@ -32,7 +39,7 @@ class CreateMessage extends CreateRecord
 
         $this->assertAffordable($source, $body, $data);
 
-        $batch = DB::transaction(function () use ($source, $body, $data) {
+        $batch = DB::transaction(function () use ($source, $body, $data): MessageBatch {
             $batch = MessageBatch::create([
                 'user_id' => Auth::id(),
                 'sender_id' => $data['sender_id'] ?? null,
@@ -96,6 +103,8 @@ class CreateMessage extends CreateRecord
      * conservative upper bound — the job will compute exact per-recipient costs.
      *
      * @param  array<string, mixed>  $data
+     *
+     * @throws Halt
      */
     private function assertAffordable(string $source, string $body, array $data): void
     {
@@ -123,7 +132,7 @@ class CreateMessage extends CreateRecord
 
         Notification::make()
             ->title('Insufficient balance')
-            ->body('This batch needs up to ৳'.number_format($estimated, 2).". Top up ৳{$shortfall} to send.")
+            ->body('This batch needs up to '.Number::currency($estimated, 'BDT').'. Top up '.Number::currency($shortfall, 'BDT').' to send.')
             ->icon(Heroicon::Banknotes)
             ->danger()
             ->send();

@@ -21,12 +21,9 @@ return new class extends Migration
             $table->string('status')->default('pending'); // pending, sent, delivered, failed
             $table->string('gateway_message_id')->nullable(); // gateway's response id
 
-
             $table->decimal('cost', 10, 4)->default(0);
             $table->decimal('rate', 8, 4)->default(0);
             $table->unsignedTinyInteger('parts')->default(1);
-
-
 
             $table->text('failed_reason')->nullable();
 

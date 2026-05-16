@@ -22,7 +22,6 @@ return new class extends Migration
 
             $table->unsignedBigInteger('last_processed_cursor')->nullable();
 
-
             $table->string('failed_report_path')->nullable();
             $table->timestamp('started_at')->nullable();
             $table->timestamp('completed_at')->nullable();

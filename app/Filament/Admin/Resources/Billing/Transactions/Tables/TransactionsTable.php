@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Resources\Billing\Transactions\Tables;
 
 use App\Enums\TransactionableType;
 use App\Enums\TransactionDirection;
+use App\Filament\Admin\Resources\Users\Customers\CustomerResource;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
@@ -19,38 +20,37 @@ class TransactionsTable
                 TextColumn::make('id')
                     ->label('ID')
                     ->sortable(),
-
                 TextColumn::make('user.name')
                     ->label('Customer')
                     ->sortable()
-                    ->searchable(),
-
+                    ->searchable()
+                    ->url(fn ($record) => $record->user
+                        ? CustomerResource::getUrl('view', ['record' => $record->user_id])
+                        : null
+                    ),
                 TextColumn::make('transactionable_type')
                     ->label('Reference')
                     ->badge()
                     ->sortable(),
-
-                TextColumn::make('amount')
-                    ->label('Amount')
-                    ->money('BDT')
-                    ->sortable(),
-
                 TextColumn::make('direction')
                     ->label('Direction')
                     ->badge()
                     ->sortable(),
-
+                TextColumn::make('amount')
+                    ->label('Amount')
+                    ->money('BDT')
+                    ->sortable()
+                    ->alignRight(),
                 TextColumn::make('balance_before')
-                    ->label('Balance Before')
+                    ->label('Before')
                     ->money('BDT')
                     ->sortable()
-                    ->toggleable(),
-
+                    ->alignRight(),
                 TextColumn::make('balance_after')
-                    ->label('Balance After')
+                    ->label('After')
                     ->money('BDT')
                     ->sortable()
-                    ->toggleable(),
+                    ->alignRight(),
 
                 TextColumn::make('created_at'),
             ])

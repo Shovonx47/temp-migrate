@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Settings\GeneralSettings;
 use DutchCodingCompany\FilamentDeveloperLogins\FilamentDeveloperLoginsPlugin;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Http\Middleware\Authenticate;
@@ -26,6 +27,8 @@ class SupermanPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
+        $generalSettings = app(GeneralSettings::class);
+
         return $panel
             // Identity
             ->default()
@@ -46,6 +49,7 @@ class SupermanPanelProvider extends PanelProvider
             ->collapsibleNavigationGroups()
             ->sidebarWidth('300px')
             ->maxContentWidth(Width::Full)
+            ->topNavigation($generalSettings->topNavigation)
 
             // Database
             ->databaseTransactions()

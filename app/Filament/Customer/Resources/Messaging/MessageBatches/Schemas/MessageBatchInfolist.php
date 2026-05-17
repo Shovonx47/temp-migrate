@@ -8,6 +8,7 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Number;
 
 class MessageBatchInfolist
 {
@@ -16,7 +17,7 @@ class MessageBatchInfolist
         return $schema
             ->components([
                 Section::make('Message')
-                    ->icon(Heroicon::ChatBubbleLeftRight)
+                    ->icon(Heroicon::OutlinedChatBubbleLeftRight)
                     ->schema([
                         TextEntry::make('body')
                             ->label('Template')
@@ -32,14 +33,29 @@ class MessageBatchInfolist
                                     ->label('Sender ID')
                                     ->placeholder('—'),
                             ]),
+                        Grid::make(3)
+                            ->schema([
+                                TextEntry::make('messages_count')
+                                    ->label('Pending')
+                                    ->counts(['messages' => fn($query) => $query->whereStatus('pending')])
+                                    ->formatStateUsing(fn(int $state) => Number::abbreviate($state)),
+                                TextEntry::make('messages_count')
+                                    ->label('Sent')
+                                    ->counts(['messages' => fn($query) => $query->whereStatus('sent')])
+                                    ->formatStateUsing(fn(int $state) => Number::abbreviate($state)),
+                                TextEntry::make('messages_count')
+                                    ->label('Failed')
+                                    ->counts(['messages' => fn($query) => $query->whereStatus('failed')])
+                                    ->formatStateUsing(fn(int $state) => Number::abbreviate($state)),
+                            ]),
                     ]),
 
-                Section::make('Recipients')
-                    ->icon(Heroicon::Users)
+                Section::make('Statistics')
+                    ->icon(Heroicon::OutlinedChartBar)
                     ->afterHeader([
                         Action::make('downloadInvalidReport')
                             ->label('Download invalid list')
-                            ->icon(Heroicon::ArrowDownTray)
+                            ->icon(Heroicon::OutlinedArrowDownTray)
                             ->color('warning')
                             ->url(fn ($record): ?string => $record->failed_report_path
                                 ? route('customer.messages.failed-report', [
@@ -48,7 +64,7 @@ class MessageBatchInfolist
                                 ])
                                 : null)
                             ->openUrlInNewTab()
-                            ->visible(fn ($record): bool => (bool) $record->failed_report_path
+                            ->visible(fn ($record): bool => $record->failed_report_path
                                 && (int) $record->invalid_count > 0),
                     ])
                     ->schema([
@@ -57,7 +73,7 @@ class MessageBatchInfolist
                                 TextEntry::make('total_recipients')
                                     ->label('Total')
                                     ->numeric()
-                                    ->icon(Heroicon::UserGroup),
+                                    ->icon(Heroicon::OutlinedUserGroup),
                                 TextEntry::make('progress_label')
                                     ->label('Progress')
                                     ->icon(Heroicon::ChartBar)
@@ -70,18 +86,19 @@ class MessageBatchInfolist
                                     ->label('Valid')
                                     ->numeric()
                                     ->color('success')
-                                    ->icon(Heroicon::CheckCircle),
+                                    ->icon(Heroicon::OutlinedCheckCircle),
                                 TextEntry::make('invalid_count')
                                     ->label('Invalid')
                                     ->numeric()
                                     ->color('danger')
-                                    ->icon(Heroicon::XCircle),
+                                    ->icon(Heroicon::OutlinedXCircle),
                             ]),
                     ]),
 
                 Section::make('Timeline')
-                    ->icon(Heroicon::Clock)
+                    ->icon(Heroicon::OutlinedClock)
                     ->collapsible()
+                    ->columnSpanFull()
                     ->schema([
                         Grid::make(3)
                             ->schema([

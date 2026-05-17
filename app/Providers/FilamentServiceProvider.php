@@ -6,6 +6,7 @@ use Closure;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\EditAction;
+use Filament\Actions\ExportAction;
 use Filament\Actions\Exports\ExportColumn;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Select;
@@ -130,6 +131,13 @@ class FilamentServiceProvider extends ServiceProvider
 
         EditAction::configureUsing(static function (EditAction $action) {
             $action->icon(Heroicon::OutlinedPencilSquare);
+        });
+
+        ExportAction::configureUsing(static function (ExportAction $action) {
+            $action->icon(Heroicon::OutlinedArrowDownTray)
+                ->label("Export")
+                ->columnMappingColumns(3)
+                ->enableVisibleTableColumnsByDefault();
         });
     }
 

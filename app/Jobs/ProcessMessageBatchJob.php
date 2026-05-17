@@ -32,7 +32,7 @@ class ProcessMessageBatchJob implements ShouldQueue
 
     private const string DEFAULT_COUNTRY = 'BD';
 
-    private const string BD_PHONE_PATTERN = '/^(?:\+?88)?01[3-9]\d{8}$/';
+    private const string BD_PHONE_PATTERN = '/^(?:\+?88)?0?(1[3-9]\d{8})$/';
 
     public int $timeout = 0;
 
@@ -114,27 +114,30 @@ class ProcessMessageBatchJob implements ShouldQueue
                     continue;
                 }
 
-                if (! $this->looksLikePhone($phoneRaw)) {
+                $formattedNumber = $this->formatByRegex($phoneRaw);
+
+                if ($formattedNumber === null) {
                     $this->recordFailure($phoneRaw, 'Invalid phone number format', $failedCount, $processedSinceFlush);
                     $this->maybeFlush($batch, $rows, $successCount, $failedCount, $processedSinceFlush, $latestCursor);
 
                     continue;
                 }
 
-                try {
-                    $phone = new PhoneNumber($phoneRaw, self::DEFAULT_COUNTRY);
-                    if (! $phone->isValid()) {
-                        $this->recordFailure($phoneRaw, 'Invalid phone number format', $failedCount, $processedSinceFlush);
-                        $this->maybeFlush($batch, $rows, $successCount, $failedCount, $processedSinceFlush, $latestCursor);
-
-                        continue;
-                    }
-                } catch (Throwable) {
-                    $this->recordFailure($phoneRaw, 'Invalid phone number format', $failedCount, $processedSinceFlush);
-                    $this->maybeFlush($batch, $rows, $successCount, $failedCount, $processedSinceFlush, $latestCursor);
-
-                    continue;
-                }
+                // We may use libphonenumber for fallback validation.
+                //try {
+                //    $phone = new PhoneNumber($phoneRaw, self::DEFAULT_COUNTRY);
+                //    if (!$phone->isValid()) {
+                //        $this->recordFailure($phoneRaw, 'Invalid phone number format', $failedCount, $processedSinceFlush);
+                //        $this->maybeFlush($batch, $rows, $successCount, $failedCount, $processedSinceFlush, $latestCursor);
+                //
+                //        continue;
+                //    }
+                //} catch (Throwable) {
+                //    $this->recordFailure($phoneRaw, 'Invalid phone number format', $failedCount, $processedSinceFlush);
+                //    $this->maybeFlush($batch, $rows, $successCount, $failedCount, $processedSinceFlush, $latestCursor);
+                //
+                //    continue;
+                //}
 
                 $missingVariables = $this->missingVariables($recipient);
                 if ($missingVariables !== []) {
@@ -155,7 +158,7 @@ class ProcessMessageBatchJob implements ShouldQueue
                     'campaign_id' => null,
                     'message_batch_id' => $batch->id,
                     'sender_id' => $batch->sender_id,
-                    'to' => $phone->formatE164(),
+                    'to' => $formattedNumber,
                     'body' => $body,
                     'status' => 'pending',
                     'parts' => MessageMetrics::for($body)->parts,
@@ -239,7 +242,8 @@ class ProcessMessageBatchJob implements ShouldQueue
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $rows
+     * @param array<int, array<string, mixed>> $rows
+     * @throws Throwable
      */
     private function maybeFlush(
         MessageBatch $batch,
@@ -265,7 +269,8 @@ class ProcessMessageBatchJob implements ShouldQueue
      * user can't afford this group — the outer handler marks the batch Failed
      * with the cursor preserved so a top-up + retry can resume cleanly.
      *
-     * @param  array<int, array<string, mixed>>  $rows
+     * @param array<int, array<string, mixed>> $rows
+     * @throws Throwable
      */
     private function flush(
         MessageBatch $batch,
@@ -475,11 +480,12 @@ class ProcessMessageBatchJob implements ShouldQueue
         }
     }
 
-    private function looksLikePhone(string $raw): bool
+    private function formatByRegex(string $raw): ?string
     {
-        $cleaned = preg_replace('/[\s\-().]/', '', $raw) ?? '';
-
-        return preg_match(self::BD_PHONE_PATTERN, $cleaned) === 1;
+        if (preg_match('/^(?:\+?88)?0?(1[3-9]\d{8})$/', $raw, $m)) {
+            return '+880' . $m[1];
+        }
+        return null;
     }
 
     private function resolveUploadPath(): ?string

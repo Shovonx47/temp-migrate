@@ -12,36 +12,53 @@ use Illuminate\Support\Facades\Log;
 
 final class LogDriver implements SmsGateway, SupportsBulkSms
 {
-    public function __construct(private readonly array $config = []) {}
+    public function __construct(private readonly array $config = [])
+    {
+    }
 
     public function send(SmsRequest $request): SmsResponse
     {
-        $channel = (string) ($this->config['filename'] ?? 'sms');
+        $channel = (string)($this->config['filename'] ?? 'sms');
 
-        Log::channel('stack')->info("SMS [{$channel}] to {$request->to}", [
-            'from' => $request->from,
-            'body' => $request->body,
-        ]);
+        if (function_exists('ray')) {
+            ray([
+                'from' => $request->from,
+                'body' => $request->body,
+            ])->label("SMS to {$request->to}")->orange();
+        } else {
+            Log::channel('stack')->info("SMS [{$channel}] to {$request->to}", [
+                'from' => $request->from,
+                'body' => $request->body,
+            ]);
+        }
 
         return new SmsResponse(
             successful: true,
-            gatewayMessageId: 'log-'.uniqid(),
+            gatewayMessageId: 'log-' . uniqid(),
         );
     }
 
     public function sendBulk(BulkSmsRequest $request): BulkSmsResponse
     {
-        $channel = (string) ($this->config['filename'] ?? 'sms');
+        $channel = (string)($this->config['filename'] ?? 'sms');
 
-        Log::channel('stack')->info("SMS [{$channel}] bulk to ".count($request->recipients).' recipients', [
-            'from' => $request->from,
-            'body' => $request->body,
-            'recipients' => $request->recipients,
-        ]);
+        if (function_exists('ray')) {
+            ray([
+                'from' => $request->from,
+                'body' => $request->body,
+                'recipients' => $request->recipients,
+            ])->label("SMS bulk to " . count($request->recipients) . " recipients")->orange();
+        } else {
+            Log::channel('stack')->info("SMS [{$channel}] bulk to " . count($request->recipients) . ' recipients', [
+                'from' => $request->from,
+                'body' => $request->body,
+                'recipients' => $request->recipients,
+            ]);
+        }
 
         return new BulkSmsResponse(
             successful: true,
-            perRecipientIds: array_map(static fn () => 'log-'.uniqid(), $request->recipients),
+            perRecipientIds: array_map(static fn() => 'log-' . uniqid(), $request->recipients),
         );
     }
 }

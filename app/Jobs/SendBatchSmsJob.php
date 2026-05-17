@@ -38,13 +38,21 @@ class SendBatchSmsJob implements ShouldQueue
      * Maximum recipients per bulk API call and messages per individual chunk.
      * ReveSMS documentation recommends ≤ 1 000 numbers per request.
      */
-    private const int CHUNK_SIZE = 1000;
+    private const int BULK_CHUNK_SIZE = 500; // think to change it 1000
+    private const int INDIVIDUAL_CHUNK_SIZE = 50; // To avoid hitting rate limits with individual sends, we use smaller chunks and a short delay between them.
 
     public int $timeout = 0;
 
     public int $tries = 1;
 
-    public function __construct(public readonly MessageBatch $batch) {}
+    /**
+     * @param  int[]  $messageIds  When non-empty, only these messages are sent (per-chunk dispatch).
+     *                             When empty, all pending messages for the batch are sent (legacy / manual dispatch).
+     */
+    public function __construct(
+        public readonly MessageBatch $batch,
+        public readonly array $messageIds = [],
+    ) {}
 
     public function handle(): void
     {
@@ -78,10 +86,13 @@ class SendBatchSmsJob implements ShouldQueue
     {
         $from = $batch->sender?->sender_id;
 
-        $batch->messages()
-            ->where('status', MessageStatus::Pending)
+        $query = $this->messageIds !== []
+            ? Message::whereIn('id', $this->messageIds)->where('status', MessageStatus::Pending)
+            : $batch->messages()->where('status', MessageStatus::Pending);
+
+        $query
             ->select(['id', 'to'])
-            ->chunkById(self::CHUNK_SIZE, function (Collection $messages) use ($driver, $batch, $from): void {
+            ->chunkById(self::BULK_CHUNK_SIZE, function (Collection $messages) use ($driver, $batch, $from): void {
                 $recipients = $messages->map(fn (Message $m): string => (string) $m->to)->all();
 
                 $response = $driver->sendBulk(new BulkSmsRequest(
@@ -152,10 +163,13 @@ class SendBatchSmsJob implements ShouldQueue
     {
         $from = $batch->sender?->sender_id;
 
-        $batch->messages()
-            ->where('status', MessageStatus::Pending)
+        $query = $this->messageIds !== []
+            ? Message::whereIn('id', $this->messageIds)->where('status', MessageStatus::Pending)
+            : $batch->messages()->where('status', MessageStatus::Pending);
+
+        $query
             ->select(['id', 'to', 'body'])
-            ->chunkById(self::CHUNK_SIZE, function (Collection $messages) use ($driver, $from): void {
+            ->chunkById(self::INDIVIDUAL_CHUNK_SIZE, function (Collection $messages) use ($driver, $from): void {
                 $this->sendIndividualChunk($messages, $driver, $from);
             });
     }

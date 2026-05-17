@@ -271,7 +271,7 @@ return [
             ],
 
             'sms-sending' => [
-                'maxProcesses' => 1,
+                'maxProcesses' => 5,
             ],
         ],
     ],

@@ -503,7 +503,7 @@ test('user balance is debited by the sum of message costs', function () {
     expect((float) $user->fresh()->balance)->toBe(99.1);
 });
 
-test('one debit Transaction is created per inserted message with running balance', function () {
+test('one debit Transaction is created per chunk with total cost and balance range', function () {
     $user = User::factory()->create(['balance' => 50]);
     $batch = makeMessageBatch($user, SenderType::Numeric);
 
@@ -521,15 +521,12 @@ test('one debit Transaction is created per inserted message with running balance
         ->orderBy('id')
         ->get();
 
-    expect($txns)->toHaveCount(2)
-        ->and($txns->pluck('direction')->all())->toBe([TransactionDirection::Debit, TransactionDirection::Debit])
-        ->and($txns->pluck('amount')->map(fn ($a): float => (float) $a)->all())->toBe([0.3, 0.3])
+    expect($txns)->toHaveCount(1)
+        ->and($txns->pluck('direction')->all())->toBe([TransactionDirection::Debit])
+        ->and((float) $txns[0]->amount)->toBe(0.6)
         ->and((float) $txns[0]->balance_before)->toBe(50.0)
-        ->and((float) $txns[0]->balance_after)->toBe(49.7)
-        ->and((float) $txns[1]->balance_before)->toBe(49.7)
-        ->and((float) $txns[1]->balance_after)->toBe(49.4);
-
-    expect($txns[0]->transactionable_id)->toBe(Message::orderBy('id')->first()->id);
+        ->and((float) $txns[0]->balance_after)->toBe(49.4)
+        ->and($txns[0]->transactionable_id)->toBe($batch->id);
 });
 
 test('multi-part message charges rate times parts', function () {
@@ -688,4 +685,46 @@ test('missing upload file is treated as zero recipients, not a fatal error', fun
 
     expect($batch->fresh()->status)->toBe(MessageBatchStatus::Completed)
         ->and(Message::count())->toBe(0);
+});
+
+test('SendBatchSmsJob is dispatched per flush with the chunk message IDs', function () {
+    $user = User::factory()->create(['balance' => 100]);
+    $batch = makeMessageBatch($user, SenderType::Numeric);
+
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [
+            ['phone' => '01711000001', 'values' => []],
+            ['phone' => '01711000002', 'values' => []],
+            ['phone' => '01711000003', 'values' => []],
+        ]],
+        body: 'Hi',
+    );
+
+    $insertedIds = Message::where('message_batch_id', $batch->id)
+        ->orderBy('id')
+        ->pluck('id')
+        ->all();
+
+    Bus::assertDispatched(
+        SendBatchSmsJob::class,
+        fn (SendBatchSmsJob $job): bool => $job->batch->id === $batch->id
+            && $job->messageIds === $insertedIds,
+    );
+});
+
+test('SendBatchSmsJob is not dispatched when all recipients are invalid', function () {
+    $batch = makeMessageBatch();
+
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [
+            ['phone' => 'bad-1', 'values' => []],
+            ['phone' => 'bad-2', 'values' => []],
+        ]],
+    );
+
+    Bus::assertNotDispatched(SendBatchSmsJob::class);
 });

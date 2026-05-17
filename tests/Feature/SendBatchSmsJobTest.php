@@ -84,10 +84,14 @@ function insertPendingMessages(MessageBatch $batch, int $count = 3, string $body
     Message::insert($rows);
 }
 
-/** Run the job synchronously. */
-function runSendBatchJob(MessageBatch $batch): void
+/**
+ * Run the job synchronously.
+ *
+ * @param  int[]  $messageIds
+ */
+function runSendBatchJob(MessageBatch $batch, array $messageIds = []): void
 {
-    (new SendBatchSmsJob($batch))->handle();
+    (new SendBatchSmsJob($batch, $messageIds))->handle();
 }
 
 // ---------------------------------------------------------------------------
@@ -304,6 +308,35 @@ test('completes without error when batch has no pending messages', function () {
     runSendBatchJob($batch);
 
     expect(Message::count())->toBe(0);
+});
+
+test('only processes the specified message IDs when messageIds is provided', function () {
+    $batch = makeSendableBatch('No variables');
+    insertPendingMessages($batch, 3);
+
+    $allIds = Message::where('message_batch_id', $batch->id)->orderBy('id')->pluck('id')->all();
+    $targetIds = [$allIds[0], $allIds[1]]; // only send first 2, leave third pending
+
+    Sms::extend('log', function () {
+        return new class implements SmsGateway, SupportsBulkSms
+        {
+            public function send(SmsRequest $r): SmsResponse
+            {
+                return new SmsResponse(successful: true);
+            }
+
+            public function sendBulk(BulkSmsRequest $r): BulkSmsResponse
+            {
+                return new BulkSmsResponse(successful: true, gatewayBatchId: 'batch-abc');
+            }
+        };
+    });
+
+    runSendBatchJob($batch, $targetIds);
+
+    expect(Message::where('status', MessageStatus::Sent)->count())->toBe(2)
+        ->and(Message::where('status', MessageStatus::Pending)->count())->toBe(1)
+        ->and(Message::where('id', $allIds[2])->value('status'))->toBe(MessageStatus::Pending);
 });
 
 test('SendBatchSmsJob is dispatchable and carries the batch', function () {

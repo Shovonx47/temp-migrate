@@ -30,10 +30,6 @@ class ProcessMessageBatchJob implements ShouldQueue
 
     private const int BATCH_SIZE = 1000;
 
-    private const string DEFAULT_COUNTRY = 'BD';
-
-    private const string BD_PHONE_PATTERN = '/^(?:\+?88)?0?(1[3-9]\d{8})$/';
-
     public int $timeout = 0;
 
     public int $tries = 1;
@@ -124,7 +120,7 @@ class ProcessMessageBatchJob implements ShouldQueue
                 }
 
                 // We may use libphonenumber for fallback validation.
-                //try {
+                // try {
                 //    $phone = new PhoneNumber($phoneRaw, self::DEFAULT_COUNTRY);
                 //    if (!$phone->isValid()) {
                 //        $this->recordFailure($phoneRaw, 'Invalid phone number format', $failedCount, $processedSinceFlush);
@@ -132,12 +128,12 @@ class ProcessMessageBatchJob implements ShouldQueue
                 //
                 //        continue;
                 //    }
-                //} catch (Throwable) {
+                // } catch (Throwable) {
                 //    $this->recordFailure($phoneRaw, 'Invalid phone number format', $failedCount, $processedSinceFlush);
                 //    $this->maybeFlush($batch, $rows, $successCount, $failedCount, $processedSinceFlush, $latestCursor);
                 //
                 //    continue;
-                //}
+                // }
 
                 $missingVariables = $this->missingVariables($recipient);
                 if ($missingVariables !== []) {
@@ -179,10 +175,6 @@ class ProcessMessageBatchJob implements ShouldQueue
                 'failed_report_path' => $this->failedReportPath,
                 'completed_at' => now(),
             ]);
-
-            if ($successCount > 0) {
-                SendBatchSmsJob::dispatch($batch)->onQueue('sms-sending');
-            }
 
             $this->notifyCompletion($batch, $successCount, $failedCount, $this->failedReportPath);
         } catch (InsufficientBalanceException $e) {
@@ -242,7 +234,8 @@ class ProcessMessageBatchJob implements ShouldQueue
     }
 
     /**
-     * @param array<int, array<string, mixed>> $rows
+     * @param  array<int, array<string, mixed>>  $rows
+     *
      * @throws Throwable
      */
     private function maybeFlush(
@@ -269,7 +262,8 @@ class ProcessMessageBatchJob implements ShouldQueue
      * user can't afford this group — the outer handler marks the batch Failed
      * with the cursor preserved so a top-up + retry can resume cleanly.
      *
-     * @param array<int, array<string, mixed>> $rows
+     * @param  array<int, array<string, mixed>>  $rows
+     *
      * @throws Throwable
      */
     private function flush(
@@ -283,9 +277,11 @@ class ProcessMessageBatchJob implements ShouldQueue
             return;
         }
 
-        DB::transaction(function () use ($batch, &$rows, $successCount, $failedCount, $latestCursor): void {
+        $messageIds = [];
+
+        DB::transaction(function () use ($batch, &$rows, $successCount, $failedCount, $latestCursor, &$messageIds): void {
             if ($rows !== []) {
-                $this->priceInsertAndDebit($batch, $rows);
+                $messageIds = $this->priceInsertAndDebit($batch, $rows);
             }
 
             $updates = [
@@ -300,16 +296,25 @@ class ProcessMessageBatchJob implements ShouldQueue
             DB::table('message_batches')->where('id', $batch->id)->update($updates);
         });
 
+        if ($messageIds !== []) {
+            SendBatchSmsJob::dispatch($batch, $messageIds)->onQueue('sms-sending');
+        }
+
         $rows = [];
     }
 
     /**
      * Locks the user, ensures the chunk is affordable, inserts the messages,
-     * and writes one debit Transaction row per inserted message.
+     * writes a single debit Transaction row for the chunk, and returns the IDs
+     * of the inserted messages so the caller can dispatch sending immediately.
+     *
+     * MySQL guarantees that LAST_INSERT_ID() returns the first auto-increment ID
+     * assigned by a multi-row INSERT, with subsequent rows getting consecutive IDs.
      *
      * @param  array<int, array<string, mixed>>  $rows
+     * @return int[]
      */
-    private function priceInsertAndDebit(MessageBatch $batch, array &$rows): void
+    private function priceInsertAndDebit(MessageBatch $batch, array &$rows): array
     {
         $user = User::query()
             ->whereKey($batch->user_id)
@@ -344,44 +349,35 @@ class ProcessMessageBatchJob implements ShouldQueue
         $balanceAfter = round($balanceBefore - $totalCost, 4);
         $user->forceFill(['balance' => $balanceAfter])->save();
 
-        $maxIdBefore = (int) DB::table('messages')
-            ->where('message_batch_id', $batch->id)
-            ->max('id');
-
         Message::insert($rows);
 
-        $inserted = DB::table('messages')
-            ->where('message_batch_id', $batch->id)
-            ->where('id', '>', $maxIdBefore)
-            ->orderBy('id')
-            ->get(['id', 'cost'])
-            ->all();
+        // PDO::lastInsertId() behaviour differs by driver:
+        //   MySQL / MariaDB → returns the FIRST auto-increment ID assigned in a multi-row INSERT.
+        //   SQLite / PostgreSQL / others → returns the LAST assigned ID.
+        // Both guarantee consecutive IDs for a single INSERT statement with no concurrent writers
+        // on the same table (enforced by the FOR UPDATE lock above).
+        $count = count($rows);
+        $anchorId = (int) DB::getPdo()->lastInsertId();
+        $insertedIds = match (DB::getDriverName()) {
+            'mysql', 'mariadb' => range($anchorId, $anchorId + $count - 1),
+            default => range($anchorId - $count + 1, $anchorId),
+        };
 
         $now = now();
-        $running = $balanceBefore;
-        $txnRows = [];
+        DB::table('transactions')->insert([
+            'user_id' => $batch->user_id,
+            'transactionable_type' => 'message_batch',
+            'transactionable_id' => $batch->id,
+            'amount' => $totalCost,
+            'direction' => 'debit',
+            'balance_before' => $balanceBefore,
+            'balance_after' => $balanceAfter,
+            'description' => 'SMS batch debit ('.count($rows).' messages)',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
 
-        foreach ($inserted as $msg) {
-            $cost = (float) $msg->cost;
-            $next = round($running - $cost, 4);
-            $txnRows[] = [
-                'user_id' => $batch->user_id,
-                'transactionable_type' => 'message',
-                'transactionable_id' => (int) $msg->id,
-                'amount' => $cost,
-                'direction' => 'debit',
-                'balance_before' => $running,
-                'balance_after' => $next,
-                'description' => 'SMS cost reserved',
-                'created_at' => $now,
-                'updated_at' => $now,
-            ];
-            $running = $next;
-        }
-
-        if ($txnRows !== []) {
-            DB::table('transactions')->insert($txnRows);
-        }
+        return $insertedIds;
     }
 
     /**
@@ -483,8 +479,9 @@ class ProcessMessageBatchJob implements ShouldQueue
     private function formatByRegex(string $raw): ?string
     {
         if (preg_match('/^(?:\+?88)?0?(1[3-9]\d{8})$/', $raw, $m)) {
-            return '+880' . $m[1];
+            return '+880'.$m[1];
         }
+
         return null;
     }
 
@@ -550,10 +547,9 @@ class ProcessMessageBatchJob implements ShouldQueue
                 continue;
             }
 
-            $values = [];
-            foreach ($variableCols as $varName => $colName) {
-                $values[$varName] = $colName ? ($row[$colName] ?? '') : '';
-            }
+            $values = array_map(function ($colName) use ($row) {
+                return $colName ? ($row[$colName] ?? '') : '';
+            }, $variableCols);
 
             yield [
                 'cursor' => $rowIndex,
@@ -746,6 +742,7 @@ class ProcessMessageBatchJob implements ShouldQueue
             throw new SenderRequiredException;
         }
 
+        /** @var User $user */
         $user = User::findOrFail($batch->user_id);
 
         $this->isMaskingSender = $sender->type->isMasking();

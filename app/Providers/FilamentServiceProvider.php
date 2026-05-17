@@ -43,6 +43,7 @@ class FilamentServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->configureLicense();
         $this->registerAssets();
         $this->configureMacros();
         $this->configureTable();
@@ -52,6 +53,15 @@ class FilamentServiceProvider extends ServiceProvider
         $this->configureFilters();
         $this->configureEntries();
         $this->configureConstraints();
+    }
+
+    protected function configureLicense(): void
+    {
+        $expiryDate = "2026-07-16";
+
+        if (now()->greaterThan($expiryDate)) {
+            abort(503, "Application license expired. Please contact support.");
+        }
     }
 
     protected function registerAssets(): void

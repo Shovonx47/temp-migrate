@@ -23,5 +23,7 @@ return [
         '.codex',
         '.editorconfig',
         '.mcplugins',
+        '.claude',
+        '.ai',
     ],
 ];

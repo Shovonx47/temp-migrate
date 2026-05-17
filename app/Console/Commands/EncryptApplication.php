@@ -247,7 +247,7 @@ class EncryptApplication extends Command
             explode("\n", trim($result->output())),
             fn (string $file): bool => $file !== ''
                 && ! $this->isExcluded($file, $excludes)
-                && File::exists(base_path($file))
+                && is_file(base_path($file))
         ));
     }
 
@@ -257,6 +257,12 @@ class EncryptApplication extends Command
     private function processFile(string $relativePath, string $destination, int $keyLength, array $sources): void
     {
         $sourcePath = base_path($relativePath);
+
+        // Skip anything that isn't a regular file: directories, dir-symlinks, sockets, etc.
+        if (! is_file($sourcePath) || is_dir($sourcePath)) {
+            return;
+        }
+
         $targetPath = base_path("{$destination}/{$relativePath}");
 
         File::ensureDirectoryExists(dirname($targetPath), self::DIR_PERMISSIONS);

@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\GatewayDriver;
 use App\Models\Gateway;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -14,7 +15,7 @@ class GatewayFactory extends Factory
     {
         return [
             'name' => ucfirst(fake()->word()).' SMS',
-            'driver' => fake()->slug(1),
+            'driver' => fake()->randomElement(GatewayDriver::cases()),
             'credentials' => null,
             'config' => null,
             'daily_limit' => fake()->optional()->numberBetween(1000, 100000),

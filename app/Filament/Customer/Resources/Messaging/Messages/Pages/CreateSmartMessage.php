@@ -137,7 +137,7 @@ class CreateSmartMessage extends CreateRecord
 
         Notification::make()
             ->title('Insufficient balance')
-            ->body('This batch needs up to '.Number::currency($estimated, 'BDT').'. Top up '.Number::currency($shortfall, 'BDT').' to send.')
+            ->body('This batch needs up to '.Number::currency((float)$estimated, 'BDT').'. Top up '.Number::currency((float)$shortfall, 'BDT').' to send.')
             ->icon(Heroicon::Banknotes)
             ->danger()
             ->send();

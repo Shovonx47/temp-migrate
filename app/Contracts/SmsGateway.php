@@ -2,9 +2,10 @@
 
 namespace App\Contracts;
 
-use App\Models\Message;
+use App\Services\Sms\Data\SmsRequest;
+use App\Services\Sms\Data\SmsResponse;
 
 interface SmsGateway
 {
-    public function send(Message $message): bool;
+    public function send(SmsRequest $request): SmsResponse;
 }

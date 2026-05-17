@@ -5,6 +5,7 @@ use App\Enums\MessageStatus;
 use App\Enums\SenderType;
 use App\Enums\TransactionDirection;
 use App\Jobs\ProcessMessageBatchJob;
+use App\Jobs\SendBatchSmsJob;
 use App\Models\Contact;
 use App\Models\Group;
 use App\Models\Message;
@@ -23,6 +24,11 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     Storage::fake('local');
     seedDefaultPricing();
+    // Prevent SendBatchSmsJob from executing synchronously during these tests.
+    // ProcessMessageBatchJob is tested via handle() directly; the downstream
+    // sending job is not part of its contract and requires a configured gateway.
+    // Only this one job is faked — notifications and other dispatches run normally.
+    Bus::fake([SendBatchSmsJob::class]);
 });
 
 function makeMessageBatch(?User $user = null, SenderType $senderType = SenderType::Numeric): MessageBatch

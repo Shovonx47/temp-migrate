@@ -87,6 +87,16 @@ class MessageBatch extends Model
         });
     }
 
+    /**
+     * Whether the batch body contains any {variable} placeholders.
+     * Batches without variables send the same body to every recipient
+     * and are eligible for bulk gateway delivery.
+     */
+    public function hasBodyVariables(): bool
+    {
+        return $this->extractBodyVariables() !== [];
+    }
+
     public function retry(): void
     {
         if ($this->status !== MessageBatchStatus::Failed) {
@@ -110,7 +120,7 @@ class MessageBatch extends Model
     /**
      * @return string[]
      */
-    private function extractBodyVariables(): array
+    public function extractBodyVariables(): array
     {
         preg_match_all('/{(\w+)}/', (string) $this->body, $matches);
 

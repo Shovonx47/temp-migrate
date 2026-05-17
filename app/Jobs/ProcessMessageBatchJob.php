@@ -177,6 +177,10 @@ class ProcessMessageBatchJob implements ShouldQueue
                 'completed_at' => now(),
             ]);
 
+            if ($successCount > 0) {
+                SendBatchSmsJob::dispatch($batch)->onQueue('sms-sending');
+            }
+
             $this->notifyCompletion($batch, $successCount, $failedCount, $this->failedReportPath);
         } catch (InsufficientBalanceException $e) {
             $this->closeFailedReport();

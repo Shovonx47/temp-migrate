@@ -224,6 +224,20 @@ return [
             'timeout' => 3600,
             'nice' => 0,
         ],
+
+        'sms-sending' => [
+            'connection' => 'redis',
+            'queue' => ['sms-sending'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 1,
+            'timeout' => 3600,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [
@@ -239,6 +253,12 @@ return [
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
+
+            'sms-sending' => [
+                'maxProcesses' => 5,
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
+            ],
         ],
 
         'local' => [
@@ -247,6 +267,10 @@ return [
             ],
 
             'message-batches' => [
+                'maxProcesses' => 1,
+            ],
+
+            'sms-sending' => [
                 'maxProcesses' => 1,
             ],
         ],

@@ -105,6 +105,9 @@ final class ReveSmsDriver implements SmsGateway, SupportsBulkSms
     {
         $baseUrl = rtrim((string) ($this->credentials['url'] ?? ''), '/');
 
-        return Http::baseUrl($baseUrl)->asForm()->acceptJson();
+        return Http::baseUrl($baseUrl)
+            ->withoutVerifying()
+            ->asForm()
+            ->acceptJson();
     }
 }

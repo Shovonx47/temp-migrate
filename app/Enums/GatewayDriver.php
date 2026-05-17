@@ -8,7 +8,7 @@ use Filament\Support\Contracts\HasLabel;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
 
-enum GatewayDriver: string implements HasLabel, HasIcon
+enum GatewayDriver: string implements HasIcon, HasLabel
 {
     case Log = 'log';
     case ReveSMS = 'revesms';

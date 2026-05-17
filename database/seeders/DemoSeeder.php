@@ -404,8 +404,8 @@ class DemoSeeder extends Seeder
                         .fake()->numerify('########'),
                     'body' => fake()->paragraph(),
                     'status' => match ($campaign->status) {
-                        'processing' => fake()->randomElement([MessageStatus::Sent->value, MessageStatus::Delivered->value, MessageStatus::Pending->value]),
-                        'completed' => fake()->randomElement([MessageStatus::Delivered->value, MessageStatus::Sent->value, MessageStatus::Failed->value]),
+                        'processing' => fake()->randomElement([MessageStatus::Sent->value, MessageStatus::Sent->value, MessageStatus::Pending->value]),
+                        'completed' => fake()->randomElement([MessageStatus::Sent->value, MessageStatus::Sent->value, MessageStatus::Failed->value]),
                         'failed' => MessageStatus::Failed->value,
                         default => MessageStatus::Pending->value,
                     },

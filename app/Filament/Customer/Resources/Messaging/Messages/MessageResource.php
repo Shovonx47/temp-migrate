@@ -7,7 +7,6 @@ use App\Filament\Customer\Resources\Messaging\Messages\Pages\CreateQuickMessage;
 use App\Filament\Customer\Resources\Messaging\Messages\Pages\CreateSmartMessage;
 use App\Filament\Customer\Resources\Messaging\Messages\Pages\ListMessages;
 use App\Filament\Customer\Resources\Messaging\Messages\Pages\ViewMessage;
-use App\Filament\Customer\Resources\Messaging\Messages\RelationManagers\DeliveryReportsRelationManager;
 use App\Filament\Customer\Resources\Messaging\Messages\Schemas\MessageForm;
 use App\Filament\Customer\Resources\Messaging\Messages\Schemas\MessageInfolist;
 use App\Filament\Customer\Resources\Messaging\Messages\Tables\MessagesTable;
@@ -48,7 +47,7 @@ class MessageResource extends Resource
     public static function getRelations(): array
     {
         return [
-            DeliveryReportsRelationManager::class,
+            //
         ];
     }
 

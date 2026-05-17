@@ -12,13 +12,11 @@ use Illuminate\Support\Facades\Log;
 
 final class LogDriver implements SmsGateway, SupportsBulkSms
 {
-    public function __construct(private readonly array $config = [])
-    {
-    }
+    public function __construct(private readonly array $config = []) {}
 
     public function send(SmsRequest $request): SmsResponse
     {
-        $channel = (string)($this->config['filename'] ?? 'sms');
+        $channel = (string) ($this->config['filename'] ?? 'sms');
 
         if (function_exists('ray')) {
             ray([
@@ -34,22 +32,22 @@ final class LogDriver implements SmsGateway, SupportsBulkSms
 
         return new SmsResponse(
             successful: true,
-            gatewayMessageId: 'log-' . uniqid(),
+            gatewayMessageId: 'log-'.uniqid(),
         );
     }
 
     public function sendBulk(BulkSmsRequest $request): BulkSmsResponse
     {
-        $channel = (string)($this->config['filename'] ?? 'sms');
+        $channel = (string) ($this->config['filename'] ?? 'sms');
 
         if (function_exists('ray')) {
             ray([
                 'from' => $request->from,
                 'body' => $request->body,
                 'recipients' => $request->recipients,
-            ])->label("SMS bulk to " . count($request->recipients) . " recipients")->orange();
+            ])->label('SMS bulk to '.count($request->recipients).' recipients')->orange();
         } else {
-            Log::channel('stack')->info("SMS [{$channel}] bulk to " . count($request->recipients) . ' recipients', [
+            Log::channel('stack')->info("SMS [{$channel}] bulk to ".count($request->recipients).' recipients', [
                 'from' => $request->from,
                 'body' => $request->body,
                 'recipients' => $request->recipients,
@@ -58,7 +56,7 @@ final class LogDriver implements SmsGateway, SupportsBulkSms
 
         return new BulkSmsResponse(
             successful: true,
-            perRecipientIds: array_map(static fn() => 'log-' . uniqid(), $request->recipients),
+            perRecipientIds: array_map(static fn () => 'log-'.uniqid(), $request->recipients),
         );
     }
 }

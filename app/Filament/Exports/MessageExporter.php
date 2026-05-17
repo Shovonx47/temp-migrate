@@ -28,7 +28,6 @@ class MessageExporter extends Exporter
             ExportColumn::make('cost'),
             ExportColumn::make('failed_reason'),
             ExportColumn::make('sent_at'),
-            ExportColumn::make('delivered_at'),
             ExportColumn::make('failed_at'),
             ExportColumn::make('created_at'),
             ExportColumn::make('updated_at'),

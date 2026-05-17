@@ -2,9 +2,11 @@
 
 namespace App\Filament\Customer\Resources\Messaging\Messages\Tables;
 
+use App\Enums\MessageStatus;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
 class MessagesTable
@@ -33,6 +35,10 @@ class MessagesTable
                 ActionGroup::make([
                     ViewAction::make(),
                 ]),
+            ])
+            ->filters([
+                SelectFilter::make('status')
+                    ->options(MessageStatus::class),
             ]);
     }
 }

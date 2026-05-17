@@ -28,7 +28,7 @@ class UserSeeder extends Seeder
             'type' => UserType::Customer,
             'password' => bcrypt('customer'),
             'email_verified_at' => now(),
-            'balance' => 500,
+            'balance' => 50_000, // 50k balance for testing
         ]);
 
         $senders = Sender::inRandomOrder()

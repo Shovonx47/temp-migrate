@@ -19,7 +19,10 @@ class MessageInfolist
                     ->schema([
                         Grid::make(2)
                             ->schema([
-                                TextEntry::make('uid')->label('UID')->copyable()->weight('bold'),
+                                TextEntry::make('uid')
+                                    ->label('UID')
+                                    ->copyable()
+                                    ->weight('bold'),
                                 TextEntry::make('campaign.name')
                                     ->label('Campaign')
                                     ->url(fn ($record) => $record->campaign
@@ -30,15 +33,22 @@ class MessageInfolist
                                     ->url(fn ($record) => $record->sender
                                         ? SenderResource::getUrl('view', ['record' => $record->sender])
                                         : null),
-                                TextEntry::make('to')->label('Recipient'),
-                                TextEntry::make('status')->badge(),
-                                TextEntry::make('cost')->money('BDT'),
-                                TextEntry::make('segments')->numeric(),
-                                TextEntry::make('sent_at')->dateTime(),
-                                TextEntry::make('delivered_at')->dateTime(),
-                                TextEntry::make('body')->columnSpanFull(),
-                                TextEntry::make('created_at')->dateTime(),
-                                TextEntry::make('updated_at')->dateTime(),
+                                TextEntry::make('to')
+                                    ->label('Recipient'),
+                                TextEntry::make('status')
+                                    ->badge(),
+                                TextEntry::make('cost')
+                                    ->money('BDT'),
+                                TextEntry::make('parts')
+                                    ->numeric(),
+                                TextEntry::make('sent_at')
+                                    ->dateTime(),
+                                TextEntry::make('body')
+                                    ->columnSpanFull(),
+                                TextEntry::make('created_at')
+                                    ->dateTime(),
+                                TextEntry::make('updated_at')
+                                    ->dateTime(),
                             ]),
                     ]),
             ]);

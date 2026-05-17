@@ -2,7 +2,6 @@
 
 namespace App\Filament\Admin\Resources\Messaging\Messages\Schemas;
 
-use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -26,9 +25,6 @@ class MessageForm
                     TextInput::make('cost')->numeric()->default(0),
                     Textarea::make('body')->required()->columnSpanFull(),
                     Textarea::make('failed_reason')->columnSpanFull(),
-                    DateTimePicker::make('sent_at'),
-                    DateTimePicker::make('delivered_at'),
-                    DateTimePicker::make('failed_at'),
                 ])->columns(2),
             ]);
     }

@@ -18,7 +18,7 @@ return new class extends Migration
 
             $table->string('to'); // recipient phone number
             $table->text('body');
-            $table->string('status')->default('pending'); // pending, sent, delivered, failed
+            $table->string('status')->default('pending'); // pending, sent, failed
             $table->string('gateway_message_id')->nullable(); // gateway's response id
 
             $table->decimal('cost', 10, 4)->default(0);
@@ -28,7 +28,6 @@ return new class extends Migration
             $table->text('failed_reason')->nullable();
 
             $table->timestamp('sent_at')->nullable();
-            $table->timestamp('delivered_at')->nullable();
             $table->timestamp('failed_at')->nullable();
             $table->timestamps();
 

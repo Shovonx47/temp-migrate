@@ -7,6 +7,7 @@ use App\Models\Message;
 use App\Models\MessageBatch;
 use App\Services\Sms\Data\SmsRequest;
 use App\Support\Facades\Sms;
+use Carbon\CarbonInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\RateLimited;
@@ -44,7 +45,7 @@ class SendBatchSingleSmsJob implements ShouldQueue
         return [new RateLimited('sms')];
     }
 
-    public function retryUntil(): \DateTime
+    public function retryUntil(): CarbonInterface
     {
         return now()->addHour();
     }

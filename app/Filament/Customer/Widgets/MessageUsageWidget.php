@@ -9,11 +9,12 @@ class MessageUsageWidget extends BaseWidget
 {
     protected ?string $pollingInterval = '60s';
 
+    protected int|array|null $columns = 3;
+
     public function getStats(): array
     {
         $stats = auth()->user()->messages()
             ->selectRaw('COUNT(*) as total')
-            ->selectRaw("COALESCE(SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END), 0) as delivered")
             ->selectRaw("COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) as failed")
             ->selectRaw('COALESCE(SUM(cost), 0) as total_cost')
             ->first();
@@ -22,11 +23,6 @@ class MessageUsageWidget extends BaseWidget
             Stat::make('Total Messages', number_format((int) $stats->total))
                 ->description('Messages sent')
                 ->icon('heroicon-o-chat-bubble-left-ellipsis'),
-
-            Stat::make('Delivered', number_format((int) $stats->delivered))
-                ->description('Successfully delivered')
-                ->color('success')
-                ->icon('heroicon-o-check-badge'),
 
             Stat::make('Failed', number_format((int) $stats->failed))
                 ->description('Delivery failures')

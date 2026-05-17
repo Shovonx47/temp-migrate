@@ -5,6 +5,7 @@ namespace App\Filament\Customer\Resources\Messaging\MessageBatches;
 use App\Enums\CustomerNavigationGroup;
 use App\Filament\Customer\Resources\Messaging\MessageBatches\Pages\ListMessageBatches;
 use App\Filament\Customer\Resources\Messaging\MessageBatches\Pages\ViewMessageBatch;
+use App\Filament\Customer\Resources\Messaging\MessageBatches\RelationManagers\MessagesRelationManager;
 use App\Filament\Customer\Resources\Messaging\MessageBatches\Schemas\MessageBatchInfolist;
 use App\Filament\Customer\Resources\Messaging\MessageBatches\Tables\MessageBatchesTable;
 use App\Models\MessageBatch;
@@ -42,7 +43,7 @@ class MessageBatchResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            MessagesRelationManager::class,
         ];
     }
 

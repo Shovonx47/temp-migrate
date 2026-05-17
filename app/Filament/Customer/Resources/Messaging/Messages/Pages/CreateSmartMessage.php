@@ -17,7 +17,6 @@ use Filament\Support\Exceptions\Halt;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Number;
 use Throwable;
@@ -105,7 +104,7 @@ class CreateSmartMessage extends CreateRecord
      * Uses the highest configured operator rate for the chosen sender type as a
      * conservative upper bound — the job will compute exact per-recipient costs.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      *
      * @throws Halt
      */
@@ -118,7 +117,7 @@ class CreateSmartMessage extends CreateRecord
             return;
         }
 
-        $maxRate = $this->resolveMaxRate($user, (int)($data['sender_id'] ?? 0));
+        $maxRate = $this->resolveMaxRate($user, (int) ($data['sender_id'] ?? 0));
 
         if ($maxRate === null) {
             return; // no rates configured anywhere — job will fail with a precise error
@@ -131,7 +130,7 @@ class CreateSmartMessage extends CreateRecord
             return;
         }
 
-        $shortfall = (float)max($estimated - (float)$user->balance, 0);
+        $shortfall = (float) max($estimated - (float) $user->balance, 0);
 
         Notification::make()
             ->title('Insufficient balance')
@@ -151,7 +150,7 @@ class CreateSmartMessage extends CreateRecord
     {
         $sender = $senderId > 0 ? Sender::find($senderId) : null;
 
-        if (!$sender || $sender->type === null) {
+        if (! $sender || $sender->type === null) {
             return null;
         }
 
@@ -162,20 +161,20 @@ class CreateSmartMessage extends CreateRecord
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     private function estimateRecipientCount(string $source, array $data): int
     {
         return match ($source) {
             'manual' => count($data['recipients'] ?? []),
             'group' => $this->countContactsInGroups($data['groups'] ?? []),
-            'upload' => (int)($data['file_total_rows'] ?? 0),
+            'upload' => (int) ($data['file_total_rows'] ?? 0),
             default => 0,
         };
     }
 
     /**
-     * @param array<int, int|string> $groupIds
+     * @param  array<int, int|string>  $groupIds
      */
     private function countContactsInGroups(array $groupIds): int
     {
@@ -184,7 +183,7 @@ class CreateSmartMessage extends CreateRecord
         }
 
         return Contact::query()
-            ->whereHas('groups', fn($q) => $q->whereIn('groups.id', $groupIds))
+            ->whereHas('groups', fn ($q) => $q->whereIn('groups.id', $groupIds))
             ->where('is_blocked', false)
             ->count();
     }
@@ -195,12 +194,12 @@ class CreateSmartMessage extends CreateRecord
             $state = reset($state);
         }
 
-        if (!is_string($state) || $state === '' || !Storage::disk('local')->exists($state)) {
+        if (! is_string($state) || $state === '' || ! Storage::disk('local')->exists($state)) {
             return null;
         }
 
         $extension = strtolower(pathinfo($state, PATHINFO_EXTENSION)) ?: 'csv';
-        $destination = 'message-batches/' . $batch->id . '/source.' . $extension;
+        $destination = 'message-batches/'.$batch->id.'/source.'.$extension;
 
         Storage::disk('local')->move($state, $destination);
 

@@ -19,7 +19,7 @@ class DatabaseSeeder extends Seeder
             OperatorSeeder::class,
             GatewaySeeder::class,
             UserSeeder::class,
-//            DemoSeeder::class,
+            //            DemoSeeder::class,
         ]);
     }
 }

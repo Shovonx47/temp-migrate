@@ -9,6 +9,7 @@ use App\Models\MessageBatch;
 use App\Services\Sms\Data\BulkSmsRequest;
 use App\Services\Sms\Data\BulkSmsResponse;
 use App\Support\Facades\Sms;
+use Carbon\CarbonInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Queue\Queueable;
@@ -48,7 +49,7 @@ class SendBatchBulkSmsJob implements ShouldQueue
         return [new RateLimited('sms')];
     }
 
-    public function retryUntil(): \DateTime
+    public function retryUntil(): CarbonInterface
     {
         return now()->addHour();
     }

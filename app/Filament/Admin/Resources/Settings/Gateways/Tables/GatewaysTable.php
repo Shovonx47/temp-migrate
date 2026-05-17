@@ -26,14 +26,14 @@ class GatewaysTable
                     ->sortable(),
                 TextColumn::make('driver')
                     ->badge(),
-//                TextColumn::make('daily_limit')
-//                    ->abbreviate()
-//                    ->sortable()
-//                    ->placeholder('Unlimited'),
-//                TextColumn::make('monthly_limit')
-//                    ->abbreviate()
-//                    ->sortable()
-//                    ->placeholder('Unlimited'),
+                //                TextColumn::make('daily_limit')
+                //                    ->abbreviate()
+                //                    ->sortable()
+                //                    ->placeholder('Unlimited'),
+                //                TextColumn::make('monthly_limit')
+                //                    ->abbreviate()
+                //                    ->sortable()
+                //                    ->placeholder('Unlimited'),
                 ToggleColumn::make('is_enabled'),
                 IconColumn::make('supports_bulk')
                     ->boolean(),

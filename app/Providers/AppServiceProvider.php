@@ -7,6 +7,7 @@ use App\Jobs\SendBatchBulkSmsJob;
 use App\Jobs\SendBatchSingleSmsJob;
 use App\Models\Campaign;
 use App\Models\Deposit;
+use App\Models\Gateway;
 use App\Models\Message;
 use App\Models\MessageBatch;
 use App\Models\User;
@@ -61,6 +62,7 @@ class AppServiceProvider extends ServiceProvider
     private function configureRateLimiters(): void
     {
         RateLimiter::for('sms', function (object $job) {
+            /** @var ?Gateway $gateway */
             $gateway = match (true) {
                 $job instanceof SendBatchBulkSmsJob,
                 $job instanceof SendBatchSingleSmsJob => $job->batch->sender?->gateway,
@@ -68,7 +70,8 @@ class AppServiceProvider extends ServiceProvider
             };
 
             return $gateway
-                ? Limit::perMinute($gateway->requests_per_minute)->by('sms-gateway:'.$gateway->id)
+                ? Limit::perSecond($gateway->requests_per_minute / 60)
+                    ->by('sms-gateway:'.$gateway->id)
                 : Limit::none();
         });
     }

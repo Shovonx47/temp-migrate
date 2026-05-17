@@ -17,6 +17,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use STS\FilamentImpersonate\Actions\Impersonate;
 
 class CustomersTable
 {
@@ -61,6 +62,9 @@ class CustomersTable
                 ActionGroup::make([
                     ViewAction::make()
                         ->label('View Customer'),
+                    Impersonate::make()
+                        ->label('Login Customer')
+                        ->guard('customer'),
                     DepositAction::make(),
                     ApprovalAction::make(),
                     EditAction::make()

@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-set -e
-
-echo "[pre-push] Encrypting application..."
-
-php artisan app:encrypt --force
-
-echo "[pre-push] Done."

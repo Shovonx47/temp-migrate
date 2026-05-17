@@ -28,6 +28,8 @@ class GatewayResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Settings;
 
+    protected static ?int $navigationSort = 1;
+
     public static function form(Schema $schema): Schema
     {
         return GatewayForm::configure($schema);

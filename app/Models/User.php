@@ -121,4 +121,14 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     {
         return $query->whereNotNull('phone_verified_at');
     }
+
+    public function canImpersonate(): bool
+    {
+        return $this->type->isSuperman();
+    }
+
+    public function canBeImpersonated(): bool
+    {
+        return $this->type->isCustomer();
+    }
 }

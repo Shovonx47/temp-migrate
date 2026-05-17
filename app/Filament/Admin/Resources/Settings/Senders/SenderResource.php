@@ -28,6 +28,8 @@ class SenderResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Settings;
 
+    protected static ?int $navigationSort = 2;
+
     public static function form(Schema $schema): Schema
     {
         return SenderForm::configure($schema);

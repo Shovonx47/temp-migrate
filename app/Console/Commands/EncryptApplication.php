@@ -9,17 +9,15 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
-use SplFileInfo;
 
-#[Signature('app:encrypt {--source= : Comma-separated list of source directories or files to encrypt (default: app,database,routes)}
-    {--destination= : Destination directory for encrypted files (default: encrypted)}
-    {--keylength= : Length of the encryption key (default: 6)}
+#[Signature('app:encrypt {--source= : Comma-separated list of source directories to encrypt (default: from config)}
+    {--destination= : Destination directory for the encrypted project mirror (default: from config)}
+    {--keylength= : Length of the encryption key (default: from config)}
+    {--exclude= : Comma-separated list of additional paths to exclude (merged with config)}
     {--full : Force a full rebuild instead of incremental sync}
     {--force : Skip confirmation when clearing destination during full rebuild}
     {--no-commit : Skip auto-commit inside the destination repo}')]
-#[Description('Encrypts specified directories and files using the bolt PHP extension. Incremental by default.')]
+#[Description('Builds an encrypted mirror of the project: source paths are bolt-encrypted, everything else is copied as-is. Incremental by default.')]
 class EncryptApplication extends Command
 {
     private const string BOLT_MARKER = '##!!!##';
@@ -28,18 +26,13 @@ class EncryptApplication extends Command
 
     private const string SYNC_STATE_FILE = '.sync-state';
 
-    /**
-     * Extensions for which a warning has already been shown.
-     */
-    protected array $warned = [];
-
     public function handle(): int
     {
         if (! $this->ensureBoltLoaded()) {
             return self::FAILURE;
         }
 
-        [$sources, $destination, $keyLength] = $this->resolveOptions();
+        [$sources, $destination, $keyLength, $excludes] = $this->resolveOptions();
 
         $destinationPath = base_path($destination);
         $currentHash = $this->gitHead(base_path());
@@ -57,11 +50,7 @@ class EncryptApplication extends Command
                 return self::FAILURE;
             }
 
-            foreach ($sources as $source) {
-                if (! $this->encryptSource($source, $destination, $keyLength)) {
-                    return self::FAILURE;
-                }
-            }
+            $this->fullRebuild($sources, $destination, $keyLength, $excludes);
         } else {
             if ($lastHash === $currentHash) {
                 $this->info('Already in sync. Nothing to do.');
@@ -69,7 +58,7 @@ class EncryptApplication extends Command
                 return self::SUCCESS;
             }
 
-            $this->incrementalSync($lastHash, $sources, $destination, $keyLength);
+            $this->incrementalSync($lastHash, $sources, $destination, $keyLength, $excludes);
         }
 
         if ($currentHash) {
@@ -101,7 +90,7 @@ class EncryptApplication extends Command
     }
 
     /**
-     * @return array{0: array<string>, 1: string, 2: int}
+     * @return array{0: array<string>, 1: string, 2: int, 3: array<string>}
      */
     private function resolveOptions(): array
     {
@@ -110,12 +99,21 @@ class EncryptApplication extends Command
             : config('encrypter.source', ['app', 'database', 'routes']);
 
         $destination = $this->option('destination')
-            ?: config('encrypter.destination', 'encrypted');
+            ?: config('encrypter.destination', 'dist');
 
         $keyLength = (int) ($this->option('keylength')
             ?: config('encrypter.key_length', 6));
 
-        return [$sources, $destination, $keyLength];
+        $excludes = config('encrypter.exclude', []);
+
+        if ($this->option('exclude')) {
+            $excludes = array_merge($excludes, array_map('trim', explode(',', $this->option('exclude'))));
+        }
+
+        // Always exclude the destination directory itself.
+        $excludes[] = $destination;
+
+        return [$sources, $destination, $keyLength, array_values(array_unique($excludes))];
     }
 
     private function prepareDestination(string $destinationPath): bool
@@ -147,54 +145,37 @@ class EncryptApplication extends Command
         return true;
     }
 
-    private function encryptSource(string $source, string $destination, int $keyLength): bool
+    /**
+     * @param  array<string>  $sources
+     * @param  array<string>  $excludes
+     */
+    private function fullRebuild(array $sources, string $destination, int $keyLength, array $excludes): void
     {
-        $sourcePath = base_path($source);
+        $files = $this->collectProjectFiles($excludes);
 
-        if (! File::exists($sourcePath)) {
-            $this->error("Source '{$source}' does not exist.");
+        $this->info('Building '.count($files).' file(s)...');
 
-            return false;
-        }
-
-        File::ensureDirectoryExists(
-            base_path($destination.'/'.File::dirname($source)),
-            self::DIR_PERMISSIONS
-        );
-
-        if (File::isFile($sourcePath)) {
-            $this->encryptFile($source, $destination, $keyLength);
-
-            return true;
-        }
-
-        $files = $this->collectFiles($sourcePath);
-
-        $this->info("Encrypting '{$source}'...");
-
-        $this->withProgressBar($files, function (SplFileInfo $file) use ($destination, $keyLength) {
-            $relativePath = Str::replaceFirst(base_path().DIRECTORY_SEPARATOR, '', $file->getRealPath());
-            $this->encryptFile($relativePath, $destination, $keyLength);
+        $this->withProgressBar($files, function (string $relativePath) use ($destination, $keyLength, $sources) {
+            $this->processFile($relativePath, $destination, $keyLength, $sources);
         });
 
         $this->newLine();
-
-        return true;
     }
 
     /**
      * @param  array<string>  $sources
+     * @param  array<string>  $excludes
      */
-    private function incrementalSync(string $lastHash, array $sources, string $destination, int $keyLength): void
+    private function incrementalSync(string $lastHash, array $sources, string $destination, int $keyLength, array $excludes): void
     {
-        $this->deleteRemovedFiles($lastHash, $sources, $destination);
-        $this->syncChangedFiles($lastHash, $sources, $destination, $keyLength);
+        $this->deleteRemovedFiles($lastHash, $destination, $excludes);
+        $this->syncChangedFiles($lastHash, $sources, $destination, $keyLength, $excludes);
     }
 
     /**
-     * @param  array<string>  $sources
+     * @param  array<string>  $excludes
      */
-    private function deleteRemovedFiles(string $lastHash, array $sources, string $destination): void
+    private function deleteRemovedFiles(string $lastHash, string $destination, array $excludes): void
     {
         $result = Process::path(base_path())->run([
             'git', 'diff', '--name-only', '--diff-filter=D', "{$lastHash}..HEAD",
@@ -203,7 +184,7 @@ class EncryptApplication extends Command
         $deleted = array_filter(explode("\n", trim($result->output())));
 
         foreach ($deleted as $relativePath) {
-            if (! $this->isWithinSources($relativePath, $sources)) {
+            if ($this->isExcluded($relativePath, $excludes)) {
                 continue;
             }
 
@@ -218,80 +199,79 @@ class EncryptApplication extends Command
 
     /**
      * @param  array<string>  $sources
+     * @param  array<string>  $excludes
      */
-    private function syncChangedFiles(string $lastHash, array $sources, string $destination, int $keyLength): void
+    private function syncChangedFiles(string $lastHash, array $sources, string $destination, int $keyLength, array $excludes): void
     {
         $result = Process::path(base_path())->run([
             'git', 'diff', '--name-only', '--diff-filter=ACMRT', "{$lastHash}..HEAD",
         ]);
 
-        $files = array_filter(
+        $files = array_values(array_filter(
             explode("\n", trim($result->output())),
-            fn (string $file): bool => $file !== '' && $this->isWithinSources($file, $sources) && File::exists(base_path($file))
-        );
+            fn (string $file): bool => $file !== ''
+                && ! $this->isExcluded($file, $excludes)
+                && File::exists(base_path($file))
+        ));
 
         if (empty($files)) {
-            $this->info('No source files changed.');
+            $this->info('No relevant files changed.');
 
             return;
         }
 
         $this->info('Syncing '.count($files).' changed file(s)...');
 
-        $this->withProgressBar($files, function (string $relativePath) use ($destination, $keyLength) {
-            $this->encryptFile($relativePath, $destination, $keyLength);
+        $this->withProgressBar($files, function (string $relativePath) use ($destination, $keyLength, $sources) {
+            $this->processFile($relativePath, $destination, $keyLength, $sources);
         });
 
         $this->newLine();
     }
 
     /**
-     * @param  array<string>  $sources
+     * @param  array<string>  $excludes
+     * @return array<string>
      */
-    private function isWithinSources(string $relativePath, array $sources): bool
+    private function collectProjectFiles(array $excludes): array
     {
-        foreach ($sources as $source) {
-            if (Str::startsWith($relativePath, $source.'/') || $relativePath === $source) {
-                return true;
-            }
+        $result = Process::path(base_path())->run(['git', 'ls-files']);
+
+        if (! $result->successful()) {
+            $this->error('git ls-files failed: '.$result->errorOutput());
+
+            return [];
         }
 
-        return false;
+        return array_values(array_filter(
+            explode("\n", trim($result->output())),
+            fn (string $file): bool => $file !== ''
+                && ! $this->isExcluded($file, $excludes)
+                && File::exists(base_path($file))
+        ));
     }
 
     /**
-     * @return array<SplFileInfo>
+     * @param  array<string>  $sources
      */
-    private function collectFiles(string $path): array
+    private function processFile(string $relativePath, string $destination, int $keyLength, array $sources): void
     {
-        $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS)
-        );
-
-        $files = [];
-        foreach ($iterator as $file) {
-            if ($file->isFile()) {
-                $files[] = clone $file;
-            }
-        }
-
-        return $files;
-    }
-
-    private function encryptFile(string $filePath, string $destination, int $keyLength): void
-    {
-        $sourcePath = base_path($filePath);
-        $targetPath = base_path("{$destination}/{$filePath}");
+        $sourcePath = base_path($relativePath);
+        $targetPath = base_path("{$destination}/{$relativePath}");
 
         File::ensureDirectoryExists(dirname($targetPath), self::DIR_PERMISSIONS);
 
-        if (! $this->isEncryptablePhpFile($filePath)) {
-            $this->warnOnceForExtension($filePath);
-            File::copy($sourcePath, $targetPath);
+        if ($this->shouldEncrypt($relativePath, $sources)) {
+            $this->encryptFile($sourcePath, $targetPath, $relativePath, $keyLength);
 
             return;
         }
 
+        File::copy($sourcePath, $targetPath);
+    }
+
+    private function encryptFile(string $sourcePath, string $targetPath, string $relativePath, int $keyLength): void
+    {
         $contents = File::get($sourcePath);
         $contents = preg_replace('/<\?php/', '', $contents, 1);
 
@@ -299,7 +279,7 @@ class EncryptApplication extends Command
         $cipher = bolt_encrypt($contents, $key);
 
         if ($cipher === false) {
-            $this->error("Failed to encrypt: {$filePath}");
+            $this->error("Failed to encrypt: {$relativePath}");
 
             return;
         }
@@ -309,27 +289,46 @@ class EncryptApplication extends Command
         File::put($targetPath, $prepend.$cipher);
     }
 
-    private function isEncryptablePhpFile(string $filePath): bool
+    /**
+     * @param  array<string>  $sources
+     */
+    private function shouldEncrypt(string $relativePath, array $sources): bool
     {
-        if (Str::endsWith($filePath, '.blade.php')) {
+        if (Str::endsWith($relativePath, '.blade.php')) {
             return false;
         }
 
-        return pathinfo($filePath, PATHINFO_EXTENSION) === 'php';
-    }
-
-    private function warnOnceForExtension(string $filePath): void
-    {
-        $extension = Str::endsWith($filePath, '.blade.php')
-            ? 'blade.php'
-            : pathinfo($filePath, PATHINFO_EXTENSION);
-
-        if (in_array($extension, $this->warned, true)) {
-            return;
+        if (pathinfo($relativePath, PATHINFO_EXTENSION) !== 'php') {
+            return false;
         }
 
-        $this->warn("Encryption of .{$extension} files is not supported. These files will be copied unchanged.");
-        $this->warned[] = $extension;
+        return $this->isWithinPaths($relativePath, $sources);
+    }
+
+    /**
+     * @param  array<string>  $excludes
+     */
+    private function isExcluded(string $relativePath, array $excludes): bool
+    {
+        return $this->isWithinPaths($relativePath, $excludes);
+    }
+
+    /**
+     * @param  array<string>  $paths
+     */
+    private function isWithinPaths(string $relativePath, array $paths): bool
+    {
+        foreach ($paths as $path) {
+            if ($path === '') {
+                continue;
+            }
+
+            if ($relativePath === $path || Str::startsWith($relativePath, $path.'/')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function gitHead(string $repoPath): ?string

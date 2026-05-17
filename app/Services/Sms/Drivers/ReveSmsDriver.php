@@ -32,10 +32,10 @@ final class ReveSmsDriver implements SmsGateway, SupportsBulkSms
                 'messageContent' => $request->body,
             ]);
 
-            if ($response->failed()) {
+            if ($response->failed() || $response->json("Status") !== '0') {
                 return new SmsResponse(
                     successful: false,
-                    errorMessage: $response->json('message', 'Unknown error'),
+                    errorMessage: $response->json('Text', 'Unknown error'),
                     raw: $response->json() ?? [],
                 );
             }
@@ -44,7 +44,7 @@ final class ReveSmsDriver implements SmsGateway, SupportsBulkSms
 
             return new SmsResponse(
                 successful: true,
-                gatewayMessageId: (string) ($data['msgid'] ?? ''),
+                gatewayMessageId: (string) ($data['Message_ID'] ?? ''),
                 raw: $data,
             );
         } catch (ConnectionException $e) {
@@ -72,16 +72,16 @@ final class ReveSmsDriver implements SmsGateway, SupportsBulkSms
                 'messageContent' => $request->body,
             ]);
 
-            if ($response->failed()) {
+            if ($response->failed() || $response->json('Status') !== '0') {
                 return new BulkSmsResponse(
                     successful: false,
-                    errorMessage: $response->json('message', 'Unknown error'),
+                    errorMessage: $response->json('Text', 'Unknown error'),
                     raw: $response->json() ?? [],
                 );
             }
 
             $data = $response->json() ?? [];
-            $rawIds = (string) ($data['msgid'] ?? '');
+            $rawIds = (string) ($data['Message_ID'] ?? '');
 
             // ReveSMS returns comma-separated IDs in the same order as recipients.
             $perRecipientIds = $rawIds !== ''
@@ -107,7 +107,7 @@ final class ReveSmsDriver implements SmsGateway, SupportsBulkSms
 
         return Http::baseUrl($baseUrl)
             ->withoutVerifying()
-            ->asForm()
+            ->asJson()
             ->acceptJson();
     }
 }

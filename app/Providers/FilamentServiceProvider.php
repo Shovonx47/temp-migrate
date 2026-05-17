@@ -12,6 +12,7 @@ use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Select;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
+use Filament\QueryBuilder\Constraints\SelectConstraint;
 use Filament\Support\Assets\Js;
 use Filament\Support\Enums\Size;
 use Filament\Support\Facades\FilamentAsset;
@@ -50,6 +51,7 @@ class FilamentServiceProvider extends ServiceProvider
         $this->configureColumns();
         $this->configureFilters();
         $this->configureEntries();
+        $this->configureConstraints();
     }
 
     protected function registerAssets(): void
@@ -65,7 +67,7 @@ class FilamentServiceProvider extends ServiceProvider
             $acronyms = config('data.acronyms');
 
             return $this->replaceMatches(
-                pattern: '/\b('.implode('|', array_keys($acronyms)).')\b/i',
+                pattern: '/\b(' . implode('|', array_keys($acronyms)) . ')\b/i',
                 replace: function (array $matches) use ($acronyms) {
                     return $acronyms[strtolower($matches[1])] ?? $matches[0];
                 }
@@ -96,11 +98,11 @@ class FilamentServiceProvider extends ServiceProvider
                     if (is_array($state)) {
                         return;
                     }
-                    $component->state(filled($state) ? [(string) $state] : []);
+                    $component->state(filled($state) ? [(string)$state] : []);
                 })
-                ->mutateDehydratedStateUsing(fn ($state): array => array_values(array_filter(
-                    array_map('trim', (array) ($state ?? [])),
-                    fn (string $value): bool => $value !== '',
+                ->mutateDehydratedStateUsing(fn($state): array => array_values(array_filter(
+                    array_map('trim', (array)($state ?? [])),
+                    fn(string $value): bool => $value !== '',
                 )));
         });
     }
@@ -150,7 +152,7 @@ class FilamentServiceProvider extends ServiceProvider
                 return Str::of($name)
                     ->when(
                         value: str_starts_with($name, 'is_'),
-                        callback: fn (Stringable $string) => $string->remove('is_'),
+                        callback: fn(Stringable $string) => $string->remove('is_'),
                     )
                     ->headline();
             });
@@ -183,7 +185,7 @@ class FilamentServiceProvider extends ServiceProvider
                 return str($name)
                     ->when(
                         value: str_starts_with($name, 'is_'),
-                        callback: fn (Stringable $string) => $string->remove('is_'),
+                        callback: fn(Stringable $string) => $string->remove('is_'),
                     )
                     ->beforeLast('.')
                     ->afterLast('.')
@@ -196,7 +198,7 @@ class FilamentServiceProvider extends ServiceProvider
         });
 
         TextColumn::configureUsing(static function (TextColumn $component) {
-            if (! str_ends_with($component->getName(), '_at')) {
+            if (!str_ends_with($component->getName(), '_at')) {
                 return;
             }
 
@@ -228,7 +230,7 @@ class FilamentServiceProvider extends ServiceProvider
         ToggleColumn::configureUsing(static function (ToggleColumn $toggleColumn) {
             $toggleColumn->alignCenter()->afterStateUpdated(function ($state) {
                 Notification::make()
-                    ->title('Toggled state to: '.($state ? 'Yes' : 'No'))
+                    ->title('Toggled state to: ' . ($state ? 'Yes' : 'No'))
                     ->success()
                     ->send();
             });
@@ -255,13 +257,20 @@ class FilamentServiceProvider extends ServiceProvider
     {
         TextEntry::macro('abbreviate', function (): TextEntry {
             /** @var TextEntry $this */
-            if (! $this->isNumeric()) {
+            if (!$this->isNumeric()) {
                 throw new LogicException('The abbreviate entry can only be used on numeric entries.');
             }
 
             return $this->formatStateUsing(function ($state) {
                 return Number::abbreviate($state);
             });
+        });
+    }
+
+    private function configureConstraints(): void
+    {
+        SelectConstraint::configureUsing(static function (SelectConstraint $constraint) {
+            $constraint->native(false);
         });
     }
 }

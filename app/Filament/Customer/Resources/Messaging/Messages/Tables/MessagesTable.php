@@ -7,7 +7,9 @@ use App\Filament\Exports\MessageExporter;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\ExportAction;
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
@@ -52,6 +54,22 @@ class MessagesTable
             ->filters([
                 SelectFilter::make('status')
                     ->options(MessageStatus::class),
+                Filter::make('created_at')
+                    ->schema([
+                        DatePicker::make('created_from')
+                            ->label('Created From'),
+                        DatePicker::make('created_until')
+                            ->label('Created Until'),
+                    ])
+                    ->query(function ($query, $data) {
+                        if ($data['created_from'] ?? null) {
+                            $query->whereDate('created_at', '>=', $data['created_from']);
+                        }
+
+                        if ($data['created_until'] ?? null) {
+                            $query->whereDate('created_at', '<=', $data['created_until']);
+                        }
+                    }),
             ]);
     }
 }

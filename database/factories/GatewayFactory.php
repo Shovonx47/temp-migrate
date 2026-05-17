@@ -18,8 +18,7 @@ class GatewayFactory extends Factory
             'driver' => fake()->randomElement(GatewayDriver::cases()),
             'credentials' => null,
             'config' => null,
-            'daily_limit' => fake()->optional()->numberBetween(1000, 100000),
-            'monthly_limit' => fake()->optional()->numberBetween(10000, 1000000),
+            'requests_per_minute' => 60,
             'is_enabled' => false,
             'supports_bulk' => false,
         ];
@@ -29,14 +28,6 @@ class GatewayFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'is_enabled' => true,
-        ]);
-    }
-
-    public function withLimits(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'daily_limit' => 5000,
-            'monthly_limit' => 150000,
         ]);
     }
 

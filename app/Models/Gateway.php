@@ -26,6 +26,8 @@ class Gateway extends Model
             'driver' => GatewayDriver::class,
             'credentials' => 'encrypted:array',
             'config' => 'array',
+            'requests_per_minute' => 'integer',
+            'supports_bulk' => 'boolean',
         ];
     }
 

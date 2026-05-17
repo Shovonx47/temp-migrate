@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Enums\UserType;
+use App\Jobs\SendBatchBulkSmsJob;
+use App\Jobs\SendBatchSingleSmsJob;
 use App\Models\Campaign;
 use App\Models\Deposit;
 use App\Models\Message;
@@ -10,8 +12,10 @@ use App\Models\MessageBatch;
 use App\Models\User;
 use App\Services\Payment\PaymentManager;
 use App\Services\Sms\SmsManager;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -33,6 +37,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->mapMorphRelations();
         $this->authorizeAdminGate();
+        $this->configureRateLimiters();
     }
 
     private function mapMorphRelations(): void
@@ -50,6 +55,21 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::before(function (User $user) {
             return $user->type === UserType::Superman ? true : null;
+        });
+    }
+
+    private function configureRateLimiters(): void
+    {
+        RateLimiter::for('sms', function (object $job) {
+            $gateway = match (true) {
+                $job instanceof SendBatchBulkSmsJob,
+                $job instanceof SendBatchSingleSmsJob => $job->batch->sender?->gateway,
+                default => null,
+            };
+
+            return $gateway
+                ? Limit::perMinute($gateway->requests_per_minute)->by('sms-gateway:'.$gateway->id)
+                : Limit::none();
         });
     }
 }

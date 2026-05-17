@@ -1,12 +1,15 @@
 <?php
 
+use App\Enums\GatewayDriver;
 use App\Enums\MessageBatchStatus;
 use App\Enums\MessageStatus;
 use App\Enums\SenderType;
 use App\Enums\TransactionDirection;
 use App\Jobs\ProcessMessageBatchJob;
-use App\Jobs\SendBatchSmsJob;
+use App\Jobs\SendBatchBulkSmsJob;
+use App\Jobs\SendBatchSingleSmsJob;
 use App\Models\Contact;
+use App\Models\Gateway;
 use App\Models\Group;
 use App\Models\Message;
 use App\Models\MessageBatch;
@@ -24,11 +27,10 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     Storage::fake('local');
     seedDefaultPricing();
-    // Prevent SendBatchSmsJob from executing synchronously during these tests.
+    // Prevent send jobs from executing synchronously during these tests.
     // ProcessMessageBatchJob is tested via handle() directly; the downstream
-    // sending job is not part of its contract and requires a configured gateway.
-    // Only this one job is faked — notifications and other dispatches run normally.
-    Bus::fake([SendBatchSmsJob::class]);
+    // sending jobs are not part of its contract and require a configured gateway.
+    Bus::fake([SendBatchBulkSmsJob::class, SendBatchSingleSmsJob::class]);
 });
 
 function makeMessageBatch(?User $user = null, SenderType $senderType = SenderType::Numeric): MessageBatch
@@ -687,8 +689,9 @@ test('missing upload file is treated as zero recipients, not a fatal error', fun
         ->and(Message::count())->toBe(0);
 });
 
-test('SendBatchSmsJob is dispatched per flush with the chunk message IDs', function () {
+test('SendBatchSingleSmsJob is dispatched once per message when gateway does not support bulk', function () {
     $user = User::factory()->create(['balance' => 100]);
+    // makeMessageBatch creates a gateway with supports_bulk: false (factory default)
     $batch = makeMessageBatch($user, SenderType::Numeric);
 
     runBatchJob(
@@ -707,14 +710,59 @@ test('SendBatchSmsJob is dispatched per flush with the chunk message IDs', funct
         ->pluck('id')
         ->all();
 
-    Bus::assertDispatched(
-        SendBatchSmsJob::class,
-        fn (SendBatchSmsJob $job): bool => $job->batch->id === $batch->id
-            && $job->messageIds === $insertedIds,
-    );
+    Bus::assertDispatched(SendBatchSingleSmsJob::class, 3);
+    Bus::assertNotDispatched(SendBatchBulkSmsJob::class);
+
+    foreach ($insertedIds as $id) {
+        Bus::assertDispatched(
+            SendBatchSingleSmsJob::class,
+            fn (SendBatchSingleSmsJob $job): bool => $job->batch->id === $batch->id && $job->messageId === $id,
+        );
+    }
 });
 
-test('SendBatchSmsJob is not dispatched when all recipients are invalid', function () {
+test('SendBatchBulkSmsJob is dispatched per flush when gateway supports bulk and body has no variables', function () {
+    $user = User::factory()->create(['balance' => 100]);
+
+    // Create a gateway that explicitly supports bulk.
+    $gateway = Gateway::factory()->create([
+        'driver' => GatewayDriver::Log,
+        'is_enabled' => true,
+        'supports_bulk' => true,
+        'requests_per_minute' => 60,
+        'config' => [],
+    ]);
+    $sender = Sender::factory()->create([
+        'gateway_id' => $gateway->id,
+        'type' => SenderType::Numeric,
+        'is_enabled' => true,
+    ]);
+    $batch = MessageBatch::factory()->for($user)->create(['sender_id' => $sender->id]);
+
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [
+            ['phone' => '01711000001', 'values' => []],
+            ['phone' => '01711000002', 'values' => []],
+        ]],
+        body: 'Hi', // no variables → bulk strategy
+    );
+
+    $insertedIds = Message::where('message_batch_id', $batch->id)
+        ->orderBy('id')
+        ->pluck('id')
+        ->all();
+
+    Bus::assertDispatched(
+        SendBatchBulkSmsJob::class,
+        fn (SendBatchBulkSmsJob $job): bool => $job->batch->id === $batch->id
+            && $job->messageIds === $insertedIds,
+    );
+    Bus::assertNotDispatched(SendBatchSingleSmsJob::class);
+});
+
+test('no send job is dispatched when all recipients are invalid', function () {
     $batch = makeMessageBatch();
 
     runBatchJob(
@@ -726,5 +774,6 @@ test('SendBatchSmsJob is not dispatched when all recipients are invalid', functi
         ]],
     );
 
-    Bus::assertNotDispatched(SendBatchSmsJob::class);
+    Bus::assertNotDispatched(SendBatchBulkSmsJob::class);
+    Bus::assertNotDispatched(SendBatchSingleSmsJob::class);
 });

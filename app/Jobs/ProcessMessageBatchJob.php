@@ -47,6 +47,8 @@ class ProcessMessageBatchJob implements ShouldQueue
 
     private bool $isMaskingSender = false;
 
+    private bool $usesBulkSending = false;
+
     /**
      * @param  array<string, mixed>  $config
      *                                        Source-specific config:
@@ -297,7 +299,13 @@ class ProcessMessageBatchJob implements ShouldQueue
         });
 
         if ($messageIds !== []) {
-            SendBatchSmsJob::dispatch($batch, $messageIds)->onQueue('sms-sending');
+            if ($this->usesBulkSending) {
+                SendBatchBulkSmsJob::dispatch($batch, $messageIds)->onQueue('sms-sending');
+            } else {
+                foreach ($messageIds as $id) {
+                    SendBatchSingleSmsJob::dispatch($batch, $id)->onQueue('sms-sending');
+                }
+            }
         }
 
         $rows = [];
@@ -737,7 +745,7 @@ class ProcessMessageBatchJob implements ShouldQueue
             throw new SenderRequiredException;
         }
 
-        $sender = Sender::find($batch->sender_id);
+        $sender = Sender::with('gateway')->find($batch->sender_id);
         if (! $sender || $sender->type === null) {
             throw new SenderRequiredException;
         }
@@ -747,5 +755,6 @@ class ProcessMessageBatchJob implements ShouldQueue
 
         $this->isMaskingSender = $sender->type->isMasking();
         $this->rateResolver = OperatorRateResolver::forUser($user);
+        $this->usesBulkSending = ! $batch->hasBodyVariables() && ($sender->gateway?->supports_bulk ?? false);
     }
 }

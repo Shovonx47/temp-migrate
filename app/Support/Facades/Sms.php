@@ -2,7 +2,7 @@
 
 namespace App\Support\Facades;
 
-use App\Services\Sms\SmsManager;
+use App\Services\SMS\SmsManager;
 use Illuminate\Support\Facades\Facade;
 
 /**

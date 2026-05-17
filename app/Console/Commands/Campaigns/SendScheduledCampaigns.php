@@ -4,7 +4,7 @@ namespace App\Console\Commands\Campaigns;
 
 use App\Enums\CampaignStatus;
 use App\Models\Campaign;
-use App\Services\Sms\Campaigns\CampaignDispatcher;
+use App\Support\CampaignDispatcher;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;

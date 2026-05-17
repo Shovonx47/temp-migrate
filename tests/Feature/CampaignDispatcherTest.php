@@ -7,7 +7,7 @@ use App\Models\Campaign;
 use App\Models\Contact;
 use App\Models\Group;
 use App\Models\User;
-use App\Services\Sms\Campaigns\CampaignDispatcher;
+use App\Support\CampaignDispatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;

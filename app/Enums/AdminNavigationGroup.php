@@ -13,7 +13,7 @@ enum AdminNavigationGroup: string implements HasIcon, HasLabel
     case User = 'user';
     case Messaging = 'messaging';
     case Audience = 'audience';
-    case Billing = 'billing';
+    case Finance = 'finance';
     case Settings = 'settings';
 
     public function getLabel(): string|Htmlable|null
@@ -31,7 +31,7 @@ enum AdminNavigationGroup: string implements HasIcon, HasLabel
             self::User => Heroicon::OutlinedUser,
             self::Messaging => Heroicon::OutlinedChatBubbleLeftRight,
             self::Audience => Heroicon::OutlinedUsers,
-            self::Billing => Heroicon::OutlinedCreditCard,
+            self::Finance => Heroicon::OutlinedBanknotes,
             self::Settings => Heroicon::OutlinedCog,
         };
     }

@@ -4,7 +4,7 @@ use App\Exceptions\OperatorRateNotConfiguredException;
 use App\Models\Country;
 use App\Models\Operator;
 use App\Models\User;
-use App\Services\Sms\OperatorRateResolver;
+use App\Support\OperatorRateResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);

@@ -1,6 +1,6 @@
 <?php
 
-use App\Services\Sms\MessageMetrics;
+use App\Support\MessageMetrics;
 
 test('empty body is treated as one GSM-7 part with zero chars', function () {
     $m = MessageMetrics::for('');

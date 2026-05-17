@@ -4,7 +4,7 @@ namespace App\Filament\Customer\Resources\Messaging\Campaigns\Tables;
 
 use App\Enums\CampaignStatus;
 use App\Models\Campaign;
-use App\Services\Sms\Campaigns\CampaignDispatcher;
+use App\Support\CampaignDispatcher;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;

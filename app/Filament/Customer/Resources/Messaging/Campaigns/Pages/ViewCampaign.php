@@ -5,7 +5,7 @@ namespace App\Filament\Customer\Resources\Messaging\Campaigns\Pages;
 use App\Enums\CampaignStatus;
 use App\Filament\Customer\Resources\Messaging\Campaigns\CampaignResource;
 use App\Models\Campaign;
-use App\Services\Sms\Campaigns\CampaignDispatcher;
+use App\Support\CampaignDispatcher;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Notifications\Notification;

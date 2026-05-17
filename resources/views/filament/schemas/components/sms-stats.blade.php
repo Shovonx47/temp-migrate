@@ -1,5 +1,5 @@
 @php
-    use App\Services\Sms\OperatorRateResolver;
+    use App\Support\OperatorRateResolver;
 
     $resolver = OperatorRateResolver::forUser(auth()->user());
     $nonMasking = $resolver->ratesForUser(false);

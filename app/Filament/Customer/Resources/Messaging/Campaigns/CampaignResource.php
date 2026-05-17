@@ -4,10 +4,9 @@ namespace App\Filament\Customer\Resources\Messaging\Campaigns;
 
 use App\Enums\CustomerNavigationGroup;
 use App\Filament\Customer\Resources\Messaging\Campaigns\Pages\CreateCampaign;
-use App\Filament\Customer\Resources\Messaging\Campaigns\Pages\EditCampaign;
 use App\Filament\Customer\Resources\Messaging\Campaigns\Pages\ListCampaigns;
 use App\Filament\Customer\Resources\Messaging\Campaigns\Pages\ViewCampaign;
-use App\Filament\Customer\Resources\Messaging\Campaigns\RelationManagers\MessagesRelationManager;
+use App\Filament\Customer\Resources\Messaging\Campaigns\RelationManagers\RecipientsRelationManager;
 use App\Filament\Customer\Resources\Messaging\Campaigns\Schemas\CampaignForm;
 use App\Filament\Customer\Resources\Messaging\Campaigns\Schemas\CampaignInfolist;
 use App\Filament\Customer\Resources\Messaging\Campaigns\Tables\CampaignsTable;
@@ -32,6 +31,8 @@ class CampaignResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
+    protected static bool $shouldRegisterNavigation = false; // TODO:: paused for now
+
     public static function form(Schema $schema): Schema
     {
         return CampaignForm::configure($schema);
@@ -50,7 +51,7 @@ class CampaignResource extends Resource
     public static function getRelations(): array
     {
         return [
-            MessagesRelationManager::class,
+            RecipientsRelationManager::class,
         ];
     }
 
@@ -60,7 +61,6 @@ class CampaignResource extends Resource
             'index' => ListCampaigns::route('/'),
             'create' => CreateCampaign::route('/create'),
             'view' => ViewCampaign::route('/{record}'),
-            'edit' => EditCampaign::route('/{record}/edit'),
         ];
     }
 

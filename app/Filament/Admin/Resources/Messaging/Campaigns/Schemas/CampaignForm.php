@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Messaging\Campaigns\Schemas;
 
+use App\Enums\CampaignStatus;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -17,15 +18,14 @@ class CampaignForm
             ->components([
                 Section::make('Campaign Details')->schema([
                     Select::make('user_id')->relationship('user', 'name')->required(),
-                    Select::make('template_id')->relationship('template', 'name')->nullable(),
+                    Select::make('group_id')->relationship('group', 'name')->nullable(),
                     Select::make('sender_id')->relationship('sender', 'sender_id')->nullable(),
                     TextInput::make('name')->required()->maxLength(255),
                     Textarea::make('body')->required()->columnSpanFull(),
                     Select::make('status')
-                        ->options([
-                            'draft' => 'Draft', 'scheduled' => 'Scheduled', 'running' => 'Running',
-                            'paused' => 'Paused', 'completed' => 'Completed', 'failed' => 'Failed',
-                        ])->required()->default('draft'),
+                        ->options(CampaignStatus::class)
+                        ->required()
+                        ->default(CampaignStatus::Draft->value),
                     DateTimePicker::make('scheduled_at'),
                     DateTimePicker::make('started_at'),
                     DateTimePicker::make('completed_at'),

@@ -19,8 +19,7 @@ return new class extends Migration
             $table->longText('credentials')->nullable();
             $table->json('config')->nullable();
 
-            $table->unsignedBigInteger('daily_limit')->nullable();
-            $table->unsignedBigInteger('monthly_limit')->nullable();
+            $table->unsignedInteger('requests_per_minute')->default(60);
 
             $table->boolean('is_enabled')->default(false);
             $table->boolean('supports_bulk')->default(false);

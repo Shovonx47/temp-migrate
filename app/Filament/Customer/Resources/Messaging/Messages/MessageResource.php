@@ -3,10 +3,10 @@
 namespace App\Filament\Customer\Resources\Messaging\Messages;
 
 use App\Enums\CustomerNavigationGroup;
-use App\Filament\Customer\Resources\Messaging\Messages\Pages\CreateMessage;
+use App\Filament\Customer\Resources\Messaging\Messages\Pages\CreateQuickMessage;
+use App\Filament\Customer\Resources\Messaging\Messages\Pages\CreateSmartMessage;
 use App\Filament\Customer\Resources\Messaging\Messages\Pages\ListMessages;
 use App\Filament\Customer\Resources\Messaging\Messages\Pages\ViewMessage;
-use App\Filament\Customer\Resources\Messaging\Messages\RelationManagers\DeliveryReportsRelationManager;
 use App\Filament\Customer\Resources\Messaging\Messages\Schemas\MessageForm;
 use App\Filament\Customer\Resources\Messaging\Messages\Schemas\MessageInfolist;
 use App\Filament\Customer\Resources\Messaging\Messages\Tables\MessagesTable;
@@ -29,8 +29,6 @@ class MessageResource extends Resource
 
     protected static ?int $navigationSort = 3;
 
-    protected static ?string $recordTitleAttribute = 'uid';
-
     public static function table(Table $table): Table
     {
         return MessagesTable::configure($table);
@@ -49,7 +47,7 @@ class MessageResource extends Resource
     public static function getRelations(): array
     {
         return [
-            DeliveryReportsRelationManager::class,
+            //
         ];
     }
 
@@ -57,7 +55,8 @@ class MessageResource extends Resource
     {
         return [
             'index' => ListMessages::route('/'),
-            'create' => CreateMessage::route('/create'),
+            'create-smart' => CreateSmartMessage::route('/smart'),
+            'create-quick' => CreateQuickMessage::route('/quick'),
             'view' => ViewMessage::route('/{record}'),
         ];
     }

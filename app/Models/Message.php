@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\Attributes\Guarded;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Propaganistas\LaravelPhone\Casts\E164PhoneNumberCast;
 
 #[Guarded(['id'])]
@@ -26,7 +25,6 @@ class Message extends Model implements Transactionable
             'status' => MessageStatus::class,
             'cost' => 'float',
             'sent_at' => 'datetime',
-            'delivered_at' => 'datetime',
             'failed_at' => 'datetime',
         ];
     }
@@ -41,6 +39,11 @@ class Message extends Model implements Transactionable
         return $this->belongsTo(Campaign::class);
     }
 
+    public function messageBatch(): BelongsTo
+    {
+        return $this->belongsTo(MessageBatch::class);
+    }
+
     public function sender(): BelongsTo
     {
         return $this->belongsTo(Sender::class);
@@ -49,10 +52,5 @@ class Message extends Model implements Transactionable
     public function gateway(): BelongsTo
     {
         return $this->belongsTo(Gateway::class);
-    }
-
-    public function deliveryReports(): HasMany
-    {
-        return $this->hasMany(DeliveryReport::class);
     }
 }

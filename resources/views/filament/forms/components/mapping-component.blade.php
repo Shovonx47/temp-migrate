@@ -4,10 +4,8 @@
     $bodyVariables = $get('body_variables') ?? [];
 
     if ($source === 'upload') {
-        $headers = $get('file.headers') ?? [];
-        $firstRow = ($get('file.rows') ?? [])[0] ?? [];
-        $padded = array_pad($firstRow, count($headers), '');
-        $sample = array_combine($headers, $padded);
+        $headers = $get('file_headers') ?? [];
+        $sample = ($get('file_sample') ?? [])[0] ?? [];
         $options = $headers;
     } else {
         $options = [];

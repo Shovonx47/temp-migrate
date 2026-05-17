@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\UserType;
+use App\Models\Sender;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -21,12 +22,19 @@ class UserSeeder extends Seeder
             'email_verified_at' => now(),
         ]);
 
-        User::updateOrCreate(['email' => 'customer@example.com'], [
+        $user = User::updateOrCreate(['email' => 'customer@example.com'], [
             'name' => 'Customer',
             'phone' => '+8801700000002',
             'type' => UserType::Customer,
             'password' => bcrypt('customer'),
             'email_verified_at' => now(),
+            'balance' => 50,
         ]);
+
+        $senders = Sender::inRandomOrder()
+            ->limit(3)
+            ->pluck('id');
+
+        $user->senders()->sync($senders);
     }
 }

@@ -3,6 +3,8 @@
 namespace App\Filament\Admin\Resources\Users\Customers\Tables;
 
 use App\Enums\UserApproval;
+use App\Filament\Admin\Resources\Users\Customers\Actions\ApprovalAction;
+use App\Filament\Admin\Resources\Users\Customers\Actions\DepositAction;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -57,8 +59,12 @@ class CustomersTable
             ])
             ->recordActions([
                 ActionGroup::make([
-                    ViewAction::make(),
-                    EditAction::make(),
+                    ViewAction::make()
+                        ->label('View Customer'),
+                    DepositAction::make(),
+                    ApprovalAction::make(),
+                    EditAction::make()
+                        ->label('Edit Customer'),
                 ]),
             ])
             ->toolbarActions([

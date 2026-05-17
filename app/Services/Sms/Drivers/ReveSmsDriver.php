@@ -1,0 +1,113 @@
+<?php
+
+namespace App\Services\Sms\Drivers;
+
+use App\Contracts\SmsGateway;
+use App\Contracts\SupportsBulkSms;
+use App\Services\Sms\Data\BulkSmsRequest;
+use App\Services\Sms\Data\BulkSmsResponse;
+use App\Services\Sms\Data\SmsRequest;
+use App\Services\Sms\Data\SmsResponse;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Support\Facades\Http;
+use RuntimeException;
+
+final readonly class ReveSmsDriver implements SmsGateway, SupportsBulkSms
+{
+    public function __construct(private array $credentials = []) {}
+
+    /**
+     * @throws ConnectionException
+     * @throws RuntimeException
+     */
+    public function send(SmsRequest $request): SmsResponse
+    {
+        try {
+            $response = $this->client()->post('sendtext', [
+                'apikey' => $this->credentials['key'] ?? '',
+                'secretkey' => $this->credentials['secret'] ?? '',
+                'callerID' => $request->from ?? '',
+                'toUser' => $request->to,
+                'messageContent' => $request->body,
+            ]);
+
+            if ($response->failed() || $response->json("Status") !== '0') {
+                return new SmsResponse(
+                    successful: false,
+                    errorMessage: $response->json('Text', 'Unknown error'),
+                    raw: $response->json() ?? [],
+                );
+            }
+
+            $data = $response->json() ?? [];
+
+            return new SmsResponse(
+                successful: true,
+                gatewayMessageId: (string) ($data['Message_ID'] ?? ''),
+                raw: $data,
+            );
+        } catch (ConnectionException $e) {
+            return new SmsResponse(
+                successful: false,
+                errorMessage: 'Connection failed: '.$e->getMessage(),
+            );
+        }
+    }
+
+    /**
+     * Sends the same message body to multiple recipients in a single API call.
+     * ReveSMS returns comma-separated message IDs, one per recipient, in the same order.
+     *
+     * @throws ConnectionException
+     */
+    public function sendBulk(BulkSmsRequest $request): BulkSmsResponse
+    {
+        try {
+            $response = $this->client()->post('sendtext', [
+                'apikey' => $this->credentials['key'] ?? '',
+                'secretkey' => $this->credentials['secret'] ?? '',
+                'callerID' => $request->from ?? '',
+                'toUser' => implode(',', $request->recipients),
+                'messageContent' => $request->body,
+            ]);
+
+            if ($response->failed() || $response->json('Status') !== '0') {
+                return new BulkSmsResponse(
+                    successful: false,
+                    errorMessage: $response->json('Text', 'Unknown error'),
+                    raw: $response->json() ?? [],
+                );
+            }
+
+            $data = $response->json() ?? [];
+            $rawIds = (string) ($data['Message_ID'] ?? '');
+
+            // ReveSMS returns comma-separated IDs in the same order as recipients.
+            $perRecipientIds = $rawIds !== ''
+                ? array_map('trim', explode(',', $rawIds))
+                : [];
+
+            return new BulkSmsResponse(
+                successful: true,
+                perRecipientIds: $perRecipientIds,
+                raw: $data,
+            );
+        } catch (ConnectionException $e) {
+            return new BulkSmsResponse(
+                successful: false,
+                errorMessage: 'Connection failed: '.$e->getMessage(),
+            );
+        }
+    }
+
+    private function client(): PendingRequest
+    {
+        $baseUrl = rtrim((string) ($this->credentials['url'] ?? ''), '/');
+
+        return Http::baseUrl($baseUrl)
+            ->withoutVerifying()
+            ->asJson()
+            ->acceptJson();
+    }
+}

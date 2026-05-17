@@ -4,9 +4,7 @@ namespace App\Filament\Admin\Resources\Settings\Gateways\Schemas;
 
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Fieldset;
-use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
@@ -26,28 +24,24 @@ class GatewayForm
     {
         return Section::make('Gateway Details')
             ->schema([
-                Grid::make(2)->schema([
-                    TextInput::make('name')
-                        ->required()
-                        ->maxLength(255),
-                    Select::make('driver')
-                        ->options(self::getDriverOptions())
-                        ->default(self::getDriverOptions()->keys()->first())
-                        ->required()
-                        ->live(onBlur: true)
-                        ->dehydrated(fn (string $operation): bool => $operation === 'create')
-                        ->disabledOn('edit'),
-                    TextInput::make('daily_limit')
-                        ->numeric()
-                        ->helperText('Leave empty for unlimited'),
-                    TextInput::make('monthly_limit')
-                        ->numeric()
-                        ->helperText('Leave empty for unlimited'),
-                    Toggle::make('is_enabled')
-                        ->default(false),
-                    Toggle::make('supports_bulk')
-                        ->default(false),
-                ]),
+                TextInput::make('name')
+                    ->required()
+                    ->maxLength(255),
+                Select::make('driver')
+                    ->options(self::getDriverOptions())
+                    ->default(self::getDriverOptions()->keys()->first())
+                    ->required()
+                    ->live(onBlur: true)
+                    ->dehydrated(fn (string $operation): bool => $operation === 'create')
+                    ->disabledOn('edit'),
+                Select::make('is_enabled')
+                    ->boolean()
+                    ->default(false)
+                    ->required(),
+                Select::make('supports_bulk')
+                    ->default(false)
+                    ->boolean()
+                    ->required(),
             ]);
     }
 

@@ -87,7 +87,6 @@ class DemoSeeder extends Seeder
     private function seedGateways(): void
     {
         $gateways = [
-            ['name' => 'SSLCommerz SMS', 'driver' => 'sslcommerz', 'is_enabled' => true,  'supports_bulk' => false],
             ['name' => 'Twilio',         'driver' => 'twilio',     'is_enabled' => true,  'supports_bulk' => true],
             ['name' => 'Vonage',         'driver' => 'vonage',     'is_enabled' => true,  'supports_bulk' => true],
             ['name' => 'Infobip',        'driver' => 'infobip',    'is_enabled' => false, 'supports_bulk' => true],
@@ -110,10 +109,6 @@ class DemoSeeder extends Seeder
         $sendersData = [];
 
         $senderSpecs = [
-            'sslcommerz' => [
-                ['sender_id' => 'SENDORA', 'type' => SenderType::AlphaNumeric, 'is_enabled' => true],
-                ['sender_id' => '8809613000001', 'type' => SenderType::Numeric, 'is_enabled' => false],
-            ],
             'twilio' => [
                 ['sender_id' => '+14155238886', 'type' => SenderType::Numeric, 'is_enabled' => true],
                 ['sender_id' => 'TXTSVC', 'type' => SenderType::AlphaNumeric, 'is_enabled' => true],
@@ -331,14 +326,14 @@ class DemoSeeder extends Seeder
                 ];
             }
 
-            // Running campaign
+            // Processing campaign
             $campaignsData[] = [
                 'user_id' => $customer->id,
                 'template_id' => $customerTemplates->random()->id,
                 'sender_id' => $customerSenders->random()->id,
                 'name' => fake()->sentence(3),
                 'body' => fake()->paragraph(),
-                'status' => 'running',
+                'status' => 'processing',
                 'scheduled_at' => null,
                 'started_at' => now()->subHours(fake()->numberBetween(1, 5)),
                 'completed_at' => null,
@@ -393,7 +388,7 @@ class DemoSeeder extends Seeder
 
         foreach ($campaigns as $campaign) {
             $count = match ($campaign->status) {
-                'draft', 'running' => fake()->numberBetween(50, 200),
+                'draft', 'processing' => fake()->numberBetween(50, 200),
                 'completed' => fake()->numberBetween(100, 500),
                 'failed' => fake()->numberBetween(10, 100),
                 default => 0,
@@ -409,8 +404,8 @@ class DemoSeeder extends Seeder
                         .fake()->numerify('########'),
                     'body' => fake()->paragraph(),
                     'status' => match ($campaign->status) {
-                        'running' => fake()->randomElement([MessageStatus::Sent->value, MessageStatus::Delivered->value, MessageStatus::Pending->value]),
-                        'completed' => fake()->randomElement([MessageStatus::Delivered->value, MessageStatus::Sent->value, MessageStatus::Failed->value]),
+                        'processing' => fake()->randomElement([MessageStatus::Sent->value, MessageStatus::Sent->value, MessageStatus::Pending->value]),
+                        'completed' => fake()->randomElement([MessageStatus::Sent->value, MessageStatus::Sent->value, MessageStatus::Failed->value]),
                         'failed' => MessageStatus::Failed->value,
                         default => MessageStatus::Pending->value,
                     },
@@ -457,7 +452,7 @@ class DemoSeeder extends Seeder
 
     private function seedDeposits(): void
     {
-        $methods = ['sslcommerz', 'stripe', 'manual'];
+        $methods = ['piprapay', 'manual'];
         $depositsData = [];
 
         foreach ($this->customers as $customer) {

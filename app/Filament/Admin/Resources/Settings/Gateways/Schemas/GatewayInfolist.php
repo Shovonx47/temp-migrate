@@ -17,14 +17,14 @@ class GatewayInfolist
                     ->schema([
                         Grid::make(2)
                             ->schema([
-                                TextEntry::make('name')->weight('bold'),
-                                TextEntry::make('driver')->badge(),
-                                TextEntry::make('is_active')->badge(),
-                                TextEntry::make('is_default')->badge(),
-                                TextEntry::make('daily_limit')->numeric()->abbreviate(),
-                                TextEntry::make('monthly_limit')->numeric()->abbreviate(),
-                                TextEntry::make('created_at')->dateTime(),
-                                TextEntry::make('updated_at')->dateTime(),
+                                TextEntry::make('name')
+                                    ->weight('bold'),
+                                TextEntry::make('driver')
+                                    ->badge(),
+                                TextEntry::make('created_at')
+                                    ->dateTime(),
+                                TextEntry::make('updated_at')
+                                    ->dateTime(),
                             ]),
                     ]),
             ]);

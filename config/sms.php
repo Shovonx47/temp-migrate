@@ -18,6 +18,12 @@ return [
         'revesms' => [
             'title' => 'Reve SMS',
             'credentials' => [
+                'url' => [
+                    'label' => 'Base URL',
+                    'placeholder' => 'https://example.com:8888',
+                    'helper' => 'Enter only the base URL, without any endpoint path such as /sendtext.',
+                    'required' => true,
+                ],
                 'key' => [
                     'label' => 'API Key',
                     'placeholder' => 'Enter your api key',

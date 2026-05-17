@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Concerns\HasTransactions;
 use App\Contracts\Transactionable;
+use App\Enums\DepositPaymentMethod;
 use App\Enums\DepositStatus;
 use Database\Factories\DepositFactory;
 use Illuminate\Database\Eloquent\Attributes\Guarded;
@@ -22,6 +23,7 @@ class Deposit extends Model implements Transactionable
     {
         return [
             'amount' => 'float',
+            'payment_method' => DepositPaymentMethod::class,
             'status' => DepositStatus::class,
             'meta' => 'array',
             'paid_at' => 'datetime',

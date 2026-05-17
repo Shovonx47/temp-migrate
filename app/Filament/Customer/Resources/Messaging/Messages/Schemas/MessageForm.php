@@ -3,7 +3,8 @@
 namespace App\Filament\Customer\Resources\Messaging\Messages\Schemas;
 
 use App\Filament\Forms\Components\MappingComponent;
-use App\Filament\Forms\Components\RecipientUpload;
+use App\Support\RecipientFileParser;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -11,14 +12,18 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Callout;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Components\View;
 use Filament\Schemas\Components\Wizard;
 use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\Rules\Exists;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Throwable;
 use Ysfkaya\FilamentPhoneInput\Forms\PhoneInput;
 
 class MessageForm
@@ -29,6 +34,9 @@ class MessageForm
             ->columns(1)
             ->components([
                 Hidden::make('body_variables')->default([]),
+                Hidden::make('file_headers')->default([]),
+                Hidden::make('file_sample')->default([]),
+                Hidden::make('file_total_rows')->default(0),
                 Wizard::make([
                     self::composeStep(),
                     self::recipientStep(),
@@ -121,7 +129,8 @@ class MessageForm
 
                         foreach ($get('body_variables') ?? [] as $variable) {
                             $columns[] = Repeater\TableColumn::make(ucfirst($variable))
-                                ->alignLeft();
+                                ->alignLeft()
+                                ->markAsRequired();
                         }
 
                         return $columns;
@@ -134,7 +143,8 @@ class MessageForm
                         foreach ($get('body_variables') ?? [] as $variable) {
                             $fields[] = TextInput::make("values.{$variable}")
                                 ->label(ucfirst($variable))
-                                ->placeholder("Value for {$variable}");
+                                ->placeholder("Value for {$variable}")
+                                ->required();
                         }
 
                         return $fields;
@@ -164,9 +174,28 @@ class MessageForm
                     ->required(fn (Get $get) => $get('source') === 'group'),
 
                 // Upload field will only be visible if 'Upload' is selected as the source
-                RecipientUpload::make('file')
+                FileUpload::make('file')
+                    ->disk('local')
+                    ->directory('uploads/recipient-files')
+                    ->acceptedFileTypes([
+                        'text/csv',
+                        'text/plain',
+                        'application/vnd.ms-excel',
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    ])
+                    ->helperText('Upload a CSV or Excel file with a "phone" column and any variables used in your message body.')
+                    ->maxSize(100 * 1024) // 100 MB
+                    ->preserveFilenames()
+                    ->live()
+                    ->afterStateUpdated(fn ($state, Set $set) => self::parseUploadedFile($state, $set))
+                    ->dehydrated()
                     ->visible(fn (Get $get) => $get('source') === 'upload')
                     ->required(fn (Get $get) => $get('source') === 'upload'),
+
+                View::make('filament.schemas.components.upload-preview')
+                    ->visible(fn (Get $get) => $get('source') === 'upload'
+                        && ! empty($get('file_headers'))
+                    ),
             ]);
     }
 
@@ -174,9 +203,7 @@ class MessageForm
     {
         return Step::make('Mapping')
             ->icon(Heroicon::Square2Stack)
-            ->visible(fn (Get $get) => $get('source') === 'upload'
-                && ! empty($get('body_variables'))
-            )
+            ->visible(fn (Get $get) => $get('source') === 'upload')
             ->schema([
                 MappingComponent::make('mapping')
                     ->hiddenLabel(),
@@ -190,5 +217,58 @@ class MessageForm
             ->schema([
                 View::make('filament.schemas.components.message-review'),
             ]);
+    }
+
+    /**
+     * Resolve the just-uploaded file and feed its headers + sample rows back into form state
+     * so the mapping/review steps can render without re-parsing.
+     */
+    private static function parseUploadedFile(mixed $state, Set $set): void
+    {
+        $absolutePath = self::resolveUploadAbsolutePath($state);
+
+        if ($absolutePath === null) {
+            $set('file_headers', []);
+            $set('file_sample', []);
+            $set('file_total_rows', 0);
+
+            return;
+        }
+
+        try {
+            $preview = app(RecipientFileParser::class)->peek($absolutePath);
+            $set('file_headers', $preview['headers']);
+            $set('file_sample', $preview['sample']);
+            $set('file_total_rows', $preview['total_rows']);
+        } catch (Throwable) {
+            $set('file_headers', []);
+            $set('file_sample', []);
+            $set('file_total_rows', 0);
+        }
+    }
+
+    private static function resolveUploadAbsolutePath(mixed $state): ?string
+    {
+        // FileUpload state can be: null, a TemporaryUploadedFile, an array of TemporaryUploadedFile,
+        // a string disk-relative path, or an associative array keyed by sha for multi-file uploads.
+        if ($state === null || $state === '' || $state === []) {
+            return null;
+        }
+
+        if (is_array($state)) {
+            $state = reset($state);
+        }
+
+        if ($state instanceof TemporaryUploadedFile) {
+            return $state->getRealPath();
+        }
+
+        if (is_string($state)) {
+            return Storage::disk('local')->exists($state)
+                ? Storage::disk('local')->path($state)
+                : null;
+        }
+
+        return null;
     }
 }

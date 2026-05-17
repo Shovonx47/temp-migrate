@@ -27,7 +27,7 @@ class SendersTable
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('type')
-                    ->searchable()
+                    ->badge()
                     ->sortable(),
                 IconColumn::make('is_enabled')
                     ->boolean(),

@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->decimal('amount', 12, 4)->default(0);
             $table->string('currency')->default('BDT');
-            $table->string('payment_method')->nullable(); // sslcommerz, stripe, manual
+            $table->string('payment_method')->nullable(); // piprapay, manual
             $table->string('transaction_id')->nullable()->unique(); // payment gateway er id
             $table->string('status')->default('pending'); // pending, completed, failed, refunded
             $table->json('meta')->nullable(); // gateway response payload

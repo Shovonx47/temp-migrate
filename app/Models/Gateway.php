@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\GatewayDriver;
 use Database\Factories\GatewayFactory;
 use Illuminate\Database\Eloquent\Attributes\Guarded;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -22,8 +23,11 @@ class Gateway extends Model
     protected function casts(): array
     {
         return [
+            'driver' => GatewayDriver::class,
             'credentials' => 'encrypted:array',
             'config' => 'array',
+            'requests_per_minute' => 'integer',
+            'supports_bulk' => 'boolean',
         ];
     }
 

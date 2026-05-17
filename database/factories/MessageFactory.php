@@ -27,7 +27,6 @@ class MessageFactory extends Factory
             'cost' => fake()->randomFloat(4, 0, 5),
             'failed_reason' => null,
             'sent_at' => null,
-            'delivered_at' => null,
             'failed_at' => null,
         ];
     }
@@ -44,15 +43,6 @@ class MessageFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'status' => MessageStatus::Sent,
             'sent_at' => now(),
-        ]);
-    }
-
-    public function delivered(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'status' => MessageStatus::Delivered,
-            'sent_at' => now()->subMinutes(2),
-            'delivered_at' => now(),
         ]);
     }
 

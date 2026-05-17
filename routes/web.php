@@ -2,14 +2,23 @@
 
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\WebhookController;
+use App\Models\MessageBatch;
 use Illuminate\Support\Facades\Storage;
 
-Route::match(['post', 'get'], 'payments/{gateway}/callback', PaymentController::class)->name('payments.callback');
-Route::match(['post', 'get'], 'payments/{gateway}/webhook', WebhookController::class)->name('payments.webhook');
+Route::match(['post', 'get'], 'payments/{gateway}/callback/{deposit}', PaymentController::class)
+    ->name('payments.callback')
+    ->middleware(['auth:customer'])
+    ->whereIn('gateway', ['piprapay']);
+
+Route::match(['post', 'get'], 'payments/{gateway}/webhook', WebhookController::class)
+    ->name('payments.webhook')
+    ->whereIn('gateway', ['piprapay']);
 
 Route::middleware(['web', 'auth:customer'])
-    ->get('downloads/failed-reports/{filename}', function (string $filename) {
-        $path = 'failed-reports/'.auth('customer')->id().'/'.$filename;
+    ->get('downloads/message-batches/{batch}/failed-report/{filename}', function (MessageBatch $batch, string $filename) {
+        abort_if($batch->user_id !== auth('customer')->id(), 403);
+
+        $path = "message-batches/{$batch->id}/{$filename}";
 
         abort_unless(Storage::disk('local')->exists($path), 404);
 

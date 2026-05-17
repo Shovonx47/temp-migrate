@@ -2,9 +2,16 @@
 
 namespace App\Filament\Customer\Resources\Messaging\Messages\Tables;
 
+use App\Enums\MessageStatus;
+use App\Filament\Exports\MessageExporter;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\ExportAction;
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 
 class MessagesTable
@@ -13,19 +20,56 @@ class MessagesTable
     {
         return $table
             ->columns([
-                TextColumn::make('uid')->label('UID')->searchable()->sortable(),
-                TextColumn::make('campaign.name')->searchable()->sortable(),
-                TextColumn::make('to')->label('Recipient')->searchable()->sortable(),
-                TextColumn::make('status')->badge()->sortable(),
-                TextColumn::make('cost')->money('BDT')->sortable(),
-                TextColumn::make('segments')->numeric()->sortable(),
-                TextColumn::make('sent_at')->dateTime()->sortable(),
-                TextColumn::make('created_at')->dateTime()->sortable()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('to')
+                    ->label('Recipient')
+                    ->searchable(),
+                TextColumn::make('status')
+                    ->badge()
+                    ->sortable(),
+                TextColumn::make('cost')
+                    ->money('BDT'),
+                TextColumn::make('body')
+                    ->limit(50)
+                    ->tooltip(fn($record) => $record->body),
+                TextColumn::make('campaign.name')
+                    ->placeholder('-'),
+                TextColumn::make('sent_at'),
+                TextColumn::make('created_at'),
             ])
+            ->poll('60s')
+            ->groups([
+                Group::make('status')->collapsible()
+            ])
+            ->collapsedGroupsByDefault()
             ->recordActions([
                 ActionGroup::make([
                     ViewAction::make(),
                 ]),
+            ])
+            ->heading("Messages")
+            ->headerActions([
+                ExportAction::make()
+                    ->exporter(MessageExporter::class)
+            ])
+            ->filters([
+                SelectFilter::make('status')
+                    ->options(MessageStatus::class),
+                Filter::make('created_at')
+                    ->schema([
+                        DatePicker::make('created_from')
+                            ->label('Created From'),
+                        DatePicker::make('created_until')
+                            ->label('Created Until'),
+                    ])
+                    ->query(function ($query, $data) {
+                        if ($data['created_from'] ?? null) {
+                            $query->whereDate('created_at', '>=', $data['created_from']);
+                        }
+
+                        if ($data['created_until'] ?? null) {
+                            $query->whereDate('created_at', '<=', $data['created_until']);
+                        }
+                    }),
             ]);
     }
 }

@@ -30,6 +30,8 @@ class UserFactory extends Factory
             'type' => 'customer',
             'approval' => fake()->randomElement(['approved', 'pending', 'rejected']),
 
+            'balance' => 10000,
+
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
 

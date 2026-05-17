@@ -25,29 +25,20 @@ class GatewaysTable
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('driver')
-                    ->searchable()
-                    ->sortable(),
-                TextColumn::make('daily_limit')
-                    ->numeric()
-                    ->abbreviate()
-                    ->sortable()
-                    ->placeholder('Unlimited'),
-                TextColumn::make('monthly_limit')
-                    ->numeric()
-                    ->abbreviate()
-                    ->sortable()
-                    ->placeholder('Unlimited'),
+                    ->badge(),
+                //                TextColumn::make('daily_limit')
+                //                    ->abbreviate()
+                //                    ->sortable()
+                //                    ->placeholder('Unlimited'),
+                //                TextColumn::make('monthly_limit')
+                //                    ->abbreviate()
+                //                    ->sortable()
+                //                    ->placeholder('Unlimited'),
                 ToggleColumn::make('is_enabled'),
                 IconColumn::make('supports_bulk')
                     ->boolean(),
-                TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('created_at'),
+                TextColumn::make('updated_at'),
             ])
             ->filters([
                 TrashedFilter::make(),

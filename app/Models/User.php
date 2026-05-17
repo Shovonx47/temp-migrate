@@ -23,7 +23,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Propaganistas\LaravelPhone\Casts\E164PhoneNumberCast;
 
-#[Fillable(['name', 'email', 'phone', 'type', 'approval', 'password'])]
+#[Fillable(['name', 'email', 'phone', 'type', 'approval', 'balance', 'password'])]
 #[Hidden(['type', 'password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 {
@@ -46,8 +46,14 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
             'approval' => UserApproval::class,
             'phone' => E164PhoneNumberCast::class,
             'password' => 'hashed',
+            'balance' => 'float',
             'email_verified_at' => 'datetime',
         ];
+    }
+
+    public function operatorRates(): HasMany
+    {
+        return $this->hasMany(UserOperatorRate::class);
     }
 
     public function canAccessPanel(Panel $panel): bool
@@ -86,6 +92,11 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class, 'user_id');
+    }
+
+    public function deposits(): HasMany
+    {
+        return $this->hasMany(Deposit::class, 'user_id');
     }
 
     public function transactions(): HasMany

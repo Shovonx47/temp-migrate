@@ -2,17 +2,21 @@
 
 namespace App\Providers;
 
+use Closure;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\EditAction;
+use Filament\Actions\ExportAction;
 use Filament\Actions\Exports\ExportColumn;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Select;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
-use Filament\Schemas\Components\Section;
+use Filament\QueryBuilder\Constraints\SelectConstraint;
 use Filament\Support\Assets\Js;
 use Filament\Support\Enums\Size;
 use Filament\Support\Facades\FilamentAsset;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\Column;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -20,11 +24,15 @@ use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Number;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Support\Stringable;
+use LogicException;
+use Ysfkaya\FilamentPhoneInput\Forms\PhoneInput;
+use Ysfkaya\FilamentPhoneInput\PhoneInputNumberType;
 
 class FilamentServiceProvider extends ServiceProvider
 {
@@ -43,28 +51,59 @@ class FilamentServiceProvider extends ServiceProvider
         $this->configureColumns();
         $this->configureFilters();
         $this->configureEntries();
+        $this->configureConstraints();
     }
 
     protected function registerAssets(): void
     {
         FilamentAsset::register([
-            Js::make('app', Vite::asset('resources/js/app.ts'))->module()
+            Js::make('app', Vite::asset('resources/js/app.ts'))->module(),
         ]);
     }
 
     protected function configureMacros(): void
     {
-
         Stringable::macro('acronym', function (): Stringable {
             $acronyms = config('data.acronyms');
 
-            /** @var Stringable $this */
             return $this->replaceMatches(
-                pattern: '/\b('.implode('|', array_keys($acronyms)).')\b/i',
+                pattern: '/\b(' . implode('|', array_keys($acronyms)) . ')\b/i',
                 replace: function (array $matches) use ($acronyms) {
                     return $acronyms[strtolower($matches[1])] ?? $matches[0];
                 }
             );
+        });
+
+        TextColumn::macro('relative', function (string|Closure|null $timezone = null): static {
+            $this->isDateTime = true;
+
+            $this->formatStateUsing(static function (TextColumn $column, $state) use ($timezone): ?string {
+                if (blank($state)) {
+                    return null;
+                }
+
+                return Carbon::parse($state)
+                    ->setTimezone($column->evaluate($timezone) ?? $column->getTimezone())
+                    ->diffForHumans(short: true);
+            });
+
+            return $this;
+        });
+
+        PhoneInput::macro('tags', function () {
+            return $this
+                ->view('filament.forms.components.phone-tags-input')
+                ->default([])
+                ->afterStateHydrated(function (PhoneInput $component, $state): void {
+                    if (is_array($state)) {
+                        return;
+                    }
+                    $component->state(filled($state) ? [(string)$state] : []);
+                })
+                ->mutateDehydratedStateUsing(fn($state): array => array_values(array_filter(
+                    array_map('trim', (array)($state ?? [])),
+                    fn(string $value): bool => $value !== '',
+                )));
         });
     }
 
@@ -91,6 +130,17 @@ class FilamentServiceProvider extends ServiceProvider
         Action::configureUsing(static function (Action $action) {
             $action->outlined();
         });
+
+        EditAction::configureUsing(static function (EditAction $action) {
+            $action->icon(Heroicon::OutlinedPencilSquare);
+        });
+
+        ExportAction::configureUsing(static function (ExportAction $action) {
+            $action->icon(Heroicon::OutlinedArrowDownTray)
+                ->label("Export")
+                ->columnMappingColumns(3)
+                ->enableVisibleTableColumnsByDefault();
+        });
     }
 
     protected function configureField(): void
@@ -102,7 +152,7 @@ class FilamentServiceProvider extends ServiceProvider
                 return Str::of($name)
                     ->when(
                         value: str_starts_with($name, 'is_'),
-                        callback: fn (Stringable $string) => $string->remove('is_'),
+                        callback: fn(Stringable $string) => $string->remove('is_'),
                     )
                     ->headline();
             });
@@ -110,6 +160,19 @@ class FilamentServiceProvider extends ServiceProvider
 
         Select::configureUsing(static function (Select $select) {
             $select->native(false)->selectablePlaceholder(false);
+        });
+
+        PhoneInput::configureUsing(static function (PhoneInput $phoneInput) {
+            $phoneInput->onlyCountries(['BD'])
+                ->defaultCountry('BD')
+                ->initialCountry('BD')
+                ->disableLookup()
+                ->disallowDropdown()
+                ->strictMode()
+                ->displayNumberFormat(PhoneInputNumberType::E164)
+                ->inputNumberFormat(PhoneInputNumberType::E164)
+                ->focusNumberFormat(PhoneInputNumberType::E164)
+                ->placeholder('+8801322635808');
         });
     }
 
@@ -122,7 +185,7 @@ class FilamentServiceProvider extends ServiceProvider
                 return str($name)
                     ->when(
                         value: str_starts_with($name, 'is_'),
-                        callback: fn (Stringable $string) => $string->remove('is_'),
+                        callback: fn(Stringable $string) => $string->remove('is_'),
                     )
                     ->beforeLast('.')
                     ->afterLast('.')
@@ -135,15 +198,16 @@ class FilamentServiceProvider extends ServiceProvider
         });
 
         TextColumn::configureUsing(static function (TextColumn $component) {
-            if (! str_ends_with($component->getName(), '_at')) {
+            if (!str_ends_with($component->getName(), '_at')) {
                 return;
             }
 
             $component
-                ->since()
+                ->relative()
                 ->dateTimeTooltip('M j, Y \a\t h:i A')
                 ->sortable()
-                ->toggleable(isToggledHiddenByDefault: $component->getName() !== 'created_at');
+                ->toggleable(isToggledHiddenByDefault: in_array($component->getName(), ['created_at', 'updated_at', 'deleted_at'])
+                );
         });
 
         ExportColumn::configureUsing(static function (ExportColumn $exportColumn) {
@@ -166,19 +230,14 @@ class FilamentServiceProvider extends ServiceProvider
         ToggleColumn::configureUsing(static function (ToggleColumn $toggleColumn) {
             $toggleColumn->alignCenter()->afterStateUpdated(function ($state) {
                 Notification::make()
-                    ->title('Toggled state to: '.($state ? 'Yes' : 'No'))
+                    ->title('Toggled state to: ' . ($state ? 'Yes' : 'No'))
                     ->success()
                     ->send();
             });
         });
 
         TextColumn::macro('abbreviate', function (): TextColumn {
-            /** @var TextColumn $this */
-            if (! $this->isNumeric()) {
-                throw new \LogicException('The abbreviate column can only be used on numeric columns.');
-            }
-
-            return $this->formatStateUsing(function ($state) {
+            return $this->numeric()->formatStateUsing(function ($state) {
                 return Number::abbreviate($state);
             });
         });
@@ -198,13 +257,20 @@ class FilamentServiceProvider extends ServiceProvider
     {
         TextEntry::macro('abbreviate', function (): TextEntry {
             /** @var TextEntry $this */
-            if (! $this->isNumeric()) {
-                throw new \LogicException('The abbreviate entry can only be used on numeric entries.');
+            if (!$this->isNumeric()) {
+                throw new LogicException('The abbreviate entry can only be used on numeric entries.');
             }
 
             return $this->formatStateUsing(function ($state) {
                 return Number::abbreviate($state);
             });
+        });
+    }
+
+    private function configureConstraints(): void
+    {
+        SelectConstraint::configureUsing(static function (SelectConstraint $constraint) {
+            $constraint->native(false);
         });
     }
 }

@@ -6,7 +6,6 @@ use App\Enums\SenderType;
 use App\Enums\TransactionDirection;
 use App\Jobs\ProcessMessageBatchJob;
 use App\Models\Contact;
-use App\Models\Country;
 use App\Models\Group;
 use App\Models\Message;
 use App\Models\MessageBatch;
@@ -14,7 +13,7 @@ use App\Models\Operator;
 use App\Models\Sender;
 use App\Models\Transaction;
 use App\Models\User;
-use App\Services\RecipientFileParser;
+use App\Support\RecipientFileParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Storage;
@@ -25,36 +24,6 @@ beforeEach(function () {
     Storage::fake('local');
     seedDefaultPricing();
 });
-
-function seedDefaultPricing(float $masking = 0.5, float $nonMasking = 0.3): Country
-{
-    $bd = Country::firstOrCreate(
-        ['code' => '880'],
-        ['name' => 'Bangladesh', 'iso_alpha2' => 'BD', 'is_active' => true],
-    );
-
-    $operators = [
-        ['name' => 'Grameenphone', 'codes' => [13, 17]],
-        ['name' => 'Banglalink', 'codes' => [14, 19]],
-        ['name' => 'Teletalk', 'codes' => [15]],
-        ['name' => 'Airtel', 'codes' => [16]],
-        ['name' => 'Robi', 'codes' => [18]],
-    ];
-
-    foreach ($operators as $row) {
-        Operator::updateOrCreate(
-            ['country_id' => $bd->id, 'name' => $row['name']],
-            [
-                'codes' => $row['codes'],
-                'masking_price' => $masking,
-                'non_masking_price' => $nonMasking,
-                'is_active' => true,
-            ],
-        );
-    }
-
-    return $bd;
-}
 
 function makeMessageBatch(?User $user = null, SenderType $senderType = SenderType::Numeric): MessageBatch
 {

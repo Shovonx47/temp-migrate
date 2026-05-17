@@ -13,10 +13,10 @@ enum CampaignStatus: string implements HasColor, HasIcon, HasLabel
 {
     case Draft = 'draft';
     case Scheduled = 'scheduled';
-    case Running = 'running';
-    case Paused = 'paused';
+    case Processing = 'processing';
     case Completed = 'completed';
     case Failed = 'failed';
+    case Cancelled = 'cancelled';
 
     public function getLabel(): string|Htmlable|null
     {
@@ -28,10 +28,10 @@ enum CampaignStatus: string implements HasColor, HasIcon, HasLabel
         return match ($this) {
             self::Draft => 'gray',
             self::Scheduled => 'info',
-            self::Running => 'primary',
-            self::Paused => 'warning',
+            self::Processing => 'primary',
             self::Completed => 'success',
             self::Failed => 'danger',
+            self::Cancelled => 'warning',
         };
     }
 
@@ -40,10 +40,15 @@ enum CampaignStatus: string implements HasColor, HasIcon, HasLabel
         return match ($this) {
             self::Draft => Heroicon::OutlinedPencilSquare,
             self::Scheduled => Heroicon::OutlinedClock,
-            self::Running => Heroicon::OutlinedPlay,
-            self::Paused => Heroicon::OutlinedPause,
+            self::Processing => Heroicon::OutlinedPlay,
             self::Completed => Heroicon::OutlinedCheckCircle,
             self::Failed => Heroicon::OutlinedXCircle,
+            self::Cancelled => Heroicon::OutlinedNoSymbol,
         };
+    }
+
+    public function isFinal(): bool
+    {
+        return in_array($this, [self::Completed, self::Failed, self::Cancelled], true);
     }
 }

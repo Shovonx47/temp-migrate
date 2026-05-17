@@ -326,14 +326,14 @@ class DemoSeeder extends Seeder
                 ];
             }
 
-            // Running campaign
+            // Processing campaign
             $campaignsData[] = [
                 'user_id' => $customer->id,
                 'template_id' => $customerTemplates->random()->id,
                 'sender_id' => $customerSenders->random()->id,
                 'name' => fake()->sentence(3),
                 'body' => fake()->paragraph(),
-                'status' => 'running',
+                'status' => 'processing',
                 'scheduled_at' => null,
                 'started_at' => now()->subHours(fake()->numberBetween(1, 5)),
                 'completed_at' => null,
@@ -388,7 +388,7 @@ class DemoSeeder extends Seeder
 
         foreach ($campaigns as $campaign) {
             $count = match ($campaign->status) {
-                'draft', 'running' => fake()->numberBetween(50, 200),
+                'draft', 'processing' => fake()->numberBetween(50, 200),
                 'completed' => fake()->numberBetween(100, 500),
                 'failed' => fake()->numberBetween(10, 100),
                 default => 0,
@@ -404,7 +404,7 @@ class DemoSeeder extends Seeder
                         .fake()->numerify('########'),
                     'body' => fake()->paragraph(),
                     'status' => match ($campaign->status) {
-                        'running' => fake()->randomElement([MessageStatus::Sent->value, MessageStatus::Delivered->value, MessageStatus::Pending->value]),
+                        'processing' => fake()->randomElement([MessageStatus::Sent->value, MessageStatus::Delivered->value, MessageStatus::Pending->value]),
                         'completed' => fake()->randomElement([MessageStatus::Delivered->value, MessageStatus::Sent->value, MessageStatus::Failed->value]),
                         'failed' => MessageStatus::Failed->value,
                         default => MessageStatus::Pending->value,

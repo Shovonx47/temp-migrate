@@ -13,12 +13,20 @@ class DepositsTable
     {
         return $table
             ->columns([
-                TextColumn::make('amount')->money('BDT')->sortable(),
-                TextColumn::make('payment_method')->badge()->sortable(),
-                TextColumn::make('transaction_id')->label('PipaPay ID')->searchable(),
-                TextColumn::make('status')->badge()->sortable(),
-                TextColumn::make('paid_at')->dateTime()->sortable(),
-                TextColumn::make('created_at')->dateTime()->sortable()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('amount')
+                    ->money('BDT')
+                    ->sortable(),
+                TextColumn::make('payment_method')
+                    ->badge()
+                    ->sortable(),
+                TextColumn::make('transaction_id')
+                    ->label('Trx ID')
+                    ->searchable(),
+                TextColumn::make('status')
+                    ->badge()
+                    ->sortable(),
+                TextColumn::make('paid_at'),
+                TextColumn::make('created_at'),
             ])
             ->recordActions([
                 ActionGroup::make([

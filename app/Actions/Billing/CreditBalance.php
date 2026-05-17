@@ -6,43 +6,38 @@ use App\Contracts\Transactionable;
 use App\Enums\TransactionDirection;
 use App\Models\Transaction;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
-use RuntimeException;
+use InvalidArgumentException;
 
 readonly class CreditBalance
 {
-    /**
-     * @throws \Throwable
-     */
     public function handle(
         User $user,
-        float $amount,
+        float|int $amount,
         Transactionable $transactionable,
         ?string $description = null,
     ): Transaction {
         if ($amount <= 0) {
-            throw new RuntimeException('Credit amount must be greater than zero.');
+            throw new InvalidArgumentException('Credit amount must be greater than zero.');
         }
 
-        return DB::transaction(function () use ($user, $amount, $transactionable, $description) {
-            $user = User::query()
-                ->whereKey($user->id)
-                ->lockForUpdate()
-                ->firstOrFail();
+        // Caller must wrap this in a transaction with appropriate locks.
+        $lockedUser = User::query()
+            ->whereKey($user->id)
+            ->lockForUpdate()
+            ->firstOrFail();
 
-            $balanceBefore = (float) $user->balance;
-            $balanceAfter = $balanceBefore + $amount;
+        $balanceBefore = $lockedUser->balance;
+        $balanceAfter = $balanceBefore + $amount;
 
-            $user->forceFill(['balance' => $balanceAfter])->save();
+        $lockedUser->update(['balance' => $balanceAfter]);
 
-            return $transactionable->transactions()->create([
-                'user_id' => $user->id,
-                'amount' => $amount,
-                'direction' => TransactionDirection::Credit,
-                'balance_before' => $balanceBefore,
-                'balance_after' => $balanceAfter,
-                'description' => $description ?? 'Balance credited',
-            ]);
-        }, attempts: 3);
+        return $transactionable->transactions()->create([
+            'user_id' => $lockedUser->id,
+            'amount' => $amount,
+            'direction' => TransactionDirection::Credit,
+            'balance_before' => $balanceBefore,
+            'balance_after' => $balanceAfter,
+            'description' => $description ?? 'Balance credited',
+        ]);
     }
 }

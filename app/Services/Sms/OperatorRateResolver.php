@@ -17,7 +17,7 @@ use App\Models\User;
  * Build one instance per batch via {@see forUser()} so the operator catalog
  * and the user's overrides are loaded once and reused for every message.
  */
-class OperatorRateResolver
+readonly class OperatorRateResolver
 {
     /**
      * @param  array<int, Operator>  $operators  keyed by operator id
@@ -25,9 +25,9 @@ class OperatorRateResolver
      * @param  array<int, array{masking_price: ?float, non_masking_price: ?float}>  $overrides  operator id => overrides
      */
     public function __construct(
-        private readonly array $operators,
-        private readonly array $codeIndex,
-        private readonly array $overrides,
+        private array $operators,
+        private array $codeIndex,
+        private array $overrides,
     ) {}
 
     /**

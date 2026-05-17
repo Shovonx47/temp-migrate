@@ -40,4 +40,9 @@ enum DepositStatus: string implements HasColor, HasIcon, HasLabel
             DepositStatus::Refunded => Heroicon::OutlinedArrowUturnLeft,
         };
     }
+
+    public function isCompleted(): bool
+    {
+        return $this === DepositStatus::Completed;
+    }
 }

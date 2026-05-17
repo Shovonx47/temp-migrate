@@ -22,12 +22,20 @@ use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Throwable;
 
 class SupermanPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
-        $generalSettings = app(GeneralSettings::class);
+        // Settings query can fail before migrations run (e.g. fresh test DBs);
+        // fall back to defaults so panel boot does not break the test suite.
+        try {
+            $generalSettings = app(GeneralSettings::class);
+            $topNavigation = (bool) $generalSettings->topNavigation;
+        } catch (Throwable) {
+            $topNavigation = false;
+        }
 
         return $panel
             // Identity
@@ -49,7 +57,7 @@ class SupermanPanelProvider extends PanelProvider
             ->collapsibleNavigationGroups()
             ->sidebarWidth('300px')
             ->maxContentWidth(Width::Full)
-            ->topNavigation($generalSettings->topNavigation)
+            ->topNavigation($topNavigation)
 
             // Database
             ->databaseTransactions()

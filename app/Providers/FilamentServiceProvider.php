@@ -28,6 +28,7 @@ use Illuminate\Support\Number;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Support\Stringable;
+use LogicException;
 use Ysfkaya\FilamentPhoneInput\Forms\PhoneInput;
 use Ysfkaya\FilamentPhoneInput\PhoneInputNumberType;
 
@@ -62,7 +63,6 @@ class FilamentServiceProvider extends ServiceProvider
         Stringable::macro('acronym', function (): Stringable {
             $acronyms = config('data.acronyms');
 
-            /** @var Stringable $this */
             return $this->replaceMatches(
                 pattern: '/\b('.implode('|', array_keys($acronyms)).')\b/i',
                 replace: function (array $matches) use ($acronyms) {
@@ -85,6 +85,22 @@ class FilamentServiceProvider extends ServiceProvider
             });
 
             return $this;
+        });
+
+        PhoneInput::macro('tags', function () {
+            return $this
+                ->view('filament.forms.components.phone-tags-input')
+                ->default([])
+                ->afterStateHydrated(function (PhoneInput $component, $state): void {
+                    if (is_array($state)) {
+                        return;
+                    }
+                    $component->state(filled($state) ? [(string) $state] : []);
+                })
+                ->mutateDehydratedStateUsing(fn ($state): array => array_values(array_filter(
+                    array_map('trim', (array) ($state ?? [])),
+                    fn (string $value): bool => $value !== '',
+                )));
         });
     }
 
@@ -232,7 +248,7 @@ class FilamentServiceProvider extends ServiceProvider
         TextEntry::macro('abbreviate', function (): TextEntry {
             /** @var TextEntry $this */
             if (! $this->isNumeric()) {
-                throw new \LogicException('The abbreviate entry can only be used on numeric entries.');
+                throw new LogicException('The abbreviate entry can only be used on numeric entries.');
             }
 
             return $this->formatStateUsing(function ($state) {

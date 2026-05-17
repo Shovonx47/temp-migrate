@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Country;
+use App\Models\Operator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -47,4 +49,38 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+/**
+ * Seed the default Bangladesh country + operator catalog with prices. Shared by
+ * any test that exercises the billing pipeline (message batches, campaigns).
+ */
+function seedDefaultPricing(float $masking = 0.5, float $nonMasking = 0.3): Country
+{
+    $bd = Country::firstOrCreate(
+        ['code' => '880'],
+        ['name' => 'Bangladesh', 'iso_alpha2' => 'BD', 'is_active' => true],
+    );
+
+    $operators = [
+        ['name' => 'Grameenphone', 'codes' => [13, 17]],
+        ['name' => 'Banglalink', 'codes' => [14, 19]],
+        ['name' => 'Teletalk', 'codes' => [15]],
+        ['name' => 'Airtel', 'codes' => [16]],
+        ['name' => 'Robi', 'codes' => [18]],
+    ];
+
+    foreach ($operators as $row) {
+        Operator::updateOrCreate(
+            ['country_id' => $bd->id, 'name' => $row['name']],
+            [
+                'codes' => $row['codes'],
+                'masking_price' => $masking,
+                'non_masking_price' => $nonMasking,
+                'is_active' => true,
+            ],
+        );
+    }
+
+    return $bd;
 }

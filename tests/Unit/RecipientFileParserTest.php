@@ -1,6 +1,6 @@
 <?php
 
-use App\Services\RecipientFileParser;
+use App\Support\RecipientFileParser;
 
 beforeEach(function () {
     $this->parser = new RecipientFileParser;

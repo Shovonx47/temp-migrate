@@ -2,22 +2,24 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Customer\Pages\Dashboard;
 use DutchCodingCompany\FilamentDeveloperLogins\FilamentDeveloperLoginsPlugin;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Support\Enums\Width;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class CustomerPanelProvider extends PanelProvider
@@ -46,14 +48,15 @@ class CustomerPanelProvider extends PanelProvider
             // Database
             ->databaseTransactions()
             ->databaseNotifications()
-            ->databaseNotificationsPolling(30)
+            ->lazyLoadedDatabaseNotifications()
+            ->databaseNotificationsPolling('30s')
 
             // Layout
             ->sidebarCollapsibleOnDesktop()
             ->collapsibleNavigationGroups()
             ->sidebarWidth('300px')
             ->maxContentWidth(Width::Full)
-            ->colors(['primary' => Color::Emerald])
+            ->colors(['primary' => Color::Teal])
 
             // Resources
             ->discoverResources(
@@ -101,6 +104,11 @@ class CustomerPanelProvider extends PanelProvider
                         'Customer' => 'customer@example.com',
                     ]),
             ])
+
+            ->renderHook(
+                name: PanelsRenderHook::GLOBAL_SEARCH_AFTER,
+                hook: fn () => Blade::render("@livewire('balance-button')"),
+            )
             ->spa()
             ->unsavedChangesAlerts();
     }

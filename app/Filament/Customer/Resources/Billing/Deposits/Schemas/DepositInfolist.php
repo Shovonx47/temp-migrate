@@ -2,7 +2,6 @@
 
 namespace App\Filament\Customer\Resources\Billing\Deposits\Schemas;
 
-use Filament\Infolists\Components\KeyValueEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
@@ -19,7 +18,7 @@ class DepositInfolist
                     ->description('Payment details and status')
                     ->icon(Heroicon::OutlinedBanknotes)
                     ->schema([
-                        Grid::make(3)
+                        Grid::make(2)
                             ->schema([
                                 TextEntry::make('amount')
                                     ->label('Amount')
@@ -27,14 +26,9 @@ class DepositInfolist
                                     ->weight('bold')
                                     ->size('lg')
                                     ->color('primary'),
-                                TextEntry::make('currency')
-                                    ->label('Currency'),
                                 TextEntry::make('payment_method')
                                     ->label('Method')
                                     ->badge(),
-                                TextEntry::make('transaction_id')
-                                    ->label('PipaPay ID')
-                                    ->copyable(),
                                 TextEntry::make('status')
                                     ->label('Status')
                                     ->badge(),
@@ -43,16 +37,6 @@ class DepositInfolist
                                     ->dateTime()
                                     ->placeholder('Not paid yet'),
                             ]),
-                    ]),
-
-                Section::make('Gateway Response')
-                    ->description('Raw payload from PipaPay')
-                    ->icon(Heroicon::OutlinedCodeBracket)
-                    ->collapsible()
-                    ->collapsed()
-                    ->schema([
-                        KeyValueEntry::make('meta')
-                            ->label('Response Data'),
                     ]),
             ]);
     }

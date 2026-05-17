@@ -3,7 +3,7 @@
 namespace App\Filament\Customer\Resources\Messaging\Messages\Schemas;
 
 use App\Filament\Forms\Components\MappingComponent;
-use App\Services\RecipientFileParser;
+use App\Support\RecipientFileParser;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;

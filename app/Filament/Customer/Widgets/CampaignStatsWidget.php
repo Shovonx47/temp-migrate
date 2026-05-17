@@ -14,7 +14,7 @@ class CampaignStatsWidget extends BaseWidget
     {
         $stats = auth()->user()->campaigns()
             ->selectRaw('COUNT(*) as total')
-            ->selectRaw("COALESCE(SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END), 0) as running")
+            ->selectRaw("COALESCE(SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END), 0) as processing")
             ->selectRaw("COALESCE(SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END), 0) as completed")
             ->selectRaw("COALESCE(SUM(CASE WHEN status = 'scheduled' THEN 1 ELSE 0 END), 0) as scheduled")
             ->first();
@@ -24,7 +24,7 @@ class CampaignStatsWidget extends BaseWidget
                 ->description('All campaigns')
                 ->icon('heroicon-o-megaphone'),
 
-            Stat::make('Running', Number::abbreviate((int) $stats->running))
+            Stat::make('Processing', Number::abbreviate((int) $stats->processing))
                 ->description('Active campaigns')
                 ->color('success')
                 ->icon('heroicon-o-play'),

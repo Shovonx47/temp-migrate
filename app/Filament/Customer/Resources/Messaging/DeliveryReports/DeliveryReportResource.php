@@ -32,6 +32,8 @@ class DeliveryReportResource extends Resource
 
     protected static ?string $modelLabel = 'Delivery Report';
 
+    protected static bool $shouldRegisterNavigation = false; // TODO:: pause for now
+
     public static function table(Table $table): Table
     {
         return DeliveryReportsTable::configure($table);

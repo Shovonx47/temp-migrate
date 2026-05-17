@@ -99,7 +99,7 @@ class CustomerPanelProvider extends PanelProvider
             ])
             ->plugins([
                 FilamentDeveloperLoginsPlugin::make()
-                    ->enabled(app()->environment('local') && request()->host === 'sendora.test')
+                    ->enabled(app()->environment('local') && request()->host() === 'sendora.test')
                     ->users([
                         'Customer' => 'customer@example.com',
                     ]),

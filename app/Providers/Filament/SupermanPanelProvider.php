@@ -105,7 +105,7 @@ class SupermanPanelProvider extends PanelProvider
 
             ->plugins([
                 FilamentDeveloperLoginsPlugin::make()
-                    ->enabled(app()->environment('local') && request()->host === 'sendora.test')
+                    ->enabled(app()->environment('local') && request()->host() === 'sendora.test')
                     ->users([
                         'Superman' => 'superman@example.com',
                     ]),

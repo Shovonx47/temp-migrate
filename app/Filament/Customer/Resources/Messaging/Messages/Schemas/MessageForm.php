@@ -203,9 +203,7 @@ class MessageForm
     {
         return Step::make('Mapping')
             ->icon(Heroicon::Square2Stack)
-            ->visible(fn (Get $get) => $get('source') === 'upload'
-                && ! empty($get('body_variables'))
-            )
+            ->visible(fn (Get $get) => $get('source') === 'upload')
             ->schema([
                 MappingComponent::make('mapping')
                     ->hiddenLabel(),

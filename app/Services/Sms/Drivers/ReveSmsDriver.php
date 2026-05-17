@@ -13,9 +13,9 @@ use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
-final class ReveSmsDriver implements SmsGateway, SupportsBulkSms
+final readonly class ReveSmsDriver implements SmsGateway, SupportsBulkSms
 {
-    public function __construct(private readonly array $credentials = []) {}
+    public function __construct(private array $credentials = []) {}
 
     /**
      * @throws ConnectionException

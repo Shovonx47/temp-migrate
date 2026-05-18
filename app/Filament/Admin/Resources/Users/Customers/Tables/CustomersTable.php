@@ -24,6 +24,9 @@ class CustomersTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(function ($query) {
+                $query->where('type', 'customer');
+            })
             ->columns([
                 TextColumn::make('name')
                     ->label('Name')

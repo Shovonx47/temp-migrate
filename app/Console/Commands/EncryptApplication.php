@@ -45,19 +45,13 @@ class EncryptApplication extends Command
             || ! $currentHash
             || ! $this->isValidCommit($lastHash);
 
-        if ($needsFullRebuild) {
+        if ($needsFullRebuild || $lastHash === $currentHash) {
             if (! $this->prepareDestination($destinationPath)) {
                 return self::FAILURE;
             }
 
             $this->fullRebuild($sources, $destination, $keyLength, $excludes);
         } else {
-            if ($lastHash === $currentHash) {
-                $this->info('Already in sync. Nothing to do.');
-
-                return self::SUCCESS;
-            }
-
             $this->incrementalSync($lastHash, $sources, $destination, $keyLength, $excludes);
         }
 

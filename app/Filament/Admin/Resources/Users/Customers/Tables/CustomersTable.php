@@ -13,6 +13,7 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
@@ -43,10 +44,28 @@ class CustomersTable
                 TextColumn::make('approval')
                     ->label('Approval')
                     ->badge(),
+                IconColumn::make('api_access')
+                    ->label('API')
+                    ->boolean()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                IconColumn::make('sms_auto_approved')
+                    ->label('Auto-approved')
+                    ->boolean()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('approval')
                     ->options(UserApproval::class),
+                TernaryFilter::make('api_access')
+                    ->label('API Access')
+                    ->placeholder('All')
+                    ->trueLabel('Enabled')
+                    ->falseLabel('Disabled'),
+                TernaryFilter::make('sms_auto_approved')
+                    ->label('SMS Auto-approved')
+                    ->placeholder('All')
+                    ->trueLabel('Auto-approved')
+                    ->falseLabel('Requires approval'),
                 TernaryFilter::make('email_verified_at')
                     ->label('Email Verified')
                     ->nullable()

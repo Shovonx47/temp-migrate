@@ -23,7 +23,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Propaganistas\LaravelPhone\Casts\E164PhoneNumberCast;
 
-#[Fillable(['name', 'email', 'phone', 'type', 'approval', 'balance', 'password', 'front_nid', 'back_nid'])]
+#[Fillable(['name', 'email', 'phone', 'type', 'approval', 'api_access', 'sms_auto_approved', 'balance', 'password', 'front_nid', 'back_nid'])]
 #[Hidden(['type', 'password', 'remember_token', 'front_nid', 'back_nid'])]
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 {
@@ -44,11 +44,18 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         return [
             'type' => UserType::class,
             'approval' => UserApproval::class,
+            'api_access' => 'boolean',
+            'sms_auto_approved' => 'boolean',
             'phone' => E164PhoneNumberCast::class,
             'password' => 'hashed',
             'balance' => 'float',
             'email_verified_at' => 'datetime',
         ];
+    }
+
+    public function requiresSmsApproval(): bool
+    {
+        return ! $this->sms_auto_approved;
     }
 
     public function operatorRates(): HasMany

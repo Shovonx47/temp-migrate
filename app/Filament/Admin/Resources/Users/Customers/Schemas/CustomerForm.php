@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\Users\Customers\Schemas;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -16,6 +17,20 @@ class CustomerForm
         return $schema
             ->columns(1)
             ->components([
+                Section::make('SMS Permissions')
+                    ->description('Control what this customer is allowed to send and whether batches require admin approval.')
+                    ->schema([
+                        Toggle::make('api_access')
+                            ->label('API Access')
+                            ->helperText('Allow this customer to send SMS via the API.')
+                            ->live()
+                            ->inline(false),
+                        Toggle::make('sms_auto_approved')
+                            ->label('SMS Auto-approved')
+                            ->helperText('When enabled, SMS batches from this customer are sent immediately without admin review.')
+                            ->inline(false),
+                    ])
+                    ->columns(2),
                 Section::make('Operator rate overrides')
                     ->description('Override the system-default operator rates for this customer. Leave a price blank to fall back to the operator default.')
                     ->schema([

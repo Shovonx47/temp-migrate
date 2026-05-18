@@ -26,6 +26,10 @@ class MessageBatchesTable
                     ->label('Status')
                     ->badge()
                     ->searchable(),
+                TextColumn::make('approval')
+                    ->label('Approval')
+                    ->badge()
+                    ->placeholder('—'),
                 TextColumn::make('total_recipients')
                     ->label('Total')
                     ->abbreviate()

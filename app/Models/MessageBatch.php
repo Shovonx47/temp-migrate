@@ -6,6 +6,7 @@ use App\Concerns\HasTransactions;
 use App\Contracts\Transactionable;
 use App\Enums\MessageBatchSource;
 use App\Enums\MessageBatchStatus;
+use App\Enums\SmsApproval;
 use App\Jobs\ProcessMessageBatchJob;
 use Database\Factories\MessageBatchFactory;
 use Illuminate\Database\Eloquent\Attributes\Guarded;
@@ -27,6 +28,8 @@ class MessageBatch extends Model implements Transactionable
             'source_config' => 'array',
             'source_type' => MessageBatchSource::class,
             'status' => MessageBatchStatus::class,
+            'approval' => SmsApproval::class,
+            'approved_at' => 'datetime',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
         ];
@@ -40,6 +43,16 @@ class MessageBatch extends Model implements Transactionable
     public function sender(): BelongsTo
     {
         return $this->belongsTo(Sender::class);
+    }
+
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function isAwaitingApproval(): bool
+    {
+        return $this->status === MessageBatchStatus::Pending;
     }
 
     public function messages(): HasMany

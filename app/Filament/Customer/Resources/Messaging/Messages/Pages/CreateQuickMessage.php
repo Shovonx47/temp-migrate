@@ -2,6 +2,8 @@
 
 namespace App\Filament\Customer\Resources\Messaging\Messages\Pages;
 
+use App\Enums\MessageBatchStatus;
+use App\Enums\SmsApproval;
 use App\Filament\Customer\Resources\Messaging\MessageBatches\MessageBatchResource;
 use App\Filament\Customer\Resources\Messaging\Messages\MessageResource;
 use App\Jobs\ProcessMessageBatchJob;
@@ -105,25 +107,36 @@ class CreateQuickMessage extends CreateRecord
 
         $this->assertAffordable($body, $recipients, (int) ($data['sender_id'] ?? 0));
 
+        /** @var User $user */
+        $user = Auth::user();
+        $requiresApproval = $user->requiresSmsApproval();
+
         $batch = DB::transaction(fn (): MessageBatch => MessageBatch::create([
-            'user_id' => Auth::id(),
+            'user_id' => $user->id,
             'sender_id' => $data['sender_id'] ?? null,
             'body' => $body,
             'source_type' => 'manual',
             'source_config' => ['recipients' => $recipients],
+            'status' => $requiresApproval ? MessageBatchStatus::Pending : MessageBatchStatus::Processing,
+            'approval' => $requiresApproval ? SmsApproval::Pending : null,
         ]));
 
-        ProcessMessageBatchJob::dispatch(
-            $batch,
-            'manual',
-            $batch->source_config,
-            $body,
-            [],
-        )->onQueue('message-batches')->afterCommit();
+        if (! $requiresApproval) {
+            ProcessMessageBatchJob::dispatch(
+                $batch,
+                'manual',
+                $batch->source_config,
+                $body,
+                [],
+            )->onQueue('message-batches')->afterCommit();
+        }
 
         Notification::make()
-            ->title('Messages are being processed')
-            ->body('We will notify you when the recipients are ready to send.')
+            ->title($requiresApproval ? 'Awaiting approval' : 'Messages are being processed')
+            ->body($requiresApproval
+                ? 'Your message batch is pending admin approval before sending.'
+                : 'We will notify you when the recipients are ready to send.'
+            )
             ->icon(Heroicon::Inbox)
             ->info()
             ->send();

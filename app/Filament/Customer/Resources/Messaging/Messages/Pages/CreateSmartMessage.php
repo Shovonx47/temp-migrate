@@ -2,6 +2,8 @@
 
 namespace App\Filament\Customer\Resources\Messaging\Messages\Pages;
 
+use App\Enums\MessageBatchStatus;
+use App\Enums\SmsApproval;
 use App\Filament\Customer\Resources\Messaging\MessageBatches\MessageBatchResource;
 use App\Filament\Customer\Resources\Messaging\Messages\MessageResource;
 use App\Jobs\ProcessMessageBatchJob;
@@ -45,29 +47,40 @@ class CreateSmartMessage extends CreateRecord
 
         $this->assertAffordable($source, $body, $data);
 
+        /** @var User $user */
+        $user = Auth::user();
+        $requiresApproval = $user->requiresSmsApproval();
+
         $batch = MessageBatch::create([
-            'user_id' => Auth::id(),
+            'user_id' => $user->id,
             'sender_id' => $data['sender_id'] ?? null,
             'body' => $body,
             'source_type' => $source,
             'source_config' => [],
+            'status' => $requiresApproval ? MessageBatchStatus::Pending : MessageBatchStatus::Processing,
+            'approval' => $requiresApproval ? SmsApproval::Pending : null,
         ]);
 
         $batch->update([
             'source_config' => $this->buildSourceConfig($source, $data, $batch),
         ]);
 
-        ProcessMessageBatchJob::dispatch(
-            $batch,
-            $source,
-            $batch->source_config,
-            $body,
-            $bodyVariables,
-        )->onQueue('message-batches')->afterCommit();
+        if (! $requiresApproval) {
+            ProcessMessageBatchJob::dispatch(
+                $batch,
+                $source,
+                $batch->source_config,
+                $body,
+                $bodyVariables,
+            )->onQueue('message-batches')->afterCommit();
+        }
 
         Notification::make()
-            ->title('Messages are being processed')
-            ->body('We will notify you when the recipients are ready to send.')
+            ->title($requiresApproval ? 'Awaiting approval' : 'Messages are being processed')
+            ->body($requiresApproval
+                ? 'Your message batch is pending admin approval before sending.'
+                : 'We will notify you when the recipients are ready to send.'
+            )
             ->icon(Heroicon::Inbox)
             ->info()
             ->send();

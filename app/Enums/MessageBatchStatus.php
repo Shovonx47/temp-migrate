@@ -11,18 +11,15 @@ use Illuminate\Contracts\Support\Htmlable;
 
 enum MessageBatchStatus: string implements HasColor, HasIcon, HasLabel
 {
+    case Pending = 'pending';
     case Processing = 'processing';
     case Completed = 'completed';
     case Failed = 'failed';
 
-    public function getLabel(): string|Htmlable|null
-    {
-        return $this->name;
-    }
-
     public function getColor(): string|array|null
     {
         return match ($this) {
+            self::Pending => 'warning',
             self::Processing => 'primary',
             self::Completed => 'success',
             self::Failed => 'danger',
@@ -32,9 +29,15 @@ enum MessageBatchStatus: string implements HasColor, HasIcon, HasLabel
     public function getIcon(): string|BackedEnum|Htmlable|null
     {
         return match ($this) {
+            self::Pending => Heroicon::OutlinedClock,
             self::Processing => Heroicon::OutlinedPlay,
             self::Completed => Heroicon::OutlinedCheckCircle,
             self::Failed => Heroicon::OutlinedXCircle,
         };
+    }
+
+    public function getLabel(): string|Htmlable|null
+    {
+        return $this->name;
     }
 }

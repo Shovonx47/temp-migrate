@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Users\Customers\Schemas;
 
+use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
@@ -35,6 +36,18 @@ class CustomerInfolist
                                     ->dateTime(),
                                 TextEntry::make('updated_at')
                                     ->dateTime(),
+                            ]),
+                    ]),
+                Section::make('SMS Permissions')
+                    ->schema([
+                        Grid::make(2)
+                            ->schema([
+                                IconEntry::make('api_access')
+                                    ->label('API Access')
+                                    ->boolean(),
+                                IconEntry::make('sms_auto_approved')
+                                    ->label('SMS Auto-approved')
+                                    ->boolean(),
                             ]),
                     ]),
                 Section::make('Operator rate overrides')

@@ -18,19 +18,24 @@ class CustomerInfolist
                     ->schema([
                         Grid::make(2)
                             ->schema([
-                                TextEntry::make('name')->weight('bold'),
-                                TextEntry::make('email'),
-                                TextEntry::make('phone'),
-                                TextEntry::make('status')->badge(),
-                                TextEntry::make('created_at')->dateTime(),
-                                TextEntry::make('updated_at')->dateTime(),
+                                TextEntry::make('name')
+                                    ->weight('bold'),
+                                TextEntry::make('email')
+                                    ->copyable()
+                                    ->url(fn ($state) => "mailto:{$state}"),
+                                TextEntry::make('phone')
+                                    ->copyable()
+                                    ->url(fn ($state) => "tel:{$state}"),
+                                TextEntry::make('approval')
+                                    ->badge(),
+                                TextEntry::make('balance')
+                                    ->prefix('৳')
+                                    ->numeric(decimalPlaces: 2),
+                                TextEntry::make('created_at')
+                                    ->dateTime(),
+                                TextEntry::make('updated_at')
+                                    ->dateTime(),
                             ]),
-                    ]),
-                Section::make('Billing')
-                    ->schema([
-                        TextEntry::make('balance')
-                            ->prefix('৳')
-                            ->numeric(decimalPlaces: 2),
                     ]),
                 Section::make('Operator rate overrides')
                     ->schema([
@@ -38,7 +43,8 @@ class CustomerInfolist
                             ->hiddenLabel()
                             ->placeholder('Using system defaults for every operator.')
                             ->schema([
-                                TextEntry::make('operator.name')->label('Operator'),
+                                TextEntry::make('operator.name')
+                                    ->label('Operator'),
                                 TextEntry::make('masking_price')
                                     ->label('Masking')
                                     ->prefix('৳')

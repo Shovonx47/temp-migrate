@@ -3,7 +3,6 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Customer\Pages\Dashboard;
-use DutchCodingCompany\FilamentDeveloperLogins\FilamentDeveloperLoginsPlugin;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -51,6 +50,10 @@ class CustomerPanelProvider extends PanelProvider
             ->lazyLoadedDatabaseNotifications()
             ->databaseNotificationsPolling('30s')
 
+            //Branding
+            ->brandName('Sendora')
+            ->brandLogo(asset('logo.png'))
+
             // Layout
             ->sidebarCollapsibleOnDesktop()
             ->collapsibleNavigationGroups()
@@ -97,13 +100,7 @@ class CustomerPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ])
-            ->plugins([
-                FilamentDeveloperLoginsPlugin::make()
-                    ->enabled(app()->environment('local') && request()->host() === 'sendora.test')
-                    ->users([
-                        'Customer' => 'customer@example.com',
-                    ]),
-            ])
+            ->plugins($this->plugins())
 
             ->renderHook(
                 name: PanelsRenderHook::GLOBAL_SEARCH_AFTER,
@@ -111,5 +108,28 @@ class CustomerPanelProvider extends PanelProvider
             )
             ->spa()
             ->unsavedChangesAlerts();
+    }
+
+    /**
+     * Conditionally register panel plugins.
+     *
+     * Plugins are only added if their package class is installed,
+     * allowing dev-only packages to be safely omitted in production.
+     */
+    protected function plugins(): array
+    {
+        $plugins = [];
+
+        $developerLogins = 'DutchCodingCompany\\FilamentDeveloperLogins\\FilamentDeveloperLoginsPlugin';
+
+        if (class_exists($developerLogins)) {
+            $plugins[] = $developerLogins::make()
+                ->enabled(app()->environment('local') && request()->host() === 'sendora.test')
+                ->users([
+                    'Customer' => 'customer@example.com',
+                ]);
+        }
+
+        return $plugins;
     }
 }

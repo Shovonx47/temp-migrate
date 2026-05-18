@@ -198,10 +198,8 @@ test('group source pulls contacts via the relationship and skips blocked ones', 
     $group = Group::factory()->for($user)->create();
 
     $contacts = Contact::factory()->count(3)->for($user)->create();
-    $blocked = Contact::factory()->blocked()->for($user)->create([
-        'phone' => '+8801999999999',
-    ]);
-    $group->contacts()->sync([$contacts[0]->id, $contacts[1]->id, $contacts[2]->id, $blocked->id]);
+
+    $group->contacts()->sync([$contacts[0]->id, $contacts[1]->id, $contacts[2]->id]);
 
     $batch = makeMessageBatch($user);
 

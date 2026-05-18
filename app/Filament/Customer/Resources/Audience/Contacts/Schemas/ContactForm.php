@@ -25,7 +25,6 @@ class ContactForm
                         ->createOptionForm([
                             TextInput::make('name')->required(),
                         ]),
-                    Toggle::make('is_blocked')->default(false),
                     KeyValue::make('meta')->columnSpanFull(),
                 ])->columns(2),
             ]);

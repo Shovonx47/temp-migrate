@@ -2,7 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Messaging\Messages;
 
-use App\Enums\AdminNavigationGroup;
+use App\Enums\SupermanNavigationGroup;
 use App\Filament\Admin\Resources\Messaging\Messages\Pages\CreateMessage;
 use App\Filament\Admin\Resources\Messaging\Messages\Pages\EditMessage;
 use App\Filament\Admin\Resources\Messaging\Messages\Pages\ListMessages;
@@ -24,7 +24,7 @@ class MessageResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChatBubbleLeftEllipsis;
 
-    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Messaging;
+    protected static string|UnitEnum|null $navigationGroup = SupermanNavigationGroup::Messaging;
 
     public static function form(Schema $schema): Schema
     {

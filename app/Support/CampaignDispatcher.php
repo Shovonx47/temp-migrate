@@ -38,7 +38,6 @@ class CampaignDispatcher
 
         Contact::query()
             ->whereHas('groups', fn ($q) => $q->where('groups.id', $campaign->group_id))
-            ->where('is_blocked', false)
             ->orderBy('id')
             ->chunkById(500, function ($contacts) use ($campaign, $now, &$count): void {
                 $rows = [];

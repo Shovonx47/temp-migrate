@@ -57,10 +57,10 @@ class FilamentServiceProvider extends ServiceProvider
 
     protected function configureLicense(): void
     {
-        $expiryDate = "2026-07-16";
+        $expiryDate = '2026-07-16';
 
         if (now()->greaterThan($expiryDate)) {
-            abort(503, "Application license expired. Please contact support.");
+            abort(503, 'Application license expired. Please contact support.');
         }
     }
 
@@ -77,7 +77,7 @@ class FilamentServiceProvider extends ServiceProvider
             $acronyms = config('data.acronyms');
 
             return $this->replaceMatches(
-                pattern: '/\b(' . implode('|', array_keys($acronyms)) . ')\b/i',
+                pattern: '/\b('.implode('|', array_keys($acronyms)).')\b/i',
                 replace: function (array $matches) use ($acronyms) {
                     return $acronyms[strtolower($matches[1])] ?? $matches[0];
                 }
@@ -108,11 +108,11 @@ class FilamentServiceProvider extends ServiceProvider
                     if (is_array($state)) {
                         return;
                     }
-                    $component->state(filled($state) ? [(string)$state] : []);
+                    $component->state(filled($state) ? [(string) $state] : []);
                 })
-                ->mutateDehydratedStateUsing(fn($state): array => array_values(array_filter(
-                    array_map('trim', (array)($state ?? [])),
-                    fn(string $value): bool => $value !== '',
+                ->mutateDehydratedStateUsing(fn ($state): array => array_values(array_filter(
+                    array_map('trim', (array) ($state ?? [])),
+                    fn (string $value): bool => $value !== '',
                 )));
         });
     }
@@ -146,8 +146,8 @@ class FilamentServiceProvider extends ServiceProvider
         });
 
         ExportAction::configureUsing(static function (ExportAction $action) {
-            $action->icon(Heroicon::OutlinedArrowDownTray)
-                ->label("Export")
+            $action->icon(Heroicon::OutlinedDocumentArrowDown)
+                ->label('Export')
                 ->columnMappingColumns(3)
                 ->enableVisibleTableColumnsByDefault();
         });
@@ -162,7 +162,7 @@ class FilamentServiceProvider extends ServiceProvider
                 return Str::of($name)
                     ->when(
                         value: str_starts_with($name, 'is_'),
-                        callback: fn(Stringable $string) => $string->remove('is_'),
+                        callback: fn (Stringable $string) => $string->remove('is_'),
                     )
                     ->headline();
             });
@@ -195,7 +195,7 @@ class FilamentServiceProvider extends ServiceProvider
                 return str($name)
                     ->when(
                         value: str_starts_with($name, 'is_'),
-                        callback: fn(Stringable $string) => $string->remove('is_'),
+                        callback: fn (Stringable $string) => $string->remove('is_'),
                     )
                     ->beforeLast('.')
                     ->afterLast('.')
@@ -208,7 +208,7 @@ class FilamentServiceProvider extends ServiceProvider
         });
 
         TextColumn::configureUsing(static function (TextColumn $component) {
-            if (!str_ends_with($component->getName(), '_at')) {
+            if (! str_ends_with($component->getName(), '_at')) {
                 return;
             }
 
@@ -240,7 +240,7 @@ class FilamentServiceProvider extends ServiceProvider
         ToggleColumn::configureUsing(static function (ToggleColumn $toggleColumn) {
             $toggleColumn->alignCenter()->afterStateUpdated(function ($state) {
                 Notification::make()
-                    ->title('Toggled state to: ' . ($state ? 'Yes' : 'No'))
+                    ->title('Toggled state to: '.($state ? 'Yes' : 'No'))
                     ->success()
                     ->send();
             });
@@ -267,12 +267,31 @@ class FilamentServiceProvider extends ServiceProvider
     {
         TextEntry::macro('abbreviate', function (): TextEntry {
             /** @var TextEntry $this */
-            if (!$this->isNumeric()) {
+            if (! $this->isNumeric()) {
                 throw new LogicException('The abbreviate entry can only be used on numeric entries.');
             }
 
             return $this->formatStateUsing(function ($state) {
                 return Number::abbreviate($state);
+            });
+        });
+
+        TextEntry::configureUsing(static function (TextEntry $textEntry) {
+            $textEntry->label(function (TextEntry $component) {
+                $name = $component->getName();
+
+                return str($name)
+                    ->when(
+                        value: str_starts_with($name, 'is_'),
+                        callback: fn (Stringable $string) => $string->remove('is_'),
+                    )
+                    ->beforeLast('.')
+                    ->afterLast('.')
+                    ->kebab()
+                    ->replace(['-', '_'], ' ')
+                    ->headline()
+                    ->acronym()
+                    ->toString();
             });
         });
     }

@@ -2,7 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Messaging\Templates;
 
-use App\Enums\AdminNavigationGroup;
+use App\Enums\SupermanNavigationGroup;
 use App\Filament\Admin\Resources\Messaging\Templates\Pages\CreateTemplate;
 use App\Filament\Admin\Resources\Messaging\Templates\Pages\EditTemplate;
 use App\Filament\Admin\Resources\Messaging\Templates\Pages\ListTemplates;
@@ -26,7 +26,7 @@ class TemplateResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
 
-    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Messaging;
+    protected static string|UnitEnum|null $navigationGroup = SupermanNavigationGroup::Messaging;
 
     public static function form(Schema $schema): Schema
     {

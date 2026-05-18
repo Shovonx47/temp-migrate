@@ -19,6 +19,7 @@ class DepositAction
         return Action::make($name)
             ->icon(Heroicon::OutlinedPlus)
             ->label('Make Deposit')
+            ->modalIcon(Heroicon::OutlinedCurrencyBangladeshi)
             ->modalHeading('Add Balance to Customer')
             ->modalDescription("Enter the amount to add to the customer's balance.")
             ->modalWidth(Width::Medium)

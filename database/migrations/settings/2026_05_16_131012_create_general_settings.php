@@ -6,6 +6,7 @@ return new class extends SettingsMigration
 {
     public function up(): void
     {
-        $this->migrator->add('general.topNavigation', false);
+        $this->migrator->add('general.appName', 'Sendora');
+        $this->migrator->add('general.logoUrl', 'logo.png');
     }
 };

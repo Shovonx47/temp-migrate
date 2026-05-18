@@ -17,7 +17,6 @@ class ContactFactory extends Factory
             'user_id' => User::factory(),
             'name' => fake()->optional()->name(),
             'meta' => null,
-            'is_blocked' => false,
         ];
     }
 
@@ -27,13 +26,6 @@ class ContactFactory extends Factory
             'phone' => '+8801'
                 .fake()->randomElement([3, 4, 5, 6, 7, 8, 9])
                 .str_pad($sequence->index, 8, '0', STR_PAD_LEFT),
-        ]);
-    }
-
-    public function blocked(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'is_blocked' => true,
         ]);
     }
 

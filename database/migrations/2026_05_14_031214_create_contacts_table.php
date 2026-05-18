@@ -13,8 +13,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('name')->nullable();
             $table->string('phone');
-            $table->json('meta')->nullable(); // extra fields: email, dob, custom vars
-            $table->boolean('is_blocked')->default(false);
+            $table->json('meta')->nullable();
             $table->timestamps();
             $table->softDeletes();
 

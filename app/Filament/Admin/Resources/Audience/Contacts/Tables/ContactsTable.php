@@ -23,7 +23,6 @@ class ContactsTable
                 TextColumn::make('user.name')->searchable()->sortable(),
                 TextColumn::make('name')->searchable()->sortable(),
                 TextColumn::make('phone')->searchable()->sortable(),
-                IconColumn::make('is_blocked')->boolean(),
                 TextColumn::make('created_at')->dateTime()->sortable()->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([

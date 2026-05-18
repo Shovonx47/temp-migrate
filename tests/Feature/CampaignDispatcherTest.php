@@ -21,9 +21,8 @@ test('snapshot copies valid, non-blocked group contacts into the pivot once', fu
     $contacts = collect(['+8801711000001', '+8801711000002', '+8801711000003'])->map(
         fn (string $phone) => Contact::factory()->for($user)->create(['phone' => $phone]),
     );
-    $blocked = Contact::factory()->blocked()->for($user)->create(['phone' => '+8801711999999']);
 
-    collect([...$contacts, $blocked])->each(fn (Contact $c) => $c->groups()->attach($group));
+    $contacts->each(fn (Contact $c) => $c->groups()->attach($group));
 
     $campaign = Campaign::factory()->for($user)->state([
         'group_id' => $group->id,

@@ -8,7 +8,7 @@ use Filament\Support\Contracts\HasLabel;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
 
-enum AdminNavigationGroup: string implements HasIcon, HasLabel
+enum SupermanNavigationGroup: string implements HasIcon, HasLabel
 {
     case User = 'user';
     case Messaging = 'messaging';
@@ -19,7 +19,6 @@ enum AdminNavigationGroup: string implements HasIcon, HasLabel
     public function getLabel(): string|Htmlable|null
     {
         return match ($this) {
-            self::Settings => 'System Settings',
             self::User => 'User Management',
             default => $this->name
         };

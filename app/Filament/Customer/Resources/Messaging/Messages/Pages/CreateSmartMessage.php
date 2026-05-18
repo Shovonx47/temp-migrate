@@ -184,7 +184,6 @@ class CreateSmartMessage extends CreateRecord
 
         return Contact::query()
             ->whereHas('groups', fn ($q) => $q->whereIn('groups.id', $groupIds))
-            ->where('is_blocked', false)
             ->count();
     }
 

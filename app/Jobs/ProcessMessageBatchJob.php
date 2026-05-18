@@ -428,7 +428,6 @@ class ProcessMessageBatchJob implements ShouldQueue
 
         return Contact::query()
             ->whereHas('groups', fn ($q) => $q->whereIn('groups.id', $groupIds))
-            ->where('is_blocked', false)
             ->count();
     }
 
@@ -583,7 +582,6 @@ class ProcessMessageBatchJob implements ShouldQueue
 
         $query = Contact::query()
             ->whereHas('groups', fn ($q) => $q->whereIn('groups.id', $groupIds))
-            ->where('is_blocked', false)
             ->orderBy('id');
 
         if ($cursor !== null) {

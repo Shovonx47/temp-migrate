@@ -36,10 +36,4 @@ class Contact extends Model
     {
         return $this->belongsToMany(Group::class, 'contact_group');
     }
-
-    #[Scope]
-    protected function blocked(Builder $query): Builder
-    {
-        return $query->where('is_blocked', true);
-    }
 }

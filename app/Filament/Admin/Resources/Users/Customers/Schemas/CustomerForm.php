@@ -2,7 +2,6 @@
 
 namespace App\Filament\Admin\Resources\Users\Customers\Schemas;
 
-use App\Models\Operator;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -15,6 +14,7 @@ class CustomerForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->components([
                 Section::make('Operator rate overrides')
                     ->description('Override the system-default operator rates for this customer. Leave a price blank to fall back to the operator default.')
@@ -22,17 +22,15 @@ class CustomerForm
                         Repeater::make('operatorRates')
                             ->relationship()
                             ->hiddenLabel()
+                            ->table([
+                                Repeater\TableColumn::make('Operator'),
+                                Repeater\TableColumn::make('Masking Price'),
+                                Repeater\TableColumn::make('Non-masking Price'),
+                            ])
                             ->schema([
                                 Select::make('operator_id')
                                     ->label('Operator')
-                                    ->options(fn () => Operator::query()
-                                        ->with('country')
-                                        ->get()
-                                        ->mapWithKeys(fn (Operator $op): array => [
-                                            $op->id => "{$op->name} ({$op->country?->name})",
-                                        ])
-                                        ->all()
-                                    )
+                                    ->relationship('operator', 'name')
                                     ->required()
                                     ->searchable()
                                     ->preload()
@@ -54,9 +52,9 @@ class CustomerForm
                                     ->minValue(0)
                                     ->nullable(),
                             ])
-                            ->columns(3)
                             ->addActionLabel('Add operator override')
-                            ->collapsible(),
+                            ->collapsible()
+                            ->columnSpanFull(),
                     ]),
             ]);
     }

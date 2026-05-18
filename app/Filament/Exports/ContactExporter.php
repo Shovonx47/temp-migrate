@@ -21,7 +21,6 @@ class ContactExporter extends Exporter
             ExportColumn::make('name'),
             ExportColumn::make('phone'),
             ExportColumn::make('meta'),
-            ExportColumn::make('is_blocked'),
             ExportColumn::make('created_at'),
             ExportColumn::make('updated_at'),
             ExportColumn::make('deleted_at'),

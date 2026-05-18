@@ -6,7 +6,8 @@ use Spatie\LaravelSettings\Settings;
 
 class GeneralSettings extends Settings
 {
-    public bool $topNavigation;
+    public string $appName = 'Sendora';
+    public string $logoUrl = 'logo.png';
 
     public static function group(): string
     {

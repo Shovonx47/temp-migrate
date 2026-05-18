@@ -2,7 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Finance\Transactions;
 
-use App\Enums\AdminNavigationGroup;
+use App\Enums\SupermanNavigationGroup;
 use App\Filament\Admin\Resources\Finance\Transactions\Pages\ListTransactions;
 use App\Filament\Admin\Resources\Finance\Transactions\Pages\ViewTransaction;
 use App\Filament\Admin\Resources\Finance\Transactions\Schemas\TransactionForm;
@@ -22,7 +22,7 @@ class TransactionResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedReceiptPercent;
 
-    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Finance;
+    protected static string|UnitEnum|null $navigationGroup = SupermanNavigationGroup::Finance;
 
     protected static ?string $navigationLabel = 'Transactions';
 

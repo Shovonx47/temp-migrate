@@ -19,7 +19,6 @@ class ContactForm
                     Select::make('user_id')->relationship('user', 'name')->required(),
                     TextInput::make('name')->maxLength(255),
                     TextInput::make('phone')->required()->maxLength(255),
-                    Toggle::make('is_blocked')->default(false),
                     KeyValue::make('meta')->columnSpanFull(),
                 ])->columns(2),
             ]);

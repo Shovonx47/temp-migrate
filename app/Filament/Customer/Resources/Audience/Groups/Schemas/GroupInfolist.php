@@ -17,10 +17,13 @@ class GroupInfolist
                     ->schema([
                         Grid::make(2)
                             ->schema([
-                                TextEntry::make('name')->label('Group Name')->weight('bold'),
-                                TextEntry::make('status')->badge(),
-                                TextEntry::make('created_at')->dateTime(),
-                                TextEntry::make('updated_at')->dateTime(),
+                                TextEntry::make('name')
+                                    ->label('Group Name')
+                                    ->weight('bold'),
+                                TextEntry::make('description')
+                                    ->columnSpanFull(),
+                                TextEntry::make('created_at'),
+                                TextEntry::make('updated_at'),
                             ]),
                     ]),
             ]);

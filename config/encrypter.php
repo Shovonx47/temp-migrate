@@ -13,6 +13,8 @@ return [
         'config/encrypter.php',
         'app/Console/Commands/EncryptApplication.php',
 
+        'database/migrations',
+
         // Project meta files not needed on the server
         'CLAUDE.md',
         'README.md',

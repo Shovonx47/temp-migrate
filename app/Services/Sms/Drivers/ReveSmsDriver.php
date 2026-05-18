@@ -129,17 +129,22 @@ final readonly class ReveSmsDriver implements SmsGateway, SupportsBulkSms, Suppo
 
             // Status "0" = DELIVRD, "4" = SENT (accepted, in transit), anything else = failed.
             return match ($status) {
+                '4',
                 '0' => new DeliveryStatusResponse(
                     outcome: DeliveryOutcome::Delivered,
                     rawStatus: $text,
                     deliveredAt: $this->parseDeliveryTime((string) ($data['Delivery Time'] ?? '')),
                     raw: $data,
                 ),
-                '4' => new DeliveryStatusResponse(
-                    outcome: DeliveryOutcome::InTransit,
-                    rawStatus: $text,
-                    raw: $data,
-                ),
+// The API did not update the status after i receive the message, it is still showing 4,
+// but the message is delivered and i receive the delivery report with status 4,
+// so I assume that status 4 means in transit or accepted by carrier, and status 0 means delivered.
+// I will treat both as delivered for now until I can confirm otherwise with the provider.
+//                '4' => new DeliveryStatusResponse(
+//                    outcome: DeliveryOutcome::InTransit,
+//                    rawStatus: $text,
+//                    raw: $data,
+//                ),
                 default => new DeliveryStatusResponse(
                     outcome: DeliveryOutcome::Failed,
                     rawStatus: $text,

@@ -269,10 +269,10 @@ CREATE TABLE `message_batches` (
   `source_type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `source_config` json NOT NULL,
   `status` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'processing',
-  `approval` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `approval` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `approved_by` bigint unsigned DEFAULT NULL,
   `approved_at` timestamp NULL DEFAULT NULL,
-  `approval_note` text COLLATE utf8mb4_unicode_ci,
+  `approval_note` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `total_recipients` int unsigned NOT NULL DEFAULT '0',
   `valid_count` int unsigned NOT NULL DEFAULT '0',
   `invalid_count` int unsigned NOT NULL DEFAULT '0',
@@ -621,6 +621,6 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (23,'2026_05_16_071
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (24,'2026_05_16_071029_create_user_operator_rates_table',1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (26,'2026_05_16_160247_create_payment_webhooks_table',1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (27,'2026_05_18_204033_add_kyc_fields_to_users_table',2);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (28,'2026_05_16_131012_create_general_settings',3);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (29,'2026_05_18_213328_add_approval_to_message_batches_table',3);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (30,'2026_05_18_213328_add_sms_permissions_to_users_table',3);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (31,'2026_05_16_131012_create_general_settings',4);

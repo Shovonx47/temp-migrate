@@ -2,6 +2,8 @@
 
 use App\Contracts\SmsGateway;
 use App\Contracts\SupportsBulkSms;
+use App\Contracts\SupportsDeliveryStatus;
+use App\Enums\DeliveryOutcome;
 use App\Enums\GatewayDriver;
 use App\Enums\MessageStatus;
 use App\Enums\SenderType;
@@ -14,6 +16,7 @@ use App\Models\Sender;
 use App\Models\User;
 use App\Services\Sms\Data\BulkSmsRequest;
 use App\Services\Sms\Data\BulkSmsResponse;
+use App\Services\Sms\Data\DeliveryStatusResponse;
 use App\Services\Sms\Data\SmsRequest;
 use App\Services\Sms\Data\SmsResponse;
 use App\Support\Facades\Sms;
@@ -190,6 +193,41 @@ test('marks all messages failed when gateway returns unsuccessful response', fun
     expect($messages->every(fn ($m) => $m->status === MessageStatus::Failed))->toBeTrue()
         ->and($messages->every(fn ($m) => $m->failed_reason === 'Rate limit exceeded'))->toBeTrue()
         ->and($messages->every(fn ($m) => $m->failed_at !== null))->toBeTrue();
+});
+
+test('sets poll_attempt and next_poll_at on messages when driver supports delivery status', function () {
+    $batch = makeBulkSendableBatch('No variables here');
+    insertBulkPendingMessages($batch, 2);
+
+    Sms::extend('log', function () {
+        return new class implements SmsGateway, SupportsBulkSms, SupportsDeliveryStatus
+        {
+            public function send(SmsRequest $r): SmsResponse
+            {
+                return new SmsResponse(successful: true);
+            }
+
+            public function sendBulk(BulkSmsRequest $r): BulkSmsResponse
+            {
+                $ids = array_map(static fn ($i) => 'msg-'.$i, range(1, count($r->recipients)));
+
+                return new BulkSmsResponse(successful: true, perRecipientIds: $ids);
+            }
+
+            public function fetchDeliveryStatus(string $id): DeliveryStatusResponse
+            {
+                return new DeliveryStatusResponse(outcome: DeliveryOutcome::Delivered);
+            }
+        };
+    });
+
+    $allIds = Message::where('message_batch_id', $batch->id)->pluck('id')->all();
+    runBulkJob($batch, $allIds);
+
+    $messages = Message::where('message_batch_id', $batch->id)->get();
+
+    expect($messages->every(fn ($m) => $m->poll_attempt === 1))->toBeTrue()
+        ->and($messages->every(fn ($m) => $m->next_poll_at !== null))->toBeTrue();
 });
 
 // ---------------------------------------------------------------------------

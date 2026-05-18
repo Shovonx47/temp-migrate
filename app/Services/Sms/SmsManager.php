@@ -6,6 +6,7 @@ use App\Contracts\SmsGateway;
 use App\Enums\GatewayDriver;
 use App\Models\Gateway;
 use App\Services\Sms\Drivers\LogDriver;
+use App\Services\Sms\Drivers\QSmsDriver;
 use App\Services\Sms\Drivers\ReveSmsDriver;
 use Illuminate\Support\Manager;
 use InvalidArgumentException;
@@ -44,11 +45,22 @@ class SmsManager extends Manager
 
     protected function createRevesmsDriver(): SmsGateway
     {
-        if (empty($this->gateway?->credentials['url'])) {
-            throw new InvalidArgumentException('ReveSMS requires credentials: url, key, secret.');
+        if (empty($this->gateway?->credentials['base_url'])) {
+            throw new InvalidArgumentException('ReveSMS requires credentials: base_url, api_key, secret_key.');
         }
 
         return new ReveSmsDriver(
+            credentials: $this->gateway->credentials,
+        );
+    }
+
+    protected function createQsmsDriver(): SmsGateway
+    {
+        if (empty($this->gateway?->credentials['base_url'])) {
+            throw new InvalidArgumentException('QSMS requires credentials: base_url, api_key, client_id.');
+        }
+
+        return new QSmsDriver(
             credentials: $this->gateway->credentials,
         );
     }

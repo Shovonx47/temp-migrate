@@ -112,7 +112,33 @@ test('marks message sent with gateway message ID', function () {
         ->and($message->sent_at)->not->toBeNull()
         ->and($message->gateway_message_id)->toBe('gw-123')
         ->and($message->failed_at)->toBeNull()
-        ->and($message->failed_reason)->toBeNull();
+        ->and($message->failed_reason)->toBeNull()
+        ->and($message->poll_attempt)->toBe(1)
+        ->and($message->next_poll_at)->not->toBeNull()
+        ->and($message->next_poll_at->isFuture())->toBeTrue();
+});
+
+test('does not set poll columns when gateway returns no message ID', function () {
+    $batch = makeSingleSendableBatch('Hello {name}');
+    $messageId = insertSinglePendingMessage($batch, body: 'Hello John');
+
+    Sms::extend('log', function () {
+        return new class implements SmsGateway
+        {
+            public function send(SmsRequest $r): SmsResponse
+            {
+                return new SmsResponse(successful: true, gatewayMessageId: null);
+            }
+        };
+    });
+
+    runSingleJob($batch, $messageId);
+
+    $message = Message::find($messageId);
+
+    expect($message->status)->toBe(MessageStatus::Sent)
+        ->and($message->poll_attempt)->toBeNull()
+        ->and($message->next_poll_at)->toBeNull();
 });
 
 test('marks message failed when gateway returns unsuccessful response', function () {

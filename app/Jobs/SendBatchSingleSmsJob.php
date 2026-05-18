@@ -94,14 +94,11 @@ class SendBatchSingleSmsJob implements ShouldQueue
                     'gateway_message_id' => $response->gatewayMessageId,
                     'failed_at' => null,
                     'failed_reason' => null,
+                    // Schedule DLR polling via DB so the command can pick it up even after a Redis flush.
+                    'poll_attempt' => $response->gatewayMessageId !== null ? 1 : null,
+                    'next_poll_at' => $response->gatewayMessageId !== null ? $now->copy()->addMinutes(2) : null,
                     'updated_at' => $now,
                 ]);
-
-                // Schedule a DLR poll for messages that have a gateway ID to track.
-                if ($response->gatewayMessageId !== null) {
-                    PollMessageDeliveryJob::dispatch($message->id, attempt: 1)
-                        ->delay(now()->addMinutes(2));
-                }
             } else {
                 $this->failAndRefund($message, $now, $response->errorMessage);
             }

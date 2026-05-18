@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Customer\Pages\Dashboard;
+use App\Settings\GeneralSettings;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -25,6 +26,8 @@ class CustomerPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
+        $generalSettings = app(GeneralSettings::class);
+
         return $panel
             // Identify
             ->id('customer')
@@ -51,8 +54,9 @@ class CustomerPanelProvider extends PanelProvider
             ->databaseNotificationsPolling('30s')
 
             //Branding
-            ->brandName('Sendora')
-            ->brandLogo(asset('logo.png'))
+            ->brandName(fn () => $generalSettings->appName)
+            ->brandLogo(fn () => $generalSettings->getLogoUrl())
+            ->brandLogoHeight('50px')
 
             // Layout
             ->sidebarCollapsibleOnDesktop()

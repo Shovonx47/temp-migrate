@@ -29,8 +29,8 @@ final readonly class ReveSmsDriver implements SmsGateway, SupportsBulkSms, Suppo
     {
         try {
             $response = $this->client()->post('sendtext', [
-                'apikey' => $this->credentials['key'] ?? '',
-                'secretkey' => $this->credentials['secret'] ?? '',
+                'apikey' => $this->credentials['api_key'] ?? '',
+                'secretkey' => $this->credentials['secret_key'] ?? '',
                 'callerID' => $request->from ?? '',
                 'toUser' => $request->to,
                 'messageContent' => $request->body,
@@ -69,8 +69,8 @@ final readonly class ReveSmsDriver implements SmsGateway, SupportsBulkSms, Suppo
     {
         try {
             $response = $this->client()->post('sendtext', [
-                'apikey' => $this->credentials['key'] ?? '',
-                'secretkey' => $this->credentials['secret'] ?? '',
+                'apikey' => $this->credentials['api_key'] ?? '',
+                'secretkey' => $this->credentials['secret_key'] ?? '',
                 'callerID' => $request->from ?? '',
                 'toUser' => implode(',', $request->recipients),
                 'messageContent' => $request->body,
@@ -109,8 +109,8 @@ final readonly class ReveSmsDriver implements SmsGateway, SupportsBulkSms, Suppo
     {
         try {
             $response = $this->client()->get('getstatus', [
-                'apikey' => $this->credentials['key'] ?? '',
-                'secretkey' => $this->credentials['secret'] ?? '',
+                'apikey' => $this->credentials['api_key'] ?? '',
+                'secretkey' => $this->credentials['secret_key'] ?? '',
                 'messageid' => $gatewayMessageId,
             ]);
 
@@ -172,7 +172,7 @@ final readonly class ReveSmsDriver implements SmsGateway, SupportsBulkSms, Suppo
 
     private function client(): PendingRequest
     {
-        $baseUrl = rtrim((string) ($this->credentials['url'] ?? ''), '/');
+        $baseUrl = rtrim((string) ($this->credentials['base_url'] ?? ''), '/');
 
         return Http::baseUrl($baseUrl)
             ->withoutVerifying()

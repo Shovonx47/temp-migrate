@@ -18,7 +18,6 @@ use App\Support\Facades\Sms;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
 
@@ -74,6 +73,8 @@ function makeSentMessageWithDriver(
             'status' => MessageStatus::Sent,
             'gateway_message_id' => 'gw-msg-001',
             'sent_at' => now(),
+            'poll_attempt' => 1,
+            'next_poll_at' => now()->subMinute(), // already due
         ], $messageOverrides))
         ->create();
 
@@ -93,13 +94,15 @@ test('marks message as Delivered and sets delivered_at when DLR returns Delivere
         deliveredAt: $deliveredAt,
     ));
 
-    (new PollMessageDeliveryJob($message->id, attempt: 1))->handle();
+    (new PollMessageDeliveryJob($message->id))->handle();
 
     $fresh = $message->fresh();
 
     expect($fresh->status)->toBe(MessageStatus::Delivered)
         ->and($fresh->delivered_at)->not->toBeNull()
-        ->and($fresh->delivered_at->timestamp)->toBe($deliveredAt->timestamp);
+        ->and($fresh->delivered_at->timestamp)->toBe($deliveredAt->timestamp)
+        ->and($fresh->poll_attempt)->toBeNull()
+        ->and($fresh->next_poll_at)->toBeNull();
 });
 
 test('uses current time as delivered_at when DLR returns Delivered without a timestamp', function () {
@@ -108,10 +111,14 @@ test('uses current time as delivered_at when DLR returns Delivered without a tim
         deliveredAt: null,
     ));
 
-    (new PollMessageDeliveryJob($message->id, attempt: 1))->handle();
+    (new PollMessageDeliveryJob($message->id))->handle();
 
-    expect($message->fresh()->status)->toBe(MessageStatus::Delivered)
-        ->and($message->fresh()->delivered_at)->not->toBeNull();
+    $fresh = $message->fresh();
+
+    expect($fresh->status)->toBe(MessageStatus::Delivered)
+        ->and($fresh->delivered_at)->not->toBeNull()
+        ->and($fresh->poll_attempt)->toBeNull()
+        ->and($fresh->next_poll_at)->toBeNull();
 });
 
 // ---------------------------------------------------------------------------
@@ -125,13 +132,15 @@ test('marks message as Failed when DLR returns Failed', function () {
         errorMessage: 'BLACKLIST',
     ));
 
-    (new PollMessageDeliveryJob($message->id, attempt: 1))->handle();
+    (new PollMessageDeliveryJob($message->id))->handle();
 
     $fresh = $message->fresh();
 
     expect($fresh->status)->toBe(MessageStatus::Failed)
         ->and($fresh->failed_at)->not->toBeNull()
-        ->and($fresh->failed_reason)->toBe('BLACKLIST');
+        ->and($fresh->failed_reason)->toBe('BLACKLIST')
+        ->and($fresh->poll_attempt)->toBeNull()
+        ->and($fresh->next_poll_at)->toBeNull();
 });
 
 test('refunds message cost to user balance when DLR returns Failed', function () {
@@ -145,7 +154,7 @@ test('refunds message cost to user balance when DLR returns Failed', function ()
     $user = User::find($message->user_id);
     $balanceBefore = (float) $user->balance;
 
-    (new PollMessageDeliveryJob($message->id, attempt: 1))->handle();
+    (new PollMessageDeliveryJob($message->id))->handle();
 
     $user->refresh();
 
@@ -154,38 +163,39 @@ test('refunds message cost to user balance when DLR returns Failed', function ()
 });
 
 // ---------------------------------------------------------------------------
-// InTransit — re-dispatch
+// InTransit — DB-backed rescheduling
 // ---------------------------------------------------------------------------
 
-test('re-dispatches itself with next attempt when DLR returns InTransit and attempts remain', function () {
-    Queue::fake();
+test('increments poll_attempt and sets next_poll_at when DLR returns InTransit and attempts remain', function () {
+    $message = makeSentMessageWithDriver(
+        new DeliveryStatusResponse(outcome: DeliveryOutcome::InTransit),
+        ['poll_attempt' => 1],
+    );
 
-    $message = makeSentMessageWithDriver(new DeliveryStatusResponse(
-        outcome: DeliveryOutcome::InTransit,
-    ));
+    (new PollMessageDeliveryJob($message->id))->handle();
 
-    (new PollMessageDeliveryJob($message->id, attempt: 1))->handle();
+    $fresh = $message->fresh();
 
     // Message should remain Sent.
-    expect($message->fresh()->status)->toBe(MessageStatus::Sent);
-
-    Queue::assertPushed(
-        PollMessageDeliveryJob::class,
-        fn ($job) => $job->messageId === $message->id && $job->attempt === 2,
-    );
+    expect($fresh->status)->toBe(MessageStatus::Sent)
+        ->and($fresh->poll_attempt)->toBe(2)
+        ->and($fresh->next_poll_at)->not->toBeNull()
+        ->and($fresh->next_poll_at->isFuture())->toBeTrue();
 });
 
-test('does not re-dispatch when max attempts reached', function () {
-    Queue::fake();
+test('clears poll columns and stops when max attempts reached', function () {
+    $message = makeSentMessageWithDriver(
+        new DeliveryStatusResponse(outcome: DeliveryOutcome::InTransit),
+        ['poll_attempt' => PollMessageDeliveryJob::MAX_ATTEMPTS],
+    );
 
-    $message = makeSentMessageWithDriver(new DeliveryStatusResponse(
-        outcome: DeliveryOutcome::InTransit,
-    ));
+    (new PollMessageDeliveryJob($message->id))->handle();
 
-    (new PollMessageDeliveryJob($message->id, attempt: PollMessageDeliveryJob::MAX_ATTEMPTS))->handle();
+    $fresh = $message->fresh();
 
-    Queue::assertNothingPushed();
-    expect($message->fresh()->status)->toBe(MessageStatus::Sent);
+    expect($fresh->status)->toBe(MessageStatus::Sent)
+        ->and($fresh->poll_attempt)->toBeNull()
+        ->and($fresh->next_poll_at)->toBeNull();
 });
 
 // ---------------------------------------------------------------------------
@@ -196,7 +206,7 @@ test('exits silently when message is not in Sent status', function () {
     $user = User::factory()->create();
     $message = Message::factory()->for($user)->pending()->create(['campaign_id' => null]);
 
-    (new PollMessageDeliveryJob($message->id, attempt: 1))->handle();
+    (new PollMessageDeliveryJob($message->id))->handle();
 
     expect($message->fresh()->status)->toBe(MessageStatus::Pending);
 });
@@ -205,23 +215,24 @@ test('exits silently when message has no gateway_message_id', function () {
     $user = User::factory()->create();
     $message = Message::factory()->for($user)->sent()->create(['campaign_id' => null, 'gateway_message_id' => null]);
 
-    (new PollMessageDeliveryJob($message->id, attempt: 1))->handle();
+    (new PollMessageDeliveryJob($message->id))->handle();
 
     expect($message->fresh()->status)->toBe(MessageStatus::Sent);
 });
 
-test('exits silently when message was sent more than 48 hours ago', function () {
-    Queue::fake();
-
+test('clears poll columns when message was sent more than 48 hours ago', function () {
     $message = makeSentMessageWithDriver(
         new DeliveryStatusResponse(outcome: DeliveryOutcome::InTransit),
-        ['sent_at' => now()->subHours(49)],
+        ['sent_at' => now()->subHours(49), 'poll_attempt' => 1, 'next_poll_at' => now()->subMinute()],
     );
 
-    (new PollMessageDeliveryJob($message->id, attempt: 1))->handle();
+    (new PollMessageDeliveryJob($message->id))->handle();
 
-    expect($message->fresh()->status)->toBe(MessageStatus::Sent);
-    Queue::assertNothingPushed();
+    $fresh = $message->fresh();
+
+    expect($fresh->status)->toBe(MessageStatus::Sent)
+        ->and($fresh->poll_attempt)->toBeNull()
+        ->and($fresh->next_poll_at)->toBeNull();
 });
 
 test('exits silently when driver does not implement SupportsDeliveryStatus', function () {
@@ -250,7 +261,7 @@ test('exits silently when driver does not implement SupportsDeliveryStatus', fun
         ->state(['campaign_id' => null, 'sender_id' => $sender->id, 'gateway_message_id' => 'gw-001'])
         ->create();
 
-    (new PollMessageDeliveryJob($message->id, attempt: 1))->handle();
+    (new PollMessageDeliveryJob($message->id))->handle();
 
     expect($message->fresh()->status)->toBe(MessageStatus::Sent);
 });

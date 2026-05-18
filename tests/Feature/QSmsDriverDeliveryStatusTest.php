@@ -28,7 +28,7 @@ test('returns Delivered outcome for DELIVRD status', function () {
         ]),
     ]);
 
-    $driver = new QSmsDriver(['url' => 'https://qsms.test', 'api_key' => 'key', 'client_id' => 'cid']);
+    $driver = new QSmsDriver(['base_url' => 'https://qsms.test', 'api_key' => 'key', 'client_id' => 'cid']);
     $result = $driver->fetchDeliveryStatus('abc-123');
 
     expect($result->outcome)->toBe(DeliveryOutcome::Delivered)
@@ -49,7 +49,7 @@ test('returns InTransit outcome for SENT status', function () {
         ]),
     ]);
 
-    $driver = new QSmsDriver(['url' => 'https://qsms.test', 'api_key' => 'key', 'client_id' => 'cid']);
+    $driver = new QSmsDriver(['base_url' => 'https://qsms.test', 'api_key' => 'key', 'client_id' => 'cid']);
     $result = $driver->fetchDeliveryStatus('abc-123');
 
     expect($result->outcome)->toBe(DeliveryOutcome::InTransit)
@@ -65,7 +65,7 @@ test('returns InTransit outcome for ACCEPTD status', function () {
         ]),
     ]);
 
-    $driver = new QSmsDriver(['url' => 'https://qsms.test', 'api_key' => 'key', 'client_id' => 'cid']);
+    $driver = new QSmsDriver(['base_url' => 'https://qsms.test', 'api_key' => 'key', 'client_id' => 'cid']);
     $result = $driver->fetchDeliveryStatus('abc-123');
 
     expect($result->outcome)->toBe(DeliveryOutcome::InTransit);
@@ -84,7 +84,7 @@ test('returns Failed outcome for BLACKLIST status', function () {
         ]),
     ]);
 
-    $driver = new QSmsDriver(['url' => 'https://qsms.test', 'api_key' => 'key', 'client_id' => 'cid']);
+    $driver = new QSmsDriver(['base_url' => 'https://qsms.test', 'api_key' => 'key', 'client_id' => 'cid']);
     $result = $driver->fetchDeliveryStatus('abc-123');
 
     expect($result->outcome)->toBe(DeliveryOutcome::Failed)
@@ -100,7 +100,7 @@ test('returns Failed outcome for REJECTD status', function () {
         ]),
     ]);
 
-    $driver = new QSmsDriver(['url' => 'https://qsms.test', 'api_key' => 'key', 'client_id' => 'cid']);
+    $driver = new QSmsDriver(['base_url' => 'https://qsms.test', 'api_key' => 'key', 'client_id' => 'cid']);
     $result = $driver->fetchDeliveryStatus('abc-123');
 
     expect($result->outcome)->toBe(DeliveryOutcome::Failed);
@@ -115,7 +115,7 @@ test('returns InTransit when gateway returns a non-zero ErrorCode', function () 
         ]),
     ]);
 
-    $driver = new QSmsDriver(['url' => 'https://qsms.test', 'api_key' => 'key', 'client_id' => 'cid']);
+    $driver = new QSmsDriver(['base_url' => 'https://qsms.test', 'api_key' => 'key', 'client_id' => 'cid']);
     $result = $driver->fetchDeliveryStatus('abc-123');
 
     expect($result->outcome)->toBe(DeliveryOutcome::InTransit)
@@ -125,7 +125,7 @@ test('returns InTransit when gateway returns a non-zero ErrorCode', function () 
 test('returns InTransit when connection fails', function () {
     Http::fake(fn () => throw new ConnectionException('timeout'));
 
-    $driver = new QSmsDriver(['url' => 'https://qsms.test', 'api_key' => 'key', 'client_id' => 'cid']);
+    $driver = new QSmsDriver(['base_url' => 'https://qsms.test', 'api_key' => 'key', 'client_id' => 'cid']);
     $result = $driver->fetchDeliveryStatus('abc-123');
 
     expect($result->outcome)->toBe(DeliveryOutcome::InTransit)
@@ -147,7 +147,7 @@ test('send captures MessageId from Data array', function () {
         ]),
     ]);
 
-    $driver = new QSmsDriver(['url' => 'https://qsms.test', 'api_key' => 'key', 'client_id' => 'cid']);
+    $driver = new QSmsDriver(['base_url' => 'https://qsms.test', 'api_key' => 'key', 'client_id' => 'cid']);
     $result = $driver->send(new SmsRequest(to: '7894561230', body: 'Hi', from: 'Sender'));
 
     expect($result->successful)->toBeTrue()
@@ -172,7 +172,7 @@ test('sendBulk maps per-recipient MessageIds from Data array in recipient order'
         ]),
     ]);
 
-    $driver = new QSmsDriver(['url' => 'https://qsms.test', 'api_key' => 'key', 'client_id' => 'cid']);
+    $driver = new QSmsDriver(['base_url' => 'https://qsms.test', 'api_key' => 'key', 'client_id' => 'cid']);
     $result = $driver->sendBulk(new BulkSmsRequest(recipients: $recipients, body: 'Hi', from: 'Sender'));
 
     expect($result->successful)->toBeTrue()
@@ -193,7 +193,7 @@ test('sendBulk returns null slot for a recipient not present in gateway Data res
         ]),
     ]);
 
-    $driver = new QSmsDriver(['url' => 'https://qsms.test', 'api_key' => 'key', 'client_id' => 'cid']);
+    $driver = new QSmsDriver(['base_url' => 'https://qsms.test', 'api_key' => 'key', 'client_id' => 'cid']);
     $result = $driver->sendBulk(new BulkSmsRequest(recipients: $recipients, body: 'Hi', from: 'Sender'));
 
     expect($result->successful)->toBeTrue()

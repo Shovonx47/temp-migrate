@@ -103,9 +103,9 @@ class SendBatchBulkSmsJob implements ShouldQueue
             $this->refundFailedMessages($batch, $messages);
         }
 
-        // Schedule DLR polling for successfully sent messages when the driver supports it.
+        // Schedule DLR polling via DB so the command can pick it up even after a Redis flush.
         if ($response->successful && $driver instanceof SupportsDeliveryStatus) {
-            $this->dispatchPollJobs($messages->pluck('id')->all());
+            $this->schedulePollJobs($messages->pluck('id')->all());
         }
     }
 
@@ -139,20 +139,21 @@ class SendBatchBulkSmsJob implements ShouldQueue
      *                                          + 1 raw CASE WHEN UPDATE for gateway_message_id
      */
     /**
-     * Dispatches DLR poll jobs for all messages that received a gateway_message_id.
-     * Called after applyBulkResponse() has persisted the message IDs to the database.
+     * Writes `poll_attempt = 1` and `next_poll_at = now + 2 min` for every message
+     * that received a gateway_message_id. The `messages:poll-delivery` command will
+     * pick these up and dispatch PollMessageDeliveryJob, making the schedule resilient
+     * to Redis flushes.
      *
      * @param  int[]  $ids  The message IDs that were just updated.
      */
-    private function dispatchPollJobs(array $ids): void
+    private function schedulePollJobs(array $ids): void
     {
         Message::whereIn('id', $ids)
             ->whereNotNull('gateway_message_id')
-            ->pluck('id')
-            ->each(
-                fn (int $messageId) => PollMessageDeliveryJob::dispatch($messageId, attempt: 1)
-                    ->delay(now()->addMinutes(2)),
-            );
+            ->update([
+                'poll_attempt' => 1,
+                'next_poll_at' => now()->addMinutes(2),
+            ]);
     }
 
     private function applyBulkResponse(Collection $messages, BulkSmsResponse $response): void

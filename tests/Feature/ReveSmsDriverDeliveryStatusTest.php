@@ -15,7 +15,7 @@ test('returns Delivered outcome when Status is 0 (DELIVRD)', function () {
         ]),
     ]);
 
-    $driver = new ReveSmsDriver(['url' => 'https://reve.test', 'key' => 'key', 'secret' => 'secret']);
+    $driver = new ReveSmsDriver(['base_url' => 'https://reve.test', 'api_key' => 'key', 'secret_key' => 'secret']);
     $result = $driver->fetchDeliveryStatus('31094106');
 
     expect($result->outcome)->toBe(DeliveryOutcome::Delivered)
@@ -34,7 +34,7 @@ test('returns InTransit outcome when Status is 4 (SENT)', function () {
         ]),
     ]);
 
-    $driver = new ReveSmsDriver(['url' => 'https://reve.test', 'key' => 'key', 'secret' => 'secret']);
+    $driver = new ReveSmsDriver(['base_url' => 'https://reve.test', 'api_key' => 'key', 'secret_key' => 'secret']);
     $result = $driver->fetchDeliveryStatus('31094113');
 
     expect($result->outcome)->toBe(DeliveryOutcome::InTransit)
@@ -51,7 +51,7 @@ test('returns Failed outcome when Status is non-zero and non-four', function () 
         ]),
     ]);
 
-    $driver = new ReveSmsDriver(['url' => 'https://reve.test', 'key' => 'key', 'secret' => 'secret']);
+    $driver = new ReveSmsDriver(['base_url' => 'https://reve.test', 'api_key' => 'key', 'secret_key' => 'secret']);
     $result = $driver->fetchDeliveryStatus('missing-id');
 
     expect($result->outcome)->toBe(DeliveryOutcome::Failed)
@@ -62,7 +62,7 @@ test('returns Failed outcome when Status is non-zero and non-four', function () 
 test('returns InTransit when HTTP request fails', function () {
     Http::fake(['*/getstatus*' => Http::response(null, 500)]);
 
-    $driver = new ReveSmsDriver(['url' => 'https://reve.test', 'key' => 'key', 'secret' => 'secret']);
+    $driver = new ReveSmsDriver(['base_url' => 'https://reve.test', 'api_key' => 'key', 'secret_key' => 'secret']);
     $result = $driver->fetchDeliveryStatus('any-id');
 
     expect($result->outcome)->toBe(DeliveryOutcome::InTransit);
@@ -71,7 +71,7 @@ test('returns InTransit when HTTP request fails', function () {
 test('returns InTransit when connection fails', function () {
     Http::fake(fn () => throw new ConnectionException('timeout'));
 
-    $driver = new ReveSmsDriver(['url' => 'https://reve.test', 'key' => 'key', 'secret' => 'secret']);
+    $driver = new ReveSmsDriver(['base_url' => 'https://reve.test', 'api_key' => 'key', 'secret_key' => 'secret']);
     $result = $driver->fetchDeliveryStatus('any-id');
 
     expect($result->outcome)->toBe(DeliveryOutcome::InTransit)
@@ -88,7 +88,7 @@ test('handles zero Delivery Time gracefully (no deliveredAt)', function () {
         ]),
     ]);
 
-    $driver = new ReveSmsDriver(['url' => 'https://reve.test', 'key' => 'key', 'secret' => 'secret']);
+    $driver = new ReveSmsDriver(['base_url' => 'https://reve.test', 'api_key' => 'key', 'secret_key' => 'secret']);
     $result = $driver->fetchDeliveryStatus('12345');
 
     expect($result->outcome)->toBe(DeliveryOutcome::Delivered)

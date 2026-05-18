@@ -27,8 +27,12 @@ return new class extends Migration
 
             $table->text('failed_reason')->nullable();
 
+            $table->unsignedTinyInteger('poll_attempt')->nullable();
+
             $table->timestamp('sent_at')->nullable();
             $table->timestamp('failed_at')->nullable();
+            $table->timestamp('delivered_at')->nullable();
+            $table->timestamp('next_poll_at')->nullable();
             $table->timestamps();
 
             $table->index(['user_id', 'created_at']);

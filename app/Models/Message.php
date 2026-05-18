@@ -27,6 +27,7 @@ class Message extends Model implements Transactionable
             'sent_at' => 'datetime',
             'failed_at' => 'datetime',
             'delivered_at' => 'datetime',
+            'next_poll_at' => 'datetime',
         ];
     }
 

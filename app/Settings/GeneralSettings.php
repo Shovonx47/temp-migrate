@@ -13,4 +13,13 @@ class GeneralSettings extends Settings
     {
         return 'general';
     }
+
+    public function getLogoUrl(): string
+    {
+        if (file_exists(storage_path('app/public/' . $this->logoUrl))) {
+            return asset('storage/' . $this->logoUrl);
+        }
+
+        return asset($this->logoUrl);
+    }
 }

@@ -12,6 +12,7 @@ enum GatewayDriver: string implements HasIcon, HasLabel
 {
     case Log = 'log';
     case ReveSMS = 'revesms';
+    case QSMS = 'qsms';
 
     public function getLabel(): string|Htmlable|null
     {
@@ -23,6 +24,7 @@ enum GatewayDriver: string implements HasIcon, HasLabel
         return match ($this) {
             GatewayDriver::Log => Heroicon::OutlinedDocumentText,
             GatewayDriver::ReveSMS => BrandIcon::ReveSMS,
+            GatewayDriver::QSMS => Heroicon::OutlinedDevicePhoneMobile,
         };
     }
 }

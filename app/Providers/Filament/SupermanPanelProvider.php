@@ -28,6 +28,8 @@ class SupermanPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
+        $generalSettings = app(GeneralSettings::class);
+
         return $panel
             // Identity
             ->default()
@@ -50,8 +52,8 @@ class SupermanPanelProvider extends PanelProvider
             ->maxContentWidth(Width::Full)
 
             // Branding — resolved lazily so service providers do not query the DB at boot time.
-            ->brandName(fn () => app(GeneralSettings::class)->appName)
-            ->brandLogo(fn () => asset('storage/'.app(GeneralSettings::class)->logoUrl))
+            ->brandName(fn () => $generalSettings->appName)
+            ->brandLogo(fn () => $generalSettings->getLogoUrl())
             ->brandLogoHeight('50px')
 
             // Database

@@ -22,7 +22,7 @@ final readonly class QSmsDriver implements SmsGateway, SupportsBulkSms, Supports
 
     private function client(): PendingRequest
     {
-        $baseUrl = rtrim((string) ($this->credentials['url'] ?? ''), '/');
+        $baseUrl = rtrim((string) ($this->credentials['base_url'] ?? ''), '/');
 
         return Http::baseUrl($baseUrl)
             ->withoutVerifying()

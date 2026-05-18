@@ -561,6 +561,8 @@ CREATE TABLE `users` (
   `phone` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `type` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'customer',
   `approval` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `back_nid` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `front_nid` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `balance` decimal(12,4) NOT NULL DEFAULT '0.0000',
   `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `remember_token` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -611,3 +613,4 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (23,'2026_05_16_071
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (24,'2026_05_16_071029_create_user_operator_rates_table',1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (25,'2026_05_16_131012_create_general_settings',1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (26,'2026_05_16_160247_create_payment_webhooks_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (27,'2026_05_18_204033_add_kyc_fields_to_users_table',2);

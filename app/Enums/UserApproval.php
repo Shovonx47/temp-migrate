@@ -14,6 +14,7 @@ enum UserApproval: string implements HasColor, HasIcon, HasLabel
     case Pending = 'pending';
     case Approved = 'approved';
     case Rejected = 'rejected';
+    case Banned = 'banned';
 
     public function getLabel(): string|Htmlable|null
     {
@@ -25,7 +26,7 @@ enum UserApproval: string implements HasColor, HasIcon, HasLabel
         return match ($this) {
             self::Pending => 'warning',
             self::Approved => 'success',
-            self::Rejected => 'danger',
+            self::Rejected, self::Banned => 'danger',
         };
     }
 
@@ -35,6 +36,7 @@ enum UserApproval: string implements HasColor, HasIcon, HasLabel
             self::Pending => Heroicon::OutlinedClock,
             self::Approved => Heroicon::OutlinedCheckCircle,
             self::Rejected => Heroicon::OutlinedXCircle,
+            self::Banned => Heroicon::OutlinedStopCircle,
         };
     }
 

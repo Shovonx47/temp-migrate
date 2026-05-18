@@ -2,7 +2,14 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Customer\Pages\Account\Banned;
+use App\Filament\Customer\Pages\Account\Kyc;
+use App\Filament\Customer\Pages\Account\Pending;
+use App\Filament\Customer\Pages\Account\Rejected;
 use App\Filament\Customer\Pages\Dashboard;
+use App\Filament\Customer\Pages\Register;
+use App\Http\Middleware\HandleCustomerApproval;
+use App\Http\Middleware\HandleCustomerKyc;
 use App\Settings\GeneralSettings;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Http\Middleware\Authenticate;
@@ -36,7 +43,7 @@ class CustomerPanelProvider extends PanelProvider
 
             // Authentication
             ->login()
-            ->registration()
+            ->registration(Register::class)
             ->passwordReset()
             ->profile()
             ->emailVerification()
@@ -53,7 +60,7 @@ class CustomerPanelProvider extends PanelProvider
             ->lazyLoadedDatabaseNotifications()
             ->databaseNotificationsPolling('30s')
 
-            //Branding
+            // Branding
             ->brandName(fn () => $generalSettings->appName)
             ->brandLogo(fn () => $generalSettings->getLogoUrl())
             ->brandLogoHeight('50px')
@@ -78,6 +85,10 @@ class CustomerPanelProvider extends PanelProvider
             )
             ->pages([
                 Dashboard::class,
+                Pending::class,
+                Rejected::class,
+                Banned::class,
+                Kyc::class,
             ])
 
             // Widgets
@@ -103,6 +114,8 @@ class CustomerPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                HandleCustomerApproval::class,
+                HandleCustomerKyc::class,
             ])
             ->plugins($this->plugins())
 

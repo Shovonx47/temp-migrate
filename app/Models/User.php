@@ -23,8 +23,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Propaganistas\LaravelPhone\Casts\E164PhoneNumberCast;
 
-#[Fillable(['name', 'email', 'phone', 'type', 'approval', 'balance', 'password'])]
-#[Hidden(['type', 'password', 'remember_token'])]
+#[Fillable(['name', 'email', 'phone', 'type', 'approval', 'balance', 'password', 'front_nid', 'back_nid'])]
+#[Hidden(['type', 'password', 'remember_token', 'front_nid', 'back_nid'])]
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 {
     /** @use HasFactory<UserFactory> */

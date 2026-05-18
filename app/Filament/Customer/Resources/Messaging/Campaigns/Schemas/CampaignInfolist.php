@@ -2,7 +2,6 @@
 
 namespace App\Filament\Customer\Resources\Messaging\Campaigns\Schemas;
 
-use App\Filament\Customer\Resources\Messaging\Senders\SenderResource;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
@@ -20,14 +19,16 @@ class CampaignInfolist
                     ->schema([
                         Grid::make(3)
                             ->schema([
-                                TextEntry::make('name')->label('Name')->weight('bold'),
-                                TextEntry::make('status')->badge(),
-                                TextEntry::make('group.name')->label('Group')->icon(Heroicon::UserGroup),
+                                TextEntry::make('name')
+                                    ->label('Name')
+                                    ->weight('bold'),
+                                TextEntry::make('status')
+                                    ->badge(),
+                                TextEntry::make('group.name')
+                                    ->label('Group')
+                                    ->icon(Heroicon::UserGroup),
                                 TextEntry::make('sender.sender_id')
-                                    ->label('Sender')
-                                    ->url(fn ($record) => $record->sender
-                                        ? SenderResource::getUrl('view', ['record' => $record->sender])
-                                        : null),
+                                    ->label('Sender'),
                             ]),
                         TextEntry::make('body')
                             ->label('Message')

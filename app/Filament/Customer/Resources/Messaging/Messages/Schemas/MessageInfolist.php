@@ -3,7 +3,6 @@
 namespace App\Filament\Customer\Resources\Messaging\Messages\Schemas;
 
 use App\Filament\Customer\Resources\Messaging\Campaigns\CampaignResource;
-use App\Filament\Customer\Resources\Messaging\Senders\SenderResource;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
@@ -17,7 +16,7 @@ class MessageInfolist
             ->components([
                 Section::make('Details')
                     ->schema([
-                        Grid::make(2)
+                        Grid::make()
                             ->schema([
                                 TextEntry::make('uid')
                                     ->label('UID')
@@ -29,10 +28,7 @@ class MessageInfolist
                                         ? CampaignResource::getUrl('view', ['record' => $record->campaign])
                                         : null),
                                 TextEntry::make('sender.sender_id')
-                                    ->label('Sender')
-                                    ->url(fn ($record) => $record->sender
-                                        ? SenderResource::getUrl('view', ['record' => $record->sender])
-                                        : null),
+                                    ->label('Sender'),
                                 TextEntry::make('to')
                                     ->label('Recipient'),
                                 TextEntry::make('status')

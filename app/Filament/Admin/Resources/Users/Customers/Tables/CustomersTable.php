@@ -65,7 +65,6 @@ class CustomersTable
                 ActionGroup::make([
                     ViewAction::make()
                         ->label('View Customer'),
-                    ApprovalAction::make(),
                     DepositAction::make(),
                     ApprovalAction::make(),
                     LoginAction::make(),

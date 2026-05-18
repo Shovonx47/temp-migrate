@@ -2,7 +2,6 @@
 
 namespace App\Filament\Customer\Resources\Messaging\MessageBatches\Schemas;
 
-use App\Filament\Customer\Resources\Messaging\Senders\SenderResource;
 use Filament\Actions\Action;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
@@ -32,29 +31,26 @@ class MessageBatchInfolist
                                     ->badge(),
                                 TextEntry::make('sender.sender_id')
                                     ->label('Sender ID')
-                                    ->placeholder('—')
-                                    ->url(fn ($record) => $record->sender
-                                        ? SenderResource::getUrl('view', ['record' => $record->sender])
-                                        : null),
+                                    ->placeholder('—'),
                             ]),
                         Grid::make(3)
                             ->schema([
                                 TextEntry::make('messages_count')
                                     ->label('Pending')
-                                    ->counts(['messages' => fn($query) => $query->whereStatus('pending')])
-                                    ->formatStateUsing(fn(int $state) => Number::abbreviate($state)),
+                                    ->counts(['messages' => fn ($query) => $query->whereStatus('pending')])
+                                    ->formatStateUsing(fn (int $state) => Number::abbreviate($state)),
                                 TextEntry::make('messages_count')
                                     ->label('Sent')
-                                    ->counts(['messages' => fn($query) => $query->whereStatus('sent')])
-                                    ->formatStateUsing(fn(int $state) => Number::abbreviate($state)),
+                                    ->counts(['messages' => fn ($query) => $query->whereStatus('sent')])
+                                    ->formatStateUsing(fn (int $state) => Number::abbreviate($state)),
                                 TextEntry::make('messages_count')
                                     ->label('Delivered')
-                                    ->counts(['messages' => fn($query) => $query->whereStatus('delivered')])
-                                    ->formatStateUsing(fn(int $state) => Number::abbreviate($state)),
+                                    ->counts(['messages' => fn ($query) => $query->whereStatus('delivered')])
+                                    ->formatStateUsing(fn (int $state) => Number::abbreviate($state)),
                                 TextEntry::make('messages_count')
                                     ->label('Failed')
-                                    ->counts(['messages' => fn($query) => $query->whereStatus('failed')])
-                                    ->formatStateUsing(fn(int $state) => Number::abbreviate($state)),
+                                    ->counts(['messages' => fn ($query) => $query->whereStatus('failed')])
+                                    ->formatStateUsing(fn (int $state) => Number::abbreviate($state)),
                             ]),
                     ]),
 

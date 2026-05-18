@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'source' => ['app', 'database', 'routes'],
+    'source' => ['app', 'routes'],
     'destination' => env('ENCRYPTER_DESTINATION', 'dist'),
     'key_length' => 6,
 

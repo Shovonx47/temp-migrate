@@ -4,6 +4,7 @@ use App\Contracts\SmsGateway;
 use App\Enums\GatewayDriver;
 use App\Enums\MessageStatus;
 use App\Enums\SenderType;
+use App\Enums\TransactionDirection;
 use App\Jobs\SendBatchSingleSmsJob;
 use App\Models\Gateway;
 use App\Models\Message;
@@ -159,6 +160,98 @@ test('marks message failed when driver throws an exception', function () {
     expect($message->status)->toBe(MessageStatus::Failed)
         ->and($message->failed_reason)->toBe('Network timeout')
         ->and($message->sent_at)->toBeNull();
+});
+
+// ---------------------------------------------------------------------------
+// Refund cases
+// ---------------------------------------------------------------------------
+
+test('refunds message cost to user balance when gateway returns unsuccessful response', function () {
+    $batch = makeSingleSendableBatch();
+    $user = User::find($batch->user_id);
+    $balanceBefore = (float) $user->balance;
+    $messageId = insertSinglePendingMessage($batch); // cost = 0.30
+
+    Sms::extend('log', function () {
+        return new class implements SmsGateway
+        {
+            public function send(SmsRequest $r): SmsResponse
+            {
+                return new SmsResponse(successful: false, errorMessage: 'Invalid number');
+            }
+        };
+    });
+
+    runSingleJob($batch, $messageId);
+
+    $message = Message::find($messageId);
+    $user->refresh();
+
+    expect($user->balance)->toBe(round($balanceBefore + $message->cost, 4))
+        ->and($message->transactions()->where('direction', TransactionDirection::Credit)->count())->toBe(1);
+});
+
+test('refunds message cost to user balance when driver throws an exception', function () {
+    $batch = makeSingleSendableBatch();
+    $user = User::find($batch->user_id);
+    $balanceBefore = (float) $user->balance;
+    $messageId = insertSinglePendingMessage($batch); // cost = 0.30
+
+    Sms::extend('log', function () {
+        return new class implements SmsGateway
+        {
+            public function send(SmsRequest $r): SmsResponse
+            {
+                throw new RuntimeException('Network timeout');
+            }
+        };
+    });
+
+    runSingleJob($batch, $messageId);
+
+    $message = Message::find($messageId);
+    $user->refresh();
+
+    expect($user->balance)->toBe(round($balanceBefore + $message->cost, 4));
+});
+
+test('does not create a refund transaction when message cost is zero', function () {
+    $batch = makeSingleSendableBatch();
+    $user = User::find($batch->user_id);
+    $balanceBefore = (float) $user->balance;
+
+    // Insert a zero-cost message.
+    $now = now();
+    Message::insert([[
+        'user_id' => $batch->user_id,
+        'message_batch_id' => $batch->id,
+        'campaign_id' => null,
+        'sender_id' => $batch->sender_id,
+        'to' => '+8801711000009',
+        'body' => 'Hello',
+        'status' => MessageStatus::Pending->value,
+        'parts' => 1,
+        'rate' => 0.0,
+        'cost' => 0.0,
+        'created_at' => $now,
+        'updated_at' => $now,
+    ]]);
+    $messageId = (int) Message::where('message_batch_id', $batch->id)->value('id');
+
+    Sms::extend('log', fn () => new class implements SmsGateway
+    {
+        public function send(SmsRequest $r): SmsResponse
+        {
+            return new SmsResponse(successful: false, errorMessage: 'Rejected');
+        }
+    });
+
+    runSingleJob($batch, $messageId);
+
+    $user->refresh();
+
+    expect($user->balance)->toBe($balanceBefore)
+        ->and(Message::find($messageId)->transactions()->count())->toBe(0);
 });
 
 // ---------------------------------------------------------------------------

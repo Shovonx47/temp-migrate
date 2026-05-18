@@ -2,10 +2,13 @@
 
 namespace App\Jobs;
 
+use App\Actions\Billing\CreditBalance;
 use App\Contracts\SupportsBulkSms;
+use App\Contracts\SupportsDeliveryStatus;
 use App\Enums\MessageStatus;
 use App\Models\Message;
 use App\Models\MessageBatch;
+use App\Models\User;
 use App\Services\Sms\Data\BulkSmsRequest;
 use App\Services\Sms\Data\BulkSmsResponse;
 use App\Support\Facades\Sms;
@@ -80,7 +83,7 @@ class SendBatchBulkSmsJob implements ShouldQueue
             ? Message::whereIn('id', $this->messageIds)->where('status', MessageStatus::Pending)
             : $batch->messages()->where('status', MessageStatus::Pending);
 
-        $messages = $query->select(['id', 'to'])->orderBy('id')->get();
+        $messages = $query->select(['id', 'to', 'cost'])->orderBy('id')->get();
 
         if ($messages->isEmpty()) {
             return;
@@ -95,6 +98,37 @@ class SendBatchBulkSmsJob implements ShouldQueue
         ));
 
         $this->applyBulkResponse($messages, $response);
+
+        if (! $response->successful) {
+            $this->refundFailedMessages($batch, $messages);
+        }
+
+        // Schedule DLR polling for successfully sent messages when the driver supports it.
+        if ($response->successful && $driver instanceof SupportsDeliveryStatus) {
+            $this->dispatchPollJobs($messages->pluck('id')->all());
+        }
+    }
+
+    /**
+     * Refunds the total cost of failed messages back to the user's balance.
+     * Uses the batch as the transactionable so the credit appears alongside the original debit.
+     */
+    private function refundFailedMessages(MessageBatch $batch, Collection $messages): void
+    {
+        $totalCost = round((float) $messages->sum('cost'), 4);
+
+        if ($totalCost <= 0) {
+            return;
+        }
+
+        DB::transaction(function () use ($batch, $messages, $totalCost): void {
+            app(CreditBalance::class)->handle(
+                user: User::findOrFail($batch->user_id),
+                amount: $totalCost,
+                transactionable: $batch,
+                description: 'Refund: bulk SMS send failed ('.$messages->count().' messages)',
+            );
+        });
     }
 
     /**
@@ -104,6 +138,23 @@ class SendBatchBulkSmsJob implements ShouldQueue
      *   - Per-recipient IDs (perRecipientIds) → 1 whereIn UPDATE for common fields
      *                                          + 1 raw CASE WHEN UPDATE for gateway_message_id
      */
+    /**
+     * Dispatches DLR poll jobs for all messages that received a gateway_message_id.
+     * Called after applyBulkResponse() has persisted the message IDs to the database.
+     *
+     * @param  int[]  $ids  The message IDs that were just updated.
+     */
+    private function dispatchPollJobs(array $ids): void
+    {
+        Message::whereIn('id', $ids)
+            ->whereNotNull('gateway_message_id')
+            ->pluck('id')
+            ->each(
+                fn (int $messageId) => PollMessageDeliveryJob::dispatch($messageId, attempt: 1)
+                    ->delay(now()->addMinutes(2)),
+            );
+    }
+
     private function applyBulkResponse(Collection $messages, BulkSmsResponse $response): void
     {
         $ids = $messages->pluck('id')->all();

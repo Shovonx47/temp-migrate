@@ -13,6 +13,7 @@ enum MessageStatus: string implements HasColor, HasIcon, HasLabel
 {
     case Pending = 'pending';
     case Sent = 'sent';
+    case Delivered = 'delivered';
     case Failed = 'failed';
 
     public function getLabel(): string|Htmlable|null
@@ -24,7 +25,8 @@ enum MessageStatus: string implements HasColor, HasIcon, HasLabel
     {
         return match ($this) {
             self::Pending => 'warning',
-            self::Sent => 'success',
+            self::Sent => 'info',
+            self::Delivered => 'success',
             self::Failed => 'danger',
         };
     }
@@ -33,7 +35,8 @@ enum MessageStatus: string implements HasColor, HasIcon, HasLabel
     {
         return match ($this) {
             self::Pending => Heroicon::OutlinedClock,
-            self::Sent => Heroicon::OutlinedCheckBadge,
+            self::Sent => Heroicon::OutlinedPaperAirplane,
+            self::Delivered => Heroicon::OutlinedCheckBadge,
             self::Failed => Heroicon::OutlinedXCircle,
         };
     }

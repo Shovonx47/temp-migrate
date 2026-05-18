@@ -2,9 +2,11 @@
 
 namespace App\Jobs;
 
+use App\Actions\Billing\CreditBalance;
 use App\Enums\MessageStatus;
 use App\Models\Message;
 use App\Models\MessageBatch;
+use App\Models\User;
 use App\Services\Sms\Data\SmsRequest;
 use App\Support\Facades\Sms;
 use Carbon\CarbonInterface;
@@ -12,6 +14,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Sends a single pending message via an individual API request.
@@ -66,7 +69,7 @@ class SendBatchSingleSmsJob implements ShouldQueue
 
         $message = Message::where('id', $this->messageId)
             ->where('status', MessageStatus::Pending)
-            ->select(['id', 'to', 'body'])
+            ->select(['id', 'to', 'body', 'cost', 'user_id'])
             ->first();
 
         // Idempotency guard: already processed or doesn't exist.
@@ -93,23 +96,42 @@ class SendBatchSingleSmsJob implements ShouldQueue
                     'failed_reason' => null,
                     'updated_at' => $now,
                 ]);
+
+                // Schedule a DLR poll for messages that have a gateway ID to track.
+                if ($response->gatewayMessageId !== null) {
+                    PollMessageDeliveryJob::dispatch($message->id, attempt: 1)
+                        ->delay(now()->addMinutes(2));
+                }
             } else {
-                $message->update([
-                    'status' => MessageStatus::Failed->value,
-                    'failed_at' => $now,
-                    'failed_reason' => $response->errorMessage,
-                    'sent_at' => null,
-                    'updated_at' => $now,
-                ]);
+                $this->failAndRefund($message, $now, $response->errorMessage);
             }
         } catch (\Throwable $e) {
+            $this->failAndRefund($message, $now, $e->getMessage());
+        }
+    }
+
+    /**
+     * Marks the message as Failed and refunds its cost to the user's balance in a single transaction.
+     */
+    private function failAndRefund(Message $message, Carbon $now, ?string $reason): void
+    {
+        DB::transaction(function () use ($message, $now, $reason): void {
             $message->update([
                 'status' => MessageStatus::Failed->value,
                 'failed_at' => $now,
-                'failed_reason' => $e->getMessage(),
+                'failed_reason' => $reason,
                 'sent_at' => null,
                 'updated_at' => $now,
             ]);
-        }
+
+            if (($message->cost ?? 0) > 0) {
+                app(CreditBalance::class)->handle(
+                    user: User::findOrFail($message->user_id),
+                    amount: $message->cost,
+                    transactionable: $message,
+                    description: 'Refund: SMS failed to send',
+                );
+            }
+        });
     }
 }

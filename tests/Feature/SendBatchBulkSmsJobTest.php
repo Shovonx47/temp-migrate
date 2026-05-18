@@ -5,6 +5,7 @@ use App\Contracts\SupportsBulkSms;
 use App\Enums\GatewayDriver;
 use App\Enums\MessageStatus;
 use App\Enums\SenderType;
+use App\Enums\TransactionDirection;
 use App\Jobs\SendBatchBulkSmsJob;
 use App\Models\Gateway;
 use App\Models\Message;
@@ -189,6 +190,42 @@ test('marks all messages failed when gateway returns unsuccessful response', fun
     expect($messages->every(fn ($m) => $m->status === MessageStatus::Failed))->toBeTrue()
         ->and($messages->every(fn ($m) => $m->failed_reason === 'Rate limit exceeded'))->toBeTrue()
         ->and($messages->every(fn ($m) => $m->failed_at !== null))->toBeTrue();
+});
+
+// ---------------------------------------------------------------------------
+// Refund cases
+// ---------------------------------------------------------------------------
+
+test('refunds total message cost to user balance when bulk send fails', function () {
+    $batch = makeBulkSendableBatch('No variables here');
+    $user = User::find($batch->user_id);
+    $balanceBefore = (float) $user->balance;
+
+    insertBulkPendingMessages($batch, 3); // 3 × 0.30 = 0.90
+
+    Sms::extend('log', function () {
+        return new class implements SmsGateway, SupportsBulkSms
+        {
+            public function send(SmsRequest $r): SmsResponse
+            {
+                return new SmsResponse(successful: false);
+            }
+
+            public function sendBulk(BulkSmsRequest $r): BulkSmsResponse
+            {
+                return new BulkSmsResponse(successful: false, errorMessage: 'Rate limit exceeded');
+            }
+        };
+    });
+
+    $allIds = Message::where('message_batch_id', $batch->id)->pluck('id')->all();
+    runBulkJob($batch, $allIds);
+
+    $user->refresh();
+    $totalCost = round(3 * 0.30, 4);
+
+    expect($user->balance)->toBe(round($balanceBefore + $totalCost, 4))
+        ->and($batch->transactions()->where('direction', TransactionDirection::Credit)->count())->toBe(1);
 });
 
 // ---------------------------------------------------------------------------

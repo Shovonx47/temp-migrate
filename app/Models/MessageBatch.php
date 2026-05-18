@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Concerns\HasTransactions;
+use App\Contracts\Transactionable;
 use App\Enums\MessageBatchSource;
 use App\Enums\MessageBatchStatus;
 use App\Jobs\ProcessMessageBatchJob;
@@ -14,10 +16,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Guarded(['id'])]
-class MessageBatch extends Model
+class MessageBatch extends Model implements Transactionable
 {
     /** @use HasFactory<MessageBatchFactory> */
-    use HasFactory;
+    use HasFactory, HasTransactions;
 
     protected function casts(): array
     {

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Customer\Resources\Messaging\MessageBatches\Schemas;
 
+use App\Filament\Customer\Resources\Messaging\Senders\SenderResource;
 use Filament\Actions\Action;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
@@ -31,7 +32,10 @@ class MessageBatchInfolist
                                     ->badge(),
                                 TextEntry::make('sender.sender_id')
                                     ->label('Sender ID')
-                                    ->placeholder('—'),
+                                    ->placeholder('—')
+                                    ->url(fn ($record) => $record->sender
+                                        ? SenderResource::getUrl('view', ['record' => $record->sender])
+                                        : null),
                             ]),
                         Grid::make(3)
                             ->schema([

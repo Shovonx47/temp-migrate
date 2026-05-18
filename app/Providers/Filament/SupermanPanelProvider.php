@@ -23,14 +23,11 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
-use Throwable;
 
 class SupermanPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
-        $generalSettings = app(GeneralSettings::class);
-
         return $panel
             // Identity
             ->default()
@@ -52,9 +49,9 @@ class SupermanPanelProvider extends PanelProvider
             ->sidebarWidth('300px')
             ->maxContentWidth(Width::Full)
 
-            //Branding
-            ->brandName($generalSettings->appName)
-            ->brandLogo(asset('storage/' . $generalSettings->logoUrl))
+            // Branding — resolved lazily so service providers do not query the DB at boot time.
+            ->brandName(fn () => app(GeneralSettings::class)->appName)
+            ->brandLogo(fn () => asset('storage/'.app(GeneralSettings::class)->logoUrl))
             ->brandLogoHeight('50px')
 
             // Database

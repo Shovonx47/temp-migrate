@@ -26,6 +26,7 @@ class Message extends Model implements Transactionable
             'cost' => 'float',
             'sent_at' => 'datetime',
             'failed_at' => 'datetime',
+            'delivered_at' => 'datetime',
         ];
     }
 

@@ -36,7 +36,7 @@ class MessagesTable
                 TextColumn::make('sent_at'),
                 TextColumn::make('created_at'),
             ])
-            ->poll('60s')
+            ->poll('30s')
             ->groups([
                 Group::make('status')->collapsible()
             ])

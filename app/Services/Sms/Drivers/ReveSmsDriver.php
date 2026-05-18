@@ -4,16 +4,20 @@ namespace App\Services\Sms\Drivers;
 
 use App\Contracts\SmsGateway;
 use App\Contracts\SupportsBulkSms;
+use App\Contracts\SupportsDeliveryStatus;
+use App\Enums\DeliveryOutcome;
 use App\Services\Sms\Data\BulkSmsRequest;
 use App\Services\Sms\Data\BulkSmsResponse;
+use App\Services\Sms\Data\DeliveryStatusResponse;
 use App\Services\Sms\Data\SmsRequest;
 use App\Services\Sms\Data\SmsResponse;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
-final readonly class ReveSmsDriver implements SmsGateway, SupportsBulkSms
+final readonly class ReveSmsDriver implements SmsGateway, SupportsBulkSms, SupportsDeliveryStatus
 {
     public function __construct(private array $credentials = []) {}
 
@@ -32,7 +36,7 @@ final readonly class ReveSmsDriver implements SmsGateway, SupportsBulkSms
                 'messageContent' => $request->body,
             ]);
 
-            if ($response->failed() || $response->json("Status") !== '0') {
+            if ($response->failed() || $response->json('Status') !== '0') {
                 return new SmsResponse(
                     successful: false,
                     errorMessage: $response->json('Text', 'Unknown error'),
@@ -98,6 +102,71 @@ final readonly class ReveSmsDriver implements SmsGateway, SupportsBulkSms
                 successful: false,
                 errorMessage: 'Connection failed: '.$e->getMessage(),
             );
+        }
+    }
+
+    public function fetchDeliveryStatus(string $gatewayMessageId): DeliveryStatusResponse
+    {
+        try {
+            $response = $this->client()->get('getstatus', [
+                'apikey' => $this->credentials['key'] ?? '',
+                'secretkey' => $this->credentials['secret'] ?? '',
+                'messageid' => $gatewayMessageId,
+            ]);
+
+            $data = $response->json() ?? [];
+            $status = (string) ($data['Status'] ?? '');
+            $text = strtoupper((string) ($data['Text'] ?? ''));
+
+            if ($response->failed()) {
+                return new DeliveryStatusResponse(
+                    outcome: DeliveryOutcome::InTransit,
+                    errorMessage: $text !== '' ? $text : 'HTTP error',
+                    raw: $data,
+                );
+            }
+
+            // Status "0" = DELIVRD, "4" = SENT (accepted, in transit), anything else = failed.
+            return match ($status) {
+                '0' => new DeliveryStatusResponse(
+                    outcome: DeliveryOutcome::Delivered,
+                    rawStatus: $text,
+                    deliveredAt: $this->parseDeliveryTime((string) ($data['Delivery Time'] ?? '')),
+                    raw: $data,
+                ),
+                '4' => new DeliveryStatusResponse(
+                    outcome: DeliveryOutcome::InTransit,
+                    rawStatus: $text,
+                    raw: $data,
+                ),
+                default => new DeliveryStatusResponse(
+                    outcome: DeliveryOutcome::Failed,
+                    rawStatus: $text,
+                    errorMessage: $text,
+                    raw: $data,
+                ),
+            };
+        } catch (ConnectionException $e) {
+            return new DeliveryStatusResponse(
+                outcome: DeliveryOutcome::InTransit,
+                errorMessage: 'Connection failed: '.$e->getMessage(),
+            );
+        }
+    }
+
+    /**
+     * Parses the ReveSMS "Delivery Time" field which is a Unix epoch in milliseconds.
+     */
+    private function parseDeliveryTime(string $epochMillis): ?Carbon
+    {
+        if ($epochMillis === '' || $epochMillis === '0') {
+            return null;
+        }
+
+        try {
+            return Carbon::createFromTimestampMs((int) $epochMillis);
+        } catch (\Throwable) {
+            return null;
         }
     }
 

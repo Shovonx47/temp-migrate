@@ -48,6 +48,10 @@ class MessageBatchInfolist
                                     ->counts(['messages' => fn($query) => $query->whereStatus('sent')])
                                     ->formatStateUsing(fn(int $state) => Number::abbreviate($state)),
                                 TextEntry::make('messages_count')
+                                    ->label('Delivered')
+                                    ->counts(['messages' => fn($query) => $query->whereStatus('delivered')])
+                                    ->formatStateUsing(fn(int $state) => Number::abbreviate($state)),
+                                TextEntry::make('messages_count')
                                     ->label('Failed')
                                     ->counts(['messages' => fn($query) => $query->whereStatus('failed')])
                                     ->formatStateUsing(fn(int $state) => Number::abbreviate($state)),

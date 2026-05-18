@@ -1,7 +1,8 @@
 <?php
 
 use App\Http\Controllers\PaymentController;
-use App\Http\Controllers\WebhookController;
+use App\Http\Controllers\PaymentWebhookController;
+use App\Http\Controllers\SmsWebhookController;
 use App\Models\MessageBatch;
 use Illuminate\Support\Facades\Storage;
 
@@ -10,9 +11,13 @@ Route::match(['post', 'get'], 'payments/{gateway}/callback/{deposit}', PaymentCo
     ->middleware(['auth:customer'])
     ->whereIn('gateway', ['piprapay']);
 
-Route::match(['post', 'get'], 'payments/{gateway}/webhook', WebhookController::class)
+Route::match(['post', 'get'], 'webhooks/payment/{gateway}', PaymentWebhookController::class)
     ->name('payments.webhook')
     ->whereIn('gateway', ['piprapay']);
+
+Route::match(['post', 'get'], 'webhooks/sms/{gateway}', SmsWebhookController::class)
+    ->name('sms.webhook')
+    ->whereIn('gateway', ['revesms', 'qsms']);
 
 Route::middleware(['web', 'auth:customer'])
     ->get('downloads/message-batches/{batch}/failed-report/{filename}', function (MessageBatch $batch, string $filename) {

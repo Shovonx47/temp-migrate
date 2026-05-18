@@ -32,7 +32,7 @@ final readonly class ReveSmsDriver implements SmsGateway, SupportsBulkSms, Suppo
                 'apikey' => $this->credentials['api_key'] ?? '',
                 'secretkey' => $this->credentials['secret_key'] ?? '',
                 'callerID' => $request->from ?? '',
-                'toUser' => $request->to,
+                'toUser' => ltrim($request->to, '+'),
                 'messageContent' => $request->body,
             ]);
 
@@ -45,10 +45,11 @@ final readonly class ReveSmsDriver implements SmsGateway, SupportsBulkSms, Suppo
             }
 
             $data = $response->json() ?? [];
+            $messageId = (string) ($data['Message_ID'] ?? '');
 
             return new SmsResponse(
                 successful: true,
-                gatewayMessageId: (string) ($data['Message_ID'] ?? ''),
+                gatewayMessageId: $messageId !== '' ? $messageId : null,
                 raw: $data,
             );
         } catch (ConnectionException $e) {
@@ -72,7 +73,7 @@ final readonly class ReveSmsDriver implements SmsGateway, SupportsBulkSms, Suppo
                 'apikey' => $this->credentials['api_key'] ?? '',
                 'secretkey' => $this->credentials['secret_key'] ?? '',
                 'callerID' => $request->from ?? '',
-                'toUser' => implode(',', $request->recipients),
+                'toUser' => implode(',', array_map(fn (string $p): string => ltrim($p, '+'), $request->recipients)),
                 'messageContent' => $request->body,
             ]);
 

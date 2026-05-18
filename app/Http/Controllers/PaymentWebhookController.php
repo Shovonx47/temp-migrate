@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
-class WebhookController extends Controller
+class PaymentWebhookController extends Controller
 {
     /**
      * @throws Throwable

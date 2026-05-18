@@ -11,6 +11,32 @@ use Illuminate\Support\Facades\Http;
 // fetchDeliveryStatus
 // ---------------------------------------------------------------------------
 
+test('returns Delivered outcome for live API "Request success" status with 24-hour DoneDate', function () {
+    Http::fake([
+        '*/api/v2/MessageStatus*' => Http::response([
+            'ErrorCode' => 0,
+            'ErrorDescription' => 'Success',
+            'Data' => [
+                'MobileNumber' => '8801322635808',
+                'SenderId' => '8809617510222',
+                'Message' => 'test',
+                'SubmitDate' => '18 May 2026 15:45:28',
+                'DoneDate' => '18 May 2026 15:45:29',
+                'MessageId' => 'abc-123',
+                'Status' => 'Request success',
+                'ErrorCode' => '9000',
+            ],
+        ]),
+    ]);
+
+    $driver = new QSmsDriver(['base_url' => 'https://qsms.test', 'api_key' => 'key', 'client_id' => 'cid']);
+    $result = $driver->fetchDeliveryStatus('abc-123');
+
+    expect($result->outcome)->toBe(DeliveryOutcome::Delivered)
+        ->and($result->rawStatus)->toBe('REQUEST SUCCESS')
+        ->and($result->deliveredAt)->not->toBeNull();
+});
+
 test('returns Delivered outcome for DELIVRD status', function () {
     Http::fake([
         '*/api/v2/MessageStatus*' => Http::response([

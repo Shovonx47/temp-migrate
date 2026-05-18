@@ -37,7 +37,7 @@ final readonly class QSmsDriver implements SmsGateway, SupportsBulkSms, Supports
                 'ApiKey' => $this->credentials['api_key'] ?? '',
                 'ClientId' => $this->credentials['client_id'] ?? '',
                 'SenderId' => $request->from ?? '',
-                'MobileNumbers' => $request->to,
+                'MobileNumbers' => str($request->to)->remove('+')->toString(),
                 'Message' => $request->body,
             ]);
 
@@ -70,11 +70,15 @@ final readonly class QSmsDriver implements SmsGateway, SupportsBulkSms, Supports
     public function sendBulk(BulkSmsRequest $request): BulkSmsResponse
     {
         try {
+            $mobileNumbers = collect($request->recipients)
+                ->map(fn (string $phone) => str($phone)->remove('+')->toString())
+                ->implode(',');
+
             $response = $this->client()->post('api/v2/SendSMS', [
                 'ApiKey' => $this->credentials['api_key'] ?? '',
                 'ClientId' => $this->credentials['client_id'] ?? '',
                 'SenderId' => $request->from ?? '',
-                'MobileNumbers' => implode(',', $request->recipients),
+                'MobileNumbers' => $mobileNumbers,
                 'Message' => $request->body,
             ]);
 
@@ -89,11 +93,14 @@ final readonly class QSmsDriver implements SmsGateway, SupportsBulkSms, Supports
             }
 
             // QSMS returns Data as [{MobileNumber, MessageId}, …] — build a phone→ID map
-            // so we can re-index by the original recipient order.
-            $byPhone = collect($data['Data'] ?? [])->keyBy('MobileNumber');
+            // keyed without the '+' prefix, since QSMS strips it in responses.
+            // Lookup also strips '+' so "+8801..." matches "8801..." in the map.
+            $byPhone = collect($data['Data'] ?? [])->keyBy(
+                fn (array $item): string => ltrim((string) ($item['MobileNumber'] ?? ''), '+'),
+            );
 
             $perRecipientIds = array_map(
-                fn (string $phone): ?string => $byPhone->get($phone)['MessageId'] ?? null,
+                fn (string $phone): ?string => $byPhone->get(ltrim($phone, '+'))['MessageId'] ?? null,
                 $request->recipients,
             );
 
@@ -132,8 +139,12 @@ final readonly class QSmsDriver implements SmsGateway, SupportsBulkSms, Supports
             $status = strtoupper((string) ($data['Data']['Status'] ?? ''));
             $rawDoneDate = (string) ($data['Data']['DoneDate'] ?? '');
 
+            // QSMS live API returns "Request success" for delivered messages;
+            // "DELIVRD" is kept for mock/test compatibility.
+            $isDelivered = in_array($status, ['DELIVRD', 'REQUEST SUCCESS'], strict: true);
+
             return match (true) {
-                $status === 'DELIVRD' => new DeliveryStatusResponse(
+                $isDelivered => new DeliveryStatusResponse(
                     outcome: DeliveryOutcome::Delivered,
                     rawStatus: $status,
                     deliveredAt: $rawDoneDate !== '' ? $this->parseDoneDate($rawDoneDate) : null,
@@ -160,14 +171,24 @@ final readonly class QSmsDriver implements SmsGateway, SupportsBulkSms, Supports
     }
 
     /**
-     * Parses the QSMS DoneDate format, e.g. "16-Mar-2018 05:11:00 PM".
+     * Parses the QSMS DoneDate field.
+     *
+     * Live API format : "18 May 2026 15:45:29"   (d M Y H:i:s, 24-hour)
+     * Mock/legacy format: "16-Mar-2018 05:11:00 PM" (d-M-Y h:i:s A, 12-hour)
      */
     private function parseDoneDate(string $doneDate): ?Carbon
     {
-        try {
-            return Carbon::createFromFormat('d-M-Y h:i:s A', $doneDate);
-        } catch (\Throwable) {
-            return null;
+        foreach (['d M Y H:i:s', 'd-M-Y h:i:s A'] as $format) {
+            try {
+                $carbon = Carbon::createFromFormat($format, $doneDate);
+                if ($carbon !== false) {
+                    return $carbon;
+                }
+            } catch (\Throwable) {
+                continue;
+            }
         }
+
+        return null;
     }
 }

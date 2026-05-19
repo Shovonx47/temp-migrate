@@ -21,8 +21,8 @@ return new class extends Migration
 
             $table->string('type')->default('customer')->index();
             $table->string('status')->default('pending')->index();
-            $table->boolean('has_api_access')->default(false);
-            $table->boolean('needs_approval')->default(false);
+            $table->boolean('api_access')->default(false);
+            $table->boolean('sms_auto_approved')->default(false);
 
             $table->string('front_nid')->nullable();
             $table->string('back_nid')->nullable();

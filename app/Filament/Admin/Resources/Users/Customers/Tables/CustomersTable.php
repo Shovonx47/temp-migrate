@@ -48,7 +48,7 @@ class CustomersTable
                     ->label('API')
                     ->boolean(),
                 IconColumn::make('sms_auto_approved')
-                    ->label('Auto Approve SMS')
+                    ->label('Needs Approval')
                     ->boolean(),
             ])
             ->filters([

@@ -50,8 +50,8 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 
             'type' => UserType::class,
             'status' => UserStatus::class,
-            'has_api_access' => 'boolean',
-            'needs_approval' => 'boolean',
+            'api_access' => 'boolean',
+            'sms_auto_approved' => 'boolean',
 
             'password' => 'hashed',
             'email_verified_at' => 'datetime',
@@ -60,7 +60,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 
     public function requiresSmsApproval(): bool
     {
-        return ! $this->sms_auto_approved;
+        return !$this->sms_auto_approved;
     }
 
     public function operatorRates(): HasMany

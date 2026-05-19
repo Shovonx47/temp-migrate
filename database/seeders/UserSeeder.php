@@ -33,6 +33,8 @@ class UserSeeder extends Seeder
             'status' => UserStatus::Approved,
             'front_nid' => 'path/to/front_nid.jpg',
             'back_nid' => 'path/to/back_nid.jpg',
+            'api_access' => true,
+            'sms_auto_approved' => true,
         ]);
 
         $senders = Sender::inRandomOrder()

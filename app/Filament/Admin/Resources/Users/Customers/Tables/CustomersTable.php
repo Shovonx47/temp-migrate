@@ -42,14 +42,8 @@ class CustomersTable
                     ->label('Balance')
                     ->money('BDT'),
                 TextColumn::make('status')
-                    ->label('Approval')
+                    ->label('Status')
                     ->badge(),
-                IconColumn::make('api_access')
-                    ->label('API')
-                    ->boolean(),
-                IconColumn::make('sms_auto_approved')
-                    ->label('Needs Approval')
-                    ->boolean(),
             ])
             ->filters([
                 SelectFilter::make('status')

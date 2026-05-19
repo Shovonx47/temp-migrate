@@ -16,9 +16,9 @@ class MeController extends Controller
     #[Endpoint('Get the authenticated customer profile')]
     #[Response(content: [
         'id' => 1,
-        'name' => 'Jahid Hasan',
-        'email' => 'jahid@example.com',
-        'phone' => '+8801700000000',
+        'name' => 'Bishwajit Adhikary',
+        'email' => 'bishwajitcadhikary@gmail.com',
+        'phone' => '+8801322635808',
         'balance' => 1250.5,
         'approval' => 'approved',
     ], status: 200)]

@@ -3,7 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Enums\UserApproval;
+use App\Enums\UserStatus;
 use App\Enums\UserType;
 use Database\Factories\UserFactory;
 use Filament\Auth\MultiFactor\App\Concerns\InteractsWithAppAuthentication;
@@ -24,7 +24,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Propaganistas\LaravelPhone\Casts\E164PhoneNumberCast;
 
-#[Fillable(['name', 'email', 'phone', 'type', 'approval', 'api_access', 'sms_auto_approved', 'balance', 'password', 'front_nid', 'back_nid'])]
+#[Fillable(['name', 'email', 'phone', 'type', 'status', 'api_access', 'sms_auto_approved', 'balance', 'password', 'front_nid', 'back_nid'])]
 #[Hidden(['type', 'password', 'remember_token', 'front_nid', 'back_nid'])]
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 {
@@ -44,13 +44,16 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     protected function casts(): array
     {
         return [
-            'type' => UserType::class,
-            'approval' => UserApproval::class,
-            'api_access' => 'boolean',
-            'sms_auto_approved' => 'boolean',
             'phone' => E164PhoneNumberCast::class,
-            'password' => 'hashed',
+
             'balance' => 'float',
+
+            'type' => UserType::class,
+            'status' => UserStatus::class,
+            'has_api_access' => 'boolean',
+            'needs_approval' => 'boolean',
+
+            'password' => 'hashed',
             'email_verified_at' => 'datetime',
         ];
     }

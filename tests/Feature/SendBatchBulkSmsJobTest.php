@@ -11,7 +11,7 @@ use App\Enums\TransactionDirection;
 use App\Jobs\SendBatchBulkSmsJob;
 use App\Models\Gateway;
 use App\Models\Message;
-use App\Models\MessageBatch;
+use App\Models\Batch;
 use App\Models\Sender;
 use App\Models\User;
 use App\Services\Sms\Data\BulkSmsRequest;
@@ -35,7 +35,7 @@ uses(RefreshDatabase::class);
 function makeBulkSendableBatch(
     string $body = 'Hello world',
     SenderType $senderType = SenderType::Numeric,
-): MessageBatch {
+): Batch {
     $user = User::factory()->create();
 
     $gateway = Gateway::factory()->create([
@@ -53,7 +53,7 @@ function makeBulkSendableBatch(
         'sender_id' => 'TestSender',
     ]);
 
-    return MessageBatch::factory()
+    return Batch::factory()
         ->for($user)
         ->create([
             'sender_id' => $sender->id,
@@ -63,7 +63,7 @@ function makeBulkSendableBatch(
 }
 
 /** Insert pending Message rows directly, bypassing the billing pipeline. */
-function insertBulkPendingMessages(MessageBatch $batch, int $count = 3, string $body = 'Hello world'): void
+function insertBulkPendingMessages(Batch $batch, int $count = 3, string $body = 'Hello world'): void
 {
     $now = now();
     $rows = [];
@@ -93,7 +93,7 @@ function insertBulkPendingMessages(MessageBatch $batch, int $count = 3, string $
  *
  * @param  int[]  $messageIds
  */
-function runBulkJob(MessageBatch $batch, array $messageIds = []): void
+function runBulkJob(Batch $batch, array $messageIds = []): void
 {
     (new SendBatchBulkSmsJob($batch, $messageIds))->handle();
 }
@@ -272,7 +272,7 @@ test('refunds total message cost to user balance when bulk send fails', function
 
 test('does nothing when batch has no sender configured', function () {
     $user = User::factory()->create();
-    $batch = MessageBatch::factory()->for($user)->create(['sender_id' => null]);
+    $batch = Batch::factory()->for($user)->create(['sender_id' => null]);
     insertBulkPendingMessages($batch, 2);
 
     runBulkJob($batch);

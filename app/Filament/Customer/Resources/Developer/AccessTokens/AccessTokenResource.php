@@ -8,10 +8,12 @@ use App\Filament\Customer\Resources\Developer\AccessTokens\Schemas\AccessTokenFo
 use App\Filament\Customer\Resources\Developer\AccessTokens\Tables\AccessTokensTable;
 use App\Models\AccessToken;
 use BackedEnum;
+use Filament\Facades\Filament;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class AccessTokenResource extends Resource
@@ -30,6 +32,15 @@ class AccessTokenResource extends Resource
     public static function table(Table $table): Table
     {
         return AccessTokensTable::configure($table);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $user = Filament::auth()->user();
+
+        return parent::getEloquentQuery()
+            ->where('tokenable_type', $user->getMorphClass())
+            ->where('tokenable_id', $user->getKey());
     }
 
     public static function getRelations(): array

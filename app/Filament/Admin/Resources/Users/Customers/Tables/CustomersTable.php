@@ -2,7 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Users\Customers\Tables;
 
-use App\Enums\UserApproval;
+use App\Enums\UserStatus;
 use App\Filament\Admin\Resources\Users\Customers\Actions\ApprovalAction;
 use App\Filament\Admin\Resources\Users\Customers\Actions\DepositAction;
 use App\Filament\Admin\Resources\Users\Customers\Actions\LoginAction;
@@ -41,7 +41,7 @@ class CustomersTable
                 TextColumn::make('balance')
                     ->label('Balance')
                     ->money('BDT'),
-                TextColumn::make('approval')
+                TextColumn::make('status')
                     ->label('Approval')
                     ->badge(),
                 IconColumn::make('api_access')
@@ -52,8 +52,8 @@ class CustomersTable
                     ->boolean(),
             ])
             ->filters([
-                SelectFilter::make('approval')
-                    ->options(UserApproval::class),
+                SelectFilter::make('status')
+                    ->options(UserStatus::class),
                 TernaryFilter::make('api_access')
                     ->label('API Access')
                     ->placeholder('All')

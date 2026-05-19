@@ -8,7 +8,7 @@ use App\Enums\TransactionDirection;
 use App\Jobs\SendBatchSingleSmsJob;
 use App\Models\Gateway;
 use App\Models\Message;
-use App\Models\MessageBatch;
+use App\Models\Batch;
 use App\Models\Sender;
 use App\Models\User;
 use App\Services\Sms\Data\SmsRequest;
@@ -29,7 +29,7 @@ uses(RefreshDatabase::class);
 function makeSingleSendableBatch(
     string $body = 'Hello {name}',
     SenderType $senderType = SenderType::Numeric,
-): MessageBatch {
+): Batch {
     $user = User::factory()->create();
 
     $gateway = Gateway::factory()->create([
@@ -47,7 +47,7 @@ function makeSingleSendableBatch(
         'sender_id' => 'TestSender',
     ]);
 
-    return MessageBatch::factory()
+    return Batch::factory()
         ->for($user)
         ->create([
             'sender_id' => $sender->id,
@@ -57,7 +57,7 @@ function makeSingleSendableBatch(
 }
 
 /** Insert a single pending Message row and return its ID. */
-function insertSinglePendingMessage(MessageBatch $batch, string $to = '+8801711000001', string $body = 'Hello John'): int
+function insertSinglePendingMessage(Batch $batch, string $to = '+8801711000001', string $body = 'Hello John'): int
 {
     $now = now();
     Message::insert([[
@@ -81,7 +81,7 @@ function insertSinglePendingMessage(MessageBatch $batch, string $to = '+88017110
         ->value('id');
 }
 
-function runSingleJob(MessageBatch $batch, int $messageId): void
+function runSingleJob(Batch $batch, int $messageId): void
 {
     (new SendBatchSingleSmsJob($batch, $messageId))->handle();
 }
@@ -314,7 +314,7 @@ test('does nothing when message is already sent (idempotency guard)', function (
 
 test('does nothing when batch has no sender configured', function () {
     $user = User::factory()->create();
-    $batch = MessageBatch::factory()->for($user)->create(['sender_id' => null]);
+    $batch = Batch::factory()->for($user)->create(['sender_id' => null]);
     $messageId = insertSinglePendingMessage($batch);
 
     runSingleJob($batch, $messageId);

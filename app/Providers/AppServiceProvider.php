@@ -10,7 +10,7 @@ use App\Models\Campaign;
 use App\Models\Deposit;
 use App\Models\Gateway;
 use App\Models\Message;
-use App\Models\MessageBatch;
+use App\Models\Batch;
 use App\Models\User;
 use App\Services\Payment\PaymentManager;
 use App\Services\Sms\SmsManager;
@@ -51,7 +51,7 @@ class AppServiceProvider extends ServiceProvider
             'deposit' => Deposit::class,
             'campaign' => Campaign::class,
             'message' => Message::class,
-            'message_batch' => MessageBatch::class,
+            'message_batch' => Batch::class,
         ]);
     }
 

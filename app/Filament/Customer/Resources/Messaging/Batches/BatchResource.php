@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Filament\Customer\Resources\Messaging\MessageBatches;
+namespace App\Filament\Customer\Resources\Messaging\Batches;
 
 use App\Enums\CustomerNavigationGroup;
-use App\Filament\Customer\Resources\Messaging\MessageBatches\Pages\ListMessageBatches;
-use App\Filament\Customer\Resources\Messaging\MessageBatches\Pages\ViewMessageBatch;
-use App\Filament\Customer\Resources\Messaging\MessageBatches\RelationManagers\MessagesRelationManager;
-use App\Filament\Customer\Resources\Messaging\MessageBatches\Schemas\MessageBatchInfolist;
-use App\Filament\Customer\Resources\Messaging\MessageBatches\Tables\MessageBatchesTable;
-use App\Models\MessageBatch;
+use App\Filament\Customer\Resources\Messaging\Batches\Pages\ListBatches;
+use App\Filament\Customer\Resources\Messaging\Batches\Pages\ViewBatch;
+use App\Filament\Customer\Resources\Messaging\Batches\RelationManagers\MessagesRelationManager;
+use App\Filament\Customer\Resources\Messaging\Batches\Schemas\BatchInfolist;
+use App\Filament\Customer\Resources\Messaging\Batches\Tables\BatchesTable;
+use App\Models\Batch;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -16,9 +16,9 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use UnitEnum;
 
-class MessageBatchResource extends Resource
+class BatchResource extends Resource
 {
-    protected static ?string $model = MessageBatch::class;
+    protected static ?string $model = Batch::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
@@ -32,12 +32,12 @@ class MessageBatchResource extends Resource
 
     public static function infolist(Schema $schema): Schema
     {
-        return MessageBatchInfolist::configure($schema);
+        return BatchInfolist::configure($schema);
     }
 
     public static function table(Table $table): Table
     {
-        return MessageBatchesTable::configure($table);
+        return BatchesTable::configure($table);
     }
 
     public static function getRelations(): array
@@ -50,8 +50,8 @@ class MessageBatchResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => ListMessageBatches::route('/'),
-            'view' => ViewMessageBatch::route('/{record}'),
+            'index' => ListBatches::route('/'),
+            'view' => ViewBatch::route('/{record}'),
         ];
     }
 }

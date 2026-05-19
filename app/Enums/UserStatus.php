@@ -9,7 +9,7 @@ use Filament\Support\Contracts\HasLabel;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
 
-enum UserApproval: string implements HasColor, HasIcon, HasLabel
+enum UserStatus: string implements HasColor, HasIcon, HasLabel
 {
     case Pending = 'pending';
     case Approved = 'approved';

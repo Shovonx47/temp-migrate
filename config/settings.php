@@ -28,7 +28,7 @@ return [
      * a custom defined path when running the command.
      */
     'migrations_paths' => [
-        database_path('migrations/settings'),
+        database_path('settings'),
     ],
 
     /*

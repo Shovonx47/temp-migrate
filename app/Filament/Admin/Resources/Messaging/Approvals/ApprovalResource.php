@@ -5,7 +5,7 @@ namespace App\Filament\Admin\Resources\Messaging\Approvals;
 use App\Enums\SupermanNavigationGroup;
 use App\Filament\Admin\Resources\Messaging\Approvals\Pages\ListApprovals;
 use App\Filament\Admin\Resources\Messaging\Approvals\Tables\ApprovalsTable;
-use App\Models\MessageBatch;
+use App\Models\Batch;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
@@ -14,7 +14,7 @@ use UnitEnum;
 
 class ApprovalResource extends Resource
 {
-    protected static ?string $model = MessageBatch::class;
+    protected static ?string $model = Batch::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShieldCheck;
 
@@ -26,7 +26,7 @@ class ApprovalResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        return MessageBatch::whereApproval('pending')->count();
+        return Batch::whereApproval('pending')->count();
     }
 
     public static function table(Table $table): Table

@@ -2,13 +2,15 @@
 
 namespace App\Jobs;
 
-use App\Enums\MessageBatchStatus;
+use App\Enums\BatchSource;
+use App\Enums\BatchStatus;
+use App\Enums\MessageSource;
 use App\Exceptions\InsufficientBalanceException;
 use App\Exceptions\OperatorRateNotConfiguredException;
 use App\Exceptions\SenderRequiredException;
 use App\Models\Contact;
 use App\Models\Message;
-use App\Models\MessageBatch;
+use App\Models\Batch;
 use App\Models\Sender;
 use App\Models\User;
 use App\Support\MessageMetrics;
@@ -24,7 +26,7 @@ use Illuminate\Support\Facades\Storage;
 use Propaganistas\LaravelPhone\PhoneNumber;
 use Throwable;
 
-class ProcessMessageBatchJob implements ShouldQueue
+class ProcessBatchJob implements ShouldQueue
 {
     use Queueable;
 
@@ -58,11 +60,11 @@ class ProcessMessageBatchJob implements ShouldQueue
      * @param  string[]  $bodyVariables
      */
     public function __construct(
-        public readonly MessageBatch $batch,
+        public readonly Batch  $batch,
         public readonly string $sourceType,
-        public readonly array $config,
+        public readonly array  $config,
         public readonly string $body,
-        public readonly array $bodyVariables,
+        public readonly array  $bodyVariables,
     ) {}
 
     public function handle(RecipientFileParser $parser): void
@@ -74,7 +76,7 @@ class ProcessMessageBatchJob implements ShouldQueue
         }
 
         // Concurrent retry guard: only proceed if batch is in Processing state.
-        if ($batch->status !== MessageBatchStatus::Processing) {
+        if ($batch->status !== BatchStatus::Processing) {
             return;
         }
 
@@ -159,6 +161,9 @@ class ProcessMessageBatchJob implements ShouldQueue
                     'to' => $formattedNumber,
                     'body' => $body,
                     'status' => 'pending',
+                    'source' => $batch->source_type === BatchSource::API
+                        ? MessageSource::API->value
+                        : MessageSource::Web->value,
                     'parts' => MessageMetrics::for($body)->parts,
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -173,7 +178,7 @@ class ProcessMessageBatchJob implements ShouldQueue
             $this->closeFailedReport();
 
             $batch->update([
-                'status' => MessageBatchStatus::Completed,
+                'status' => BatchStatus::Completed,
                 'failed_report_path' => $this->failedReportPath,
                 'completed_at' => now(),
             ]);
@@ -183,7 +188,7 @@ class ProcessMessageBatchJob implements ShouldQueue
             $this->closeFailedReport();
 
             $batch->update([
-                'status' => MessageBatchStatus::Failed,
+                'status' => BatchStatus::Failed,
                 'failed_report_path' => $this->failedReportPath,
                 'completed_at' => now(),
             ]);
@@ -192,7 +197,7 @@ class ProcessMessageBatchJob implements ShouldQueue
             $this->closeFailedReport();
 
             $batch->update([
-                'status' => MessageBatchStatus::Failed,
+                'status' => BatchStatus::Failed,
                 'failed_report_path' => $this->failedReportPath,
                 'completed_at' => now(),
             ]);
@@ -201,7 +206,7 @@ class ProcessMessageBatchJob implements ShouldQueue
             $this->closeFailedReport();
 
             $batch->update([
-                'status' => MessageBatchStatus::Failed,
+                'status' => BatchStatus::Failed,
                 'failed_report_path' => $this->failedReportPath,
                 'completed_at' => now(),
             ]);
@@ -211,7 +216,7 @@ class ProcessMessageBatchJob implements ShouldQueue
 
             // Persist the failed-report path so a retry can append to it.
             $batch->update([
-                'status' => MessageBatchStatus::Failed,
+                'status' => BatchStatus::Failed,
                 'failed_report_path' => $this->failedReportPath,
                 'completed_at' => now(),
             ]);
@@ -226,9 +231,9 @@ class ProcessMessageBatchJob implements ShouldQueue
         $this->closeFailedReport();
 
         $batch = $this->batch->fresh();
-        if ($batch && $batch->status !== MessageBatchStatus::Failed) {
+        if ($batch && $batch->status !== BatchStatus::Failed) {
             $batch->update([
-                'status' => MessageBatchStatus::Failed,
+                'status' => BatchStatus::Failed,
                 'completed_at' => now(),
             ]);
             $this->notifyFailure($batch, $e);
@@ -241,12 +246,12 @@ class ProcessMessageBatchJob implements ShouldQueue
      * @throws Throwable
      */
     private function maybeFlush(
-        MessageBatch $batch,
+        Batch $batch,
         array &$rows,
-        int $successCount,
-        int $failedCount,
-        int &$processedSinceFlush,
-        ?int $latestCursor,
+        int   $successCount,
+        int   $failedCount,
+        int   &$processedSinceFlush,
+        ?int  $latestCursor,
     ): void {
         if ($processedSinceFlush < self::BATCH_SIZE) {
             return;
@@ -269,11 +274,11 @@ class ProcessMessageBatchJob implements ShouldQueue
      * @throws Throwable
      */
     private function flush(
-        MessageBatch $batch,
+        Batch $batch,
         array &$rows,
-        int $successCount,
-        int $failedCount,
-        ?int $latestCursor,
+        int   $successCount,
+        int   $failedCount,
+        ?int  $latestCursor,
     ): void {
         if ($rows === [] && $latestCursor === null) {
             return;
@@ -322,7 +327,7 @@ class ProcessMessageBatchJob implements ShouldQueue
      * @param  array<int, array<string, mixed>>  $rows
      * @return int[]
      */
-    private function priceInsertAndDebit(MessageBatch $batch, array &$rows): array
+    private function priceInsertAndDebit(Batch $batch, array &$rows): array
     {
         $user = User::query()
             ->whereKey($batch->user_id)
@@ -459,7 +464,7 @@ class ProcessMessageBatchJob implements ShouldQueue
 
         if ($this->failedReportPath === null) {
             $this->failedReportPath = sprintf(
-                'message-batches/%d/failed-recipients-%s.csv',
+                'batches/%d/failed-recipients-%s.csv',
                 $this->batch->id,
                 now()->format('Ymd-His'),
             );
@@ -636,7 +641,7 @@ class ProcessMessageBatchJob implements ShouldQueue
         return $body;
     }
 
-    private function notifyCompletion(MessageBatch $batch, int $sent, int $failed, ?string $reportPath): void
+    private function notifyCompletion(Batch $batch, int $sent, int $failed, ?string $reportPath): void
     {
         $user = User::find($batch->user_id);
         if (! $user) {
@@ -672,7 +677,7 @@ class ProcessMessageBatchJob implements ShouldQueue
         $notification->sendToDatabase($user);
     }
 
-    private function notifyFailure(MessageBatch $batch, Throwable $e): void
+    private function notifyFailure(Batch $batch, Throwable $e): void
     {
         $user = User::find($batch->user_id);
         if (! $user) {
@@ -687,7 +692,7 @@ class ProcessMessageBatchJob implements ShouldQueue
             ->sendToDatabase($user);
     }
 
-    private function notifyInsufficientBalance(MessageBatch $batch, InsufficientBalanceException $e): void
+    private function notifyInsufficientBalance(Batch $batch, InsufficientBalanceException $e): void
     {
         $user = User::find($batch->user_id);
         if (! $user) {
@@ -704,7 +709,7 @@ class ProcessMessageBatchJob implements ShouldQueue
             ->sendToDatabase($user);
     }
 
-    private function notifySenderRequired(MessageBatch $batch): void
+    private function notifySenderRequired(Batch $batch): void
     {
         $user = User::find($batch->user_id);
         if (! $user) {
@@ -719,7 +724,7 @@ class ProcessMessageBatchJob implements ShouldQueue
             ->sendToDatabase($user);
     }
 
-    private function notifyOperatorRateMissing(MessageBatch $batch, OperatorRateNotConfiguredException $e): void
+    private function notifyOperatorRateMissing(Batch $batch, OperatorRateNotConfiguredException $e): void
     {
         $user = User::find($batch->user_id);
         if (! $user) {
@@ -737,7 +742,7 @@ class ProcessMessageBatchJob implements ShouldQueue
             ->sendToDatabase($user);
     }
 
-    private function initialiseBilling(MessageBatch $batch): void
+    private function initialiseBilling(Batch $batch): void
     {
         if ($batch->sender_id === null) {
             throw new SenderRequiredException;

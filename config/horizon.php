@@ -211,9 +211,9 @@ return [
             'nice' => 0,
         ],
 
-        'message-batches' => [
+        'batches' => [
             'connection' => 'redis',
-            'queue' => ['message-batches'],
+            'queue' => ['batches'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
             'maxProcesses' => 1,
@@ -248,7 +248,7 @@ return [
                 'balanceCooldown' => 3,
             ],
 
-            'message-batches' => [
+            'batches' => [
                 'maxProcesses' => 2,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
@@ -266,7 +266,7 @@ return [
                 'maxProcesses' => 3,
             ],
 
-            'message-batches' => [
+            'batches' => [
                 'maxProcesses' => 1,
             ],
 

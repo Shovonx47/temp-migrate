@@ -9,11 +9,12 @@ use Filament\Support\Contracts\HasLabel;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
 
-enum MessageBatchSource: string implements HasColor, HasIcon, HasLabel
+enum BatchSource: string implements HasColor, HasIcon, HasLabel
 {
     case Manual = 'manual';
     case Group = 'group';
     case Upload = 'upload';
+    case API = 'api';
 
     public function getLabel(): string|Htmlable|null
     {
@@ -26,6 +27,7 @@ enum MessageBatchSource: string implements HasColor, HasIcon, HasLabel
             self::Manual => 'primary',
             self::Group => 'success',
             self::Upload => 'warning',
+            self::API => 'info',
         };
     }
 
@@ -35,6 +37,7 @@ enum MessageBatchSource: string implements HasColor, HasIcon, HasLabel
             self::Manual => Heroicon::OutlinedPencilSquare,
             self::Group => Heroicon::OutlinedUsers,
             self::Upload => Heroicon::OutlinedArrowUpTray,
+            self::API => Heroicon::OutlinedCodeBracket,
         };
     }
 }

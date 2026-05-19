@@ -5,7 +5,7 @@ use App\Enums\MessageStatus;
 use App\Jobs\PollMessageDeliveryJob;
 use App\Models\Gateway;
 use App\Models\Message;
-use App\Models\MessageBatch;
+use App\Models\Batch;
 use App\Models\Sender;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -29,7 +29,7 @@ function makeSentMessageWithPollColumns(array $overrides = [], ?User $user = nul
 
     $sender = Sender::factory()->create(['gateway_id' => $gateway->id, 'is_enabled' => true]);
 
-    $batch = MessageBatch::factory()->for($user)->create(['sender_id' => $sender->id]);
+    $batch = Batch::factory()->for($user)->create(['sender_id' => $sender->id]);
 
     return Message::factory()
         ->for($user)

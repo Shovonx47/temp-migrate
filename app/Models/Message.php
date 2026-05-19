@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Concerns\HasTransactions;
 use App\Contracts\Transactionable;
+use App\Enums\MessageSource;
 use App\Enums\MessageStatus;
 use Database\Factories\MessageFactory;
 use Illuminate\Database\Eloquent\Attributes\Guarded;
@@ -23,6 +24,7 @@ class Message extends Model implements Transactionable
         return [
             'to' => E164PhoneNumberCast::class,
             'status' => MessageStatus::class,
+            'source' => MessageSource::class,
             'cost' => 'float',
             'sent_at' => 'datetime',
             'failed_at' => 'datetime',
@@ -43,7 +45,7 @@ class Message extends Model implements Transactionable
 
     public function messageBatch(): BelongsTo
     {
-        return $this->belongsTo(MessageBatch::class);
+        return $this->belongsTo(Batch::class);
     }
 
     public function sender(): BelongsTo

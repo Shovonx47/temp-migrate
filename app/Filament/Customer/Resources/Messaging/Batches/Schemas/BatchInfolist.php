@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Customer\Resources\Messaging\MessageBatches\Schemas;
+namespace App\Filament\Customer\Resources\Messaging\Batches\Schemas;
 
 use Filament\Actions\Action;
 use Filament\Infolists\Components\TextEntry;
@@ -10,7 +10,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Number;
 
-class MessageBatchInfolist
+class BatchInfolist
 {
     public static function configure(Schema $schema): Schema
     {

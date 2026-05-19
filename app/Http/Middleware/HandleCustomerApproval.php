@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Enums\UserApproval;
+use App\Enums\UserStatus;
 use App\Filament\Customer\Pages\Dashboard;
 use Closure;
 use Filament\Facades\Filament;
@@ -42,10 +42,10 @@ class HandleCustomerApproval
             return $next($request);
         }
 
-        $redirectRoute = match ($user->approval) {
-            UserApproval::Pending => 'filament.customer.account.pending',
-            UserApproval::Rejected => 'filament.customer.account.rejected',
-            UserApproval::Banned => 'filament.customer.account.banned',
+        $redirectRoute = match ($user->status) {
+            UserStatus::Pending => 'filament.customer.account.pending',
+            UserStatus::Rejected => 'filament.customer.account.rejected',
+            UserStatus::Banned => 'filament.customer.account.banned',
             default => null,
         };
 

@@ -14,14 +14,19 @@ return [
     'title' => config('app.name').' API Documentation',
 
     // A short description of your API. Will be included in the docs webpage, Postman collection and OpenAPI spec.
-    'description' => '',
+    'description' => 'HTTP API for sending SMS, checking account balance and inspecting message batches.',
 
     // Text to place in the "Introduction" section, right after the `description`. Markdown and HTML are supported.
     'intro_text' => <<<'INTRO'
-            This documentation aims to provide all the information you need to work with our API.
+            Authenticate every request with a personal access token issued from **Developer → Access Tokens** in your customer dashboard.
 
-            <aside>As you scroll, you'll see code examples for working with the API in different programming languages in the dark area to the right (or as part of the content on mobile).
-            You can switch the language used with the tabs at the top right (or from the nav menu at the top left on mobile).</aside>
+            Pass it as a bearer token in the `Authorization` header:
+
+            ```
+            Authorization: Bearer YOUR_TOKEN
+            ```
+
+            All endpoints return JSON. Error responses use standard HTTP status codes and include a `message` field.
         INTRO,
 
     // The base URL displayed in the docs.
@@ -58,7 +63,7 @@ return [
     'type' => 'external_laravel',
 
     // See https://scribe.knuckles.wtf/laravel/reference/config#theme for supported options
-    'theme' => 'scaler',
+    'theme' => 'scalar',
 
     'static' => [
         // HTML documentation, assets and Postman collection will be generated to this folder.
@@ -105,17 +110,17 @@ return [
     // How is your API authenticated? This information will be used in the displayed docs, generated examples and response calls.
     'auth' => [
         // Set this to true if ANY endpoints in your API use authentication.
-        'enabled' => false,
+        'enabled' => true,
 
         // Set this to true if your API should be authenticated by default. If so, you must also set `enabled` (above) to true.
         // You can then use @unauthenticated or @authenticated on individual endpoints to change their status from the default.
-        'default' => false,
+        'default' => true,
 
         // Where is the auth value meant to be sent in a request?
         'in' => AuthIn::BEARER->value,
 
         // The name of the auth parameter (e.g. token, key, apiKey) or header (e.g. Authorization, Api-Key).
-        'name' => 'key',
+        'name' => 'Authorization',
 
         // The value of the parameter to be used by Scribe to authenticate response calls.
         // This will NOT be included in the generated documentation. If empty, Scribe will use a random value.
@@ -123,10 +128,22 @@ return [
 
         // Placeholder your users will see for the auth parameter in the example requests.
         // Set this to null if you want Scribe to use a random value as placeholder instead.
-        'placeholder' => '{YOUR_AUTH_KEY}',
+        'placeholder' => '{YOUR_ACCESS_TOKEN}',
 
         // Any extra authentication-related info for your users. Markdown and HTML are supported.
-        'extra_info' => 'You can retrieve your token by visiting your dashboard and clicking <b>Generate API token</b>.',
+        'extra_info' => <<<'INFO'
+            Generate a personal access token under **Developer → Access Tokens** in your customer dashboard.
+
+            The token can be passed in any one of three ways — pick whichever your client makes easiest:
+
+            | Variant | How |
+            |---|---|
+            | **Header** *(recommended)* | `Authorization: Bearer YOUR_TOKEN` |
+            | **Query string** | `?token=YOUR_TOKEN` — handy for clients that can only configure a URL |
+            | **Request body** | `token=YOUR_TOKEN` as a form/JSON field |
+
+            <aside class="warning">Query-string and body tokens get written to webserver access logs and browser history. Prefer the <code>Authorization</code> header for anything beyond quick tests.</aside>
+            INFO,
     ],
 
     // Example requests for each endpoint will be shown in each of these languages.

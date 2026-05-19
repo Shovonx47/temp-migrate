@@ -3,7 +3,7 @@
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PaymentWebhookController;
 use App\Http\Controllers\SmsWebhookController;
-use App\Models\MessageBatch;
+use App\Models\Batch;
 use Illuminate\Support\Facades\Storage;
 
 Route::match(['post', 'get'], 'payments/{gateway}/callback/{deposit}', PaymentController::class)
@@ -20,10 +20,10 @@ Route::match(['post', 'get'], 'webhooks/sms/{gateway}', SmsWebhookController::cl
     ->whereIn('gateway', ['revesms', 'qsms']);
 
 Route::middleware(['web', 'auth:customer'])
-    ->get('downloads/message-batches/{batch}/failed-report/{filename}', function (MessageBatch $batch, string $filename) {
+    ->get('downloads/batches/{batch}/failed-report/{filename}', function (Batch $batch, string $filename) {
         abort_if($batch->user_id !== auth('customer')->id(), 403);
 
-        $path = "message-batches/{$batch->id}/{$filename}";
+        $path = "batches/{$batch->id}/{$filename}";
 
         abort_unless(Storage::disk('local')->exists($path), 404);
 

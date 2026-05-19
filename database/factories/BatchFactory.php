@@ -2,15 +2,15 @@
 
 namespace Database\Factories;
 
-use App\Enums\MessageBatchStatus;
-use App\Models\MessageBatch;
+use App\Enums\BatchStatus;
+use App\Models\Batch;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<MessageBatch>
+ * @extends Factory<Batch>
  */
-class MessageBatchFactory extends Factory
+class BatchFactory extends Factory
 {
     public function definition(): array
     {
@@ -19,7 +19,7 @@ class MessageBatchFactory extends Factory
             'body' => fake()->sentence(),
             'source_type' => 'manual',
             'source_config' => ['recipients' => []],
-            'status' => MessageBatchStatus::Processing,
+            'status' => BatchStatus::Processing,
         ];
     }
 
@@ -29,7 +29,7 @@ class MessageBatchFactory extends Factory
             $total = fake()->numberBetween(1, 100);
 
             return [
-                'status' => MessageBatchStatus::Completed,
+                'status' => BatchStatus::Completed,
                 'total_recipients' => $total,
                 'valid_count' => $total,
                 'invalid_count' => 0,
@@ -42,7 +42,7 @@ class MessageBatchFactory extends Factory
     public function failed(): static
     {
         return $this->state(fn (): array => [
-            'status' => MessageBatchStatus::Failed,
+            'status' => BatchStatus::Failed,
             'started_at' => now()->subMinutes(1),
             'completed_at' => now(),
         ]);

@@ -12,13 +12,15 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('campaign_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('message_batch_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('batch_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('sender_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('gateway_id')->nullable()->constrained()->nullOnDelete(); // snapshot
 
             $table->string('to'); // recipient phone number
             $table->text('body');
             $table->string('status')->default('pending'); // pending, sent, failed
+            $table->string('source', 16)->default('web');
+
             $table->string('gateway_message_id')->nullable(); // gateway's response id
 
             $table->decimal('cost', 10, 4)->default(0);

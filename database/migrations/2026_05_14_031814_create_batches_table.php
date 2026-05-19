@@ -8,14 +8,20 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('message_batches', function (Blueprint $table) {
+        Schema::create('batches', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('sender_id')->nullable()->constrained()->nullOnDelete();
             $table->text('body');
-            $table->string('source_type'); // manual, upload, group
-            $table->json('source_config'); // mapping, group_ids, file_path, etc.
-            $table->string('status')->default('processing'); // processing, completed, failed
+            $table->string('source_type');
+            $table->json('source_config');
+            $table->string('status')->default('processing');
+
+            $table->string('approval')->nullable();
+            $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->timestamp('approved_at')->nullable();
+            $table->text('approval_note')->nullable();
+
             $table->unsignedInteger('total_recipients')->default(0);
             $table->unsignedInteger('valid_count')->default(0);
             $table->unsignedInteger('invalid_count')->default(0);
@@ -33,6 +39,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('message_batches');
+        Schema::dropIfExists('batches');
     }
 };

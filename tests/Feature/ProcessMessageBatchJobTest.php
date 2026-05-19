@@ -1,18 +1,18 @@
 <?php
 
 use App\Enums\GatewayDriver;
-use App\Enums\MessageBatchStatus;
+use App\Enums\BatchStatus;
 use App\Enums\MessageStatus;
 use App\Enums\SenderType;
 use App\Enums\TransactionDirection;
-use App\Jobs\ProcessMessageBatchJob;
+use App\Jobs\ProcessBatchJob;
 use App\Jobs\SendBatchBulkSmsJob;
 use App\Jobs\SendBatchSingleSmsJob;
 use App\Models\Contact;
 use App\Models\Gateway;
 use App\Models\Group;
 use App\Models\Message;
-use App\Models\MessageBatch;
+use App\Models\Batch;
 use App\Models\Operator;
 use App\Models\Sender;
 use App\Models\Transaction;
@@ -33,20 +33,20 @@ beforeEach(function () {
     Bus::fake([SendBatchBulkSmsJob::class, SendBatchSingleSmsJob::class]);
 });
 
-function makeMessageBatch(?User $user = null, SenderType $senderType = SenderType::Numeric): MessageBatch
+function makeMessageBatch(?User $user = null, SenderType $senderType = SenderType::Numeric): Batch
 {
     $user ??= User::factory()->create();
     $sender = Sender::factory()->state(['type' => $senderType])->create();
 
-    return MessageBatch::factory()
+    return Batch::factory()
         ->for($user)
         ->state(['sender_id' => $sender->id])
         ->create();
 }
 
-function runBatchJob(MessageBatch $batch, string $source, array $config, string $body = 'Hi', array $bodyVariables = []): void
+function runBatchJob(Batch $batch, string $source, array $config, string $body = 'Hi', array $bodyVariables = []): void
 {
-    (new ProcessMessageBatchJob($batch, $source, $config, $body, $bodyVariables))
+    (new ProcessBatchJob($batch, $source, $config, $body, $bodyVariables))
         ->handle(app(RecipientFileParser::class));
 }
 
@@ -66,10 +66,10 @@ test('manual source creates messages for valid phones and reports invalid ones',
     );
 
     expect(Message::count())->toBe(2)
-        ->and($batch->fresh()->status)->toBe(MessageBatchStatus::Completed)
+        ->and($batch->fresh()->status)->toBe(BatchStatus::Completed)
         ->and($batch->fresh()->completed_at)->not->toBeNull();
 
-    $reports = Storage::disk('local')->files('message-batches/'.$batch->id);
+    $reports = Storage::disk('local')->files('batches/'.$batch->id);
     expect($reports)->toHaveCount(1);
 
     $csv = Storage::disk('local')->get($reports[0]);
@@ -92,7 +92,7 @@ test('manual source completes cleanly when every recipient is valid', function (
 
     expect(Message::count())->toBe(2)
         ->and(Message::where('message_batch_id', $batch->id)->count())->toBe(2)
-        ->and(Storage::disk('local')->files('message-batches/'.$batch->id))->toBeEmpty();
+        ->and(Storage::disk('local')->files('batches/'.$batch->id))->toBeEmpty();
 });
 
 test('substitutes body variables per recipient', function () {
@@ -136,7 +136,7 @@ test('fails recipients with missing variable values and reports them', function 
         ->and($batch->fresh()->valid_count)->toBe(1)
         ->and($batch->fresh()->total_recipients)->toBe(3);
 
-    $reports = Storage::disk('local')->files('message-batches/'.$batch->id);
+    $reports = Storage::disk('local')->files('batches/'.$batch->id);
     $csv = Storage::disk('local')->get($reports[0]);
     expect($csv)->toContain('Missing value for: order_id')
         ->and($csv)->toContain('Missing value for: name');
@@ -169,14 +169,14 @@ test('upload source streams the file and applies mapping', function () {
     $batch = makeMessageBatch();
 
     $csv = "phone,first_name\n01711000001,Rahim\n01711000002,Karim\n";
-    Storage::disk('local')->put('message-batches/'.$batch->id.'/source.csv', $csv);
+    Storage::disk('local')->put('batches/'.$batch->id.'/source.csv', $csv);
 
     runBatchJob(
         $batch,
         'upload',
         [
             'disk' => 'local',
-            'file_path' => 'message-batches/'.$batch->id.'/source.csv',
+            'file_path' => 'batches/'.$batch->id.'/source.csv',
             'mapping' => [
                 'phone' => 'phone',
                 'variables' => ['name' => 'first_name'],
@@ -238,7 +238,7 @@ test('retry re-dispatches the job and preserves progress for resume', function (
 
     $batch = makeMessageBatch();
     $batch->forceFill([
-        'status' => MessageBatchStatus::Failed,
+        'status' => BatchStatus::Failed,
         'total_recipients' => 5,
         'valid_count' => 3,
         'invalid_count' => 2,
@@ -253,7 +253,7 @@ test('retry re-dispatches the job and preserves progress for resume', function (
     $batch->retry();
 
     $fresh = $batch->fresh();
-    expect($fresh->status)->toBe(MessageBatchStatus::Processing)
+    expect($fresh->status)->toBe(BatchStatus::Processing)
         ->and($fresh->valid_count)->toBe(3)
         ->and($fresh->invalid_count)->toBe(2)
         ->and($fresh->last_processed_cursor)->toBe(4)
@@ -261,8 +261,8 @@ test('retry re-dispatches the job and preserves progress for resume', function (
         ->and($fresh->completed_at)->toBeNull();
 
     Bus::assertDispatched(
-        ProcessMessageBatchJob::class,
-        fn (ProcessMessageBatchJob $job): bool => $job->batch->id === $batch->id
+        ProcessBatchJob::class,
+        fn (ProcessBatchJob $job): bool => $job->batch->id === $batch->id
             && $job->bodyVariables === ['name', 'code']
     );
 });
@@ -272,7 +272,7 @@ test('retry refuses to dispatch when batch is not in Failed status', function ()
 
     $batch = makeMessageBatch();
     $batch->forceFill([
-        'status' => MessageBatchStatus::Processing,
+        'status' => BatchStatus::Processing,
         'body' => 'Hi',
         'source_type' => 'manual',
         'source_config' => ['recipients' => []],
@@ -280,13 +280,13 @@ test('retry refuses to dispatch when batch is not in Failed status', function ()
 
     $batch->retry();
 
-    Bus::assertNotDispatched(ProcessMessageBatchJob::class);
+    Bus::assertNotDispatched(ProcessBatchJob::class);
 });
 
 test('manual source resumes from cursor and skips already-processed entries', function () {
     $batch = makeMessageBatch();
     $batch->forceFill([
-        'status' => MessageBatchStatus::Processing,
+        'status' => BatchStatus::Processing,
         'valid_count' => 2,
         'invalid_count' => 0,
         'last_processed_cursor' => 1, // already processed indexes 0 and 1
@@ -309,17 +309,17 @@ test('manual source resumes from cursor and skips already-processed entries', fu
         ->and($batch->fresh()->valid_count)->toBe(4)
         ->and($batch->fresh()->invalid_count)->toBe(0)
         ->and($batch->fresh()->last_processed_cursor)->toBe(3)
-        ->and($batch->fresh()->status)->toBe(MessageBatchStatus::Completed);
+        ->and($batch->fresh()->status)->toBe(BatchStatus::Completed);
 });
 
 test('upload source resumes from cursor based on csv row index', function () {
     $batch = makeMessageBatch();
 
     $csv = "phone\n01711000001\n01711000002\n01711000003\n01711000004\n";
-    Storage::disk('local')->put('message-batches/'.$batch->id.'/recipients.csv', $csv);
+    Storage::disk('local')->put('batches/'.$batch->id.'/recipients.csv', $csv);
 
     $batch->forceFill([
-        'status' => MessageBatchStatus::Processing,
+        'status' => BatchStatus::Processing,
         'valid_count' => 2,
         'invalid_count' => 0,
         'last_processed_cursor' => 1, // already processed rows 0 and 1
@@ -330,7 +330,7 @@ test('upload source resumes from cursor based on csv row index', function () {
         'upload',
         [
             'disk' => 'local',
-            'file_path' => 'message-batches/'.$batch->id.'/recipients.csv',
+            'file_path' => 'batches/'.$batch->id.'/recipients.csv',
             'mapping' => ['phone' => 'phone', 'variables' => []],
         ],
     );
@@ -353,7 +353,7 @@ test('group source resumes from cursor based on contact id', function () {
 
     $batch = makeMessageBatch($user);
     $batch->forceFill([
-        'status' => MessageBatchStatus::Processing,
+        'status' => BatchStatus::Processing,
         'valid_count' => 2,
         'last_processed_cursor' => $contacts[1]->id, // already processed first two
     ])->save();
@@ -392,7 +392,7 @@ test('first run advances cursor and a subsequent retry resumes from where it sto
 
     // Simulate the batch having failed mid-run after processing 2 items, then resume with more recipients.
     $batch->refresh();
-    $batch->update(['status' => MessageBatchStatus::Processing]);
+    $batch->update(['status' => BatchStatus::Processing]);
 
     runBatchJob(
         $batch,
@@ -426,7 +426,7 @@ test('failed report is appended to on retry rather than recreated', function () 
 
     // Simulate retry: keep the existing cursor and failed_report_path; flip status back to Processing.
     $batch->refresh();
-    $batch->update(['status' => MessageBatchStatus::Processing]);
+    $batch->update(['status' => BatchStatus::Processing]);
 
     runBatchJob(
         $batch,
@@ -448,7 +448,7 @@ test('failed report is appended to on retry rather than recreated', function () 
 
 test('concurrent retry guard: job aborts if batch status is not Processing', function () {
     $batch = makeMessageBatch();
-    $batch->forceFill(['status' => MessageBatchStatus::Failed])->save();
+    $batch->forceFill(['status' => BatchStatus::Failed])->save();
 
     runBatchJob(
         $batch,
@@ -458,7 +458,7 @@ test('concurrent retry guard: job aborts if batch status is not Processing', fun
 
     // Job should have exited early without inserting anything or changing status.
     expect(Message::count())->toBe(0)
-        ->and($batch->fresh()->status)->toBe(MessageBatchStatus::Failed);
+        ->and($batch->fresh()->status)->toBe(BatchStatus::Failed);
 });
 
 test('inserted messages carry parts, rate, and cost resolved per operator', function () {
@@ -608,7 +608,7 @@ test('operator without rate set causes the batch to Fail with a notification', f
         body: 'Hi',
     );
 
-    expect($batch->fresh()->status)->toBe(MessageBatchStatus::Failed)
+    expect($batch->fresh()->status)->toBe(BatchStatus::Failed)
         ->and(Message::count())->toBe(0)
         ->and($user->fresh()->notifications()->first()->data['title'] ?? null)
         ->toContain('pricing not configured');
@@ -617,7 +617,7 @@ test('operator without rate set causes the batch to Fail with a notification', f
 test('batch without a sender Fails with a sender-required notification', function () {
     $user = User::factory()->create(['balance' => 100]);
 
-    $batch = MessageBatch::factory()
+    $batch = Batch::factory()
         ->for($user)
         ->state(['sender_id' => null])
         ->create();
@@ -629,7 +629,7 @@ test('batch without a sender Fails with a sender-required notification', functio
         body: 'Hi',
     );
 
-    expect($batch->fresh()->status)->toBe(MessageBatchStatus::Failed)
+    expect($batch->fresh()->status)->toBe(BatchStatus::Failed)
         ->and($user->fresh()->notifications()->first()->data['title'] ?? null)
         ->toContain('sender missing');
 });
@@ -651,7 +651,7 @@ test('insufficient balance halts batch with Failed status and inserts nothing in
     expect(Message::count())->toBe(0)
         ->and(Transaction::count())->toBe(0)
         ->and((float) $user->fresh()->balance)->toBe(0.2)
-        ->and($batch->fresh()->status)->toBe(MessageBatchStatus::Failed);
+        ->and($batch->fresh()->status)->toBe(BatchStatus::Failed);
 });
 
 test('insufficient balance notifies the user with a top-up message', function () {
@@ -678,12 +678,12 @@ test('missing upload file is treated as zero recipients, not a fatal error', fun
         'upload',
         [
             'disk' => 'local',
-            'file_path' => 'message-batches/'.$batch->id.'/missing.csv',
+            'file_path' => 'batches/'.$batch->id.'/missing.csv',
             'mapping' => ['phone' => 'phone', 'variables' => []],
         ],
     );
 
-    expect($batch->fresh()->status)->toBe(MessageBatchStatus::Completed)
+    expect($batch->fresh()->status)->toBe(BatchStatus::Completed)
         ->and(Message::count())->toBe(0);
 });
 
@@ -735,7 +735,7 @@ test('SendBatchBulkSmsJob is dispatched per flush when gateway supports bulk and
         'type' => SenderType::Numeric,
         'is_enabled' => true,
     ]);
-    $batch = MessageBatch::factory()->for($user)->create(['sender_id' => $sender->id]);
+    $batch = Batch::factory()->for($user)->create(['sender_id' => $sender->id]);
 
     runBatchJob(
         $batch,

@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Enums\MessageBatchStatus;
+use App\Enums\BatchSource;
+use App\Enums\BatchStatus;
 use App\Enums\SmsApproval;
 use App\Http\Controllers\Controller;
-use App\Jobs\ProcessMessageBatchJob;
-use App\Models\MessageBatch;
+use App\Jobs\ProcessBatchJob;
+use App\Models\Batch;
 use App\Models\Sender;
 use App\Models\User;
 use App\Support\MessageMetrics;
@@ -14,24 +15,64 @@ use App\Support\OperatorRateResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
+use Knuckles\Scribe\Attributes\BodyParam;
+use Knuckles\Scribe\Attributes\Endpoint;
+use Knuckles\Scribe\Attributes\Group;
+use Knuckles\Scribe\Attributes\QueryParam;
+use Knuckles\Scribe\Attributes\Response;
+use Knuckles\Scribe\Attributes\UrlParam;
 
+#[Group('Messages')]
 class MessageController extends Controller
 {
+    #[Endpoint('Send an SMS batch', <<<'DESC'
+        Queues an SMS for delivery. Accepts both `GET` and `POST` — URL-only clients can pass everything as query parameters.
+
+        `numbers` may be either an array (`numbers[]=01700000000&numbers[]=01800000000`) or a single string with comma, semicolon, whitespace, or newline separators (`numbers=01700000000,01800000000`).
+
+        If your account has `sms_auto_approved` disabled the batch is created with `approval=pending` and will not dispatch until an admin approves it.
+        DESC)]
+    #[QueryParam('sender_id', 'string', 'The sender label (e.g. `FROLAX`, `DDBL`, `8809...`) — not the internal numeric ID. List allowed labels via `GET /senders`.', required: true, example: 'FROLAX')]
+    #[QueryParam('numbers', 'string', 'One or more E.164 phone numbers. Array or delimited string.', required: true, example: '01700000000,01800000000')]
+    #[QueryParam('body', 'string', 'Message body. Counts against per-part pricing.', required: true, example: 'Hello from Sendora!')]
+    #[BodyParam('sender_id', 'string', 'The sender label, e.g. `FROLAX`.', required: true, example: 'FROLAX')]
+    #[BodyParam('numbers', 'string', 'One or more E.164 phone numbers. Array or delimited string.', required: true, example: '01700000000,01800000000')]
+    #[BodyParam('body', 'string', 'Message body.', required: true, example: 'Hello from Sendora!')]
+    #[Response(content: [
+        'batch_id' => 42,
+        'status' => 'processing',
+        'approval' => null,
+        'recipients' => 2,
+    ], status: 202, description: 'Batch accepted')]
+    #[Response(content: [
+        'message' => 'Insufficient balance for this batch.',
+        'balance' => 5.4,
+    ], status: 402, description: 'Insufficient balance')]
+    #[Response(content: [
+        'message' => 'Sender "FROLAX" is not available for this account.',
+    ], status: 422, description: 'Sender not allowed')]
     public function send(Request $request): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
 
         $validated = $request->validate([
-            'sender_id' => [
-                'required',
-                'integer',
-                Rule::exists('sender_user', 'sender_id')->where('user_id', $user->id),
-            ],
+            'sender_id' => ['required', 'string'],
             'numbers' => ['required'],
             'body' => ['required', 'string'],
         ]);
+
+        $senderLabel = (string) $validated['sender_id'];
+
+        $sender = $user->senders()
+            ->where('senders.sender_id', $senderLabel)
+            ->first(['senders.id', 'senders.type']);
+
+        if (! $sender) {
+            return new JsonResponse([
+                'message' => 'Sender "'.$senderLabel.'" is not available for this account.',
+            ], 422);
+        }
 
         $numbers = $this->normalizeNumbers($request->input('numbers'));
 
@@ -45,9 +86,8 @@ class MessageController extends Controller
         );
 
         $body = (string) $validated['body'];
-        $senderId = (int) $validated['sender_id'];
 
-        if (! $this->canAfford($user, $body, count($recipients), $senderId)) {
+        if (! $this->canAfford($user, $body, count($recipients), $sender)) {
             return new JsonResponse([
                 'message' => 'Insufficient balance for this batch.',
                 'balance' => (float) $user->balance,
@@ -56,24 +96,24 @@ class MessageController extends Controller
 
         $requiresApproval = $user->requiresSmsApproval();
 
-        $batch = DB::transaction(fn (): MessageBatch => MessageBatch::create([
+        $batch = DB::transaction(fn (): Batch => Batch::create([
             'user_id' => $user->id,
-            'sender_id' => $senderId,
+            'sender_id' => $sender->id,
             'body' => $body,
-            'source_type' => 'api',
+            'source_type' => BatchSource::API,
             'source_config' => ['recipients' => $recipients],
-            'status' => $requiresApproval ? MessageBatchStatus::Pending : MessageBatchStatus::Processing,
+            'status' => $requiresApproval ? BatchStatus::Pending : BatchStatus::Processing,
             'approval' => $requiresApproval ? SmsApproval::Pending : null,
         ]));
 
         if (! $requiresApproval) {
-            ProcessMessageBatchJob::dispatch(
+            ProcessBatchJob::dispatch(
                 $batch,
-                'api',
+                BatchSource::API->value,
                 $batch->source_config,
                 $body,
                 [],
-            )->onQueue('message-batches')->afterCommit();
+            )->onQueue('batches')->afterCommit();
         }
 
         return new JsonResponse([
@@ -84,12 +124,22 @@ class MessageController extends Controller
         ], 202);
     }
 
+    #[Endpoint('Show a message batch')]
+    #[UrlParam('batch', 'integer', 'The batch ID returned by `POST /messages`.', required: true, example: 42)]
+    #[Response(content: [
+        'id' => 42,
+        'sender_id' => 12,
+        'status' => 'completed',
+        'approval' => null,
+        'created_at' => '2026-05-19T10:30:00+00:00',
+    ], status: 200)]
+    #[Response(content: ['message' => 'Batch not found.'], status: 404)]
     public function showBatch(Request $request, int $batch): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
 
-        $record = MessageBatch::query()
+        $record = Batch::query()
             ->where('user_id', $user->id)
             ->find($batch);
 
@@ -107,7 +157,6 @@ class MessageController extends Controller
     }
 
     /**
-     * @param  mixed  $raw
      * @return array<int, string>
      */
     private function normalizeNumbers(mixed $raw): array
@@ -126,15 +175,13 @@ class MessageController extends Controller
         )));
     }
 
-    private function canAfford(User $user, string $body, int $recipientCount, int $senderId): bool
+    private function canAfford(User $user, string $body, int $recipientCount, Sender $sender): bool
     {
         if ($recipientCount === 0) {
             return false;
         }
 
-        $sender = Sender::find($senderId);
-
-        if (! $sender || $sender->type === null) {
+        if ($sender->type === null) {
             return true;
         }
 

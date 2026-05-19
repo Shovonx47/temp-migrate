@@ -4,11 +4,11 @@ namespace App\Models;
 
 use App\Concerns\HasTransactions;
 use App\Contracts\Transactionable;
-use App\Enums\MessageBatchSource;
-use App\Enums\MessageBatchStatus;
+use App\Enums\BatchSource;
+use App\Enums\BatchStatus;
 use App\Enums\SmsApproval;
-use App\Jobs\ProcessMessageBatchJob;
-use Database\Factories\MessageBatchFactory;
+use App\Jobs\ProcessBatchJob;
+use Database\Factories\BatchFactory;
 use Illuminate\Database\Eloquent\Attributes\Guarded;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,17 +17,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Guarded(['id'])]
-class MessageBatch extends Model implements Transactionable
+class Batch extends Model implements Transactionable
 {
-    /** @use HasFactory<MessageBatchFactory> */
+    /** @use HasFactory<BatchFactory> */
     use HasFactory, HasTransactions;
 
     protected function casts(): array
     {
         return [
             'source_config' => 'array',
-            'source_type' => MessageBatchSource::class,
-            'status' => MessageBatchStatus::class,
+            'source_type' => BatchSource::class,
+            'status' => BatchStatus::class,
             'approval' => SmsApproval::class,
             'approved_at' => 'datetime',
             'started_at' => 'datetime',
@@ -52,7 +52,7 @@ class MessageBatch extends Model implements Transactionable
 
     public function isAwaitingApproval(): bool
     {
-        return $this->status === MessageBatchStatus::Pending;
+        return $this->status === BatchStatus::Pending;
     }
 
     public function messages(): HasMany
@@ -114,22 +114,22 @@ class MessageBatch extends Model implements Transactionable
 
     public function retry(): void
     {
-        if ($this->status !== MessageBatchStatus::Failed) {
+        if ($this->status !== BatchStatus::Failed) {
             return;
         }
 
         $this->update([
-            'status' => MessageBatchStatus::Processing,
+            'status' => BatchStatus::Processing,
             'completed_at' => null,
         ]);
 
-        ProcessMessageBatchJob::dispatch(
+        ProcessBatchJob::dispatch(
             $this,
-            $this->source_type instanceof MessageBatchSource ? $this->source_type->value : (string) $this->source_type,
+            $this->source_type instanceof BatchSource ? $this->source_type->value : (string) $this->source_type,
             $this->source_config ?? [],
             $this->body,
             $this->extractBodyVariables(),
-        )->onQueue('message-batches');
+        )->onQueue('batches');
     }
 
     /**

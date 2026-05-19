@@ -2,7 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Users\Customers\Schemas;
 
-use App\Enums\UserApproval;
+use App\Enums\UserStatus;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -36,10 +36,10 @@ class CustomerForm
                         PhoneInput::make('phone')
                             ->placeholder('e.g. 01700000000')
                             ->unique(ignoreRecord: true),
-                        Select::make('approval')
+                        Select::make('status')
                             ->placeholder('Select an approval status')
-                            ->options(UserApproval::class)
-                            ->default(UserApproval::Pending)
+                            ->options(UserStatus::class)
+                            ->default(UserStatus::Pending)
                             ->required(),
                         TextInput::make('password')
                             ->placeholder('Enter a strong password')

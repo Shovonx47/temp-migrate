@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Enums\UserApproval;
+use App\Enums\UserStatus;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\JsonResponse;
@@ -29,7 +29,7 @@ class EnsureApiAccess
             return $this->deny('API access is disabled for this account.', 403);
         }
 
-        if ($user->approval !== UserApproval::Approved) {
+        if ($user->status !== UserStatus::Approved) {
             return $this->deny('Account is not approved for API usage.', 403);
         }
 

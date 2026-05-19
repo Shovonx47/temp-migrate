@@ -7,7 +7,7 @@ use App\Contracts\SupportsBulkSms;
 use App\Contracts\SupportsDeliveryStatus;
 use App\Enums\MessageStatus;
 use App\Models\Message;
-use App\Models\MessageBatch;
+use App\Models\Batch;
 use App\Models\User;
 use App\Services\Sms\Data\BulkSmsRequest;
 use App\Services\Sms\Data\BulkSmsResponse;
@@ -42,7 +42,7 @@ class SendBatchBulkSmsJob implements ShouldQueue
      * @param  int[]  $messageIds  The specific pending message IDs to send in this bulk call.
      */
     public function __construct(
-        public readonly MessageBatch $batch,
+        public readonly Batch $batch,
         public readonly array $messageIds = [],
     ) {}
 
@@ -113,7 +113,7 @@ class SendBatchBulkSmsJob implements ShouldQueue
      * Refunds the total cost of failed messages back to the user's balance.
      * Uses the batch as the transactionable so the credit appears alongside the original debit.
      */
-    private function refundFailedMessages(MessageBatch $batch, Collection $messages): void
+    private function refundFailedMessages(Batch $batch, Collection $messages): void
     {
         $totalCost = round((float) $messages->sum('cost'), 4);
 

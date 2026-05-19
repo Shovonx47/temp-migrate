@@ -27,7 +27,7 @@ class CustomerInfolist
                                 TextEntry::make('phone')
                                     ->copyable()
                                     ->url(fn ($state) => "tel:{$state}"),
-                                TextEntry::make('approval')
+                                TextEntry::make('status')
                                     ->badge(),
                                 TextEntry::make('balance')
                                     ->prefix('৳')

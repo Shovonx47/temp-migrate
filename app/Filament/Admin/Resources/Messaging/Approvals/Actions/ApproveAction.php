@@ -2,11 +2,11 @@
 
 namespace App\Filament\Admin\Resources\Messaging\Approvals\Actions;
 
-use App\Enums\MessageBatchSource;
-use App\Enums\MessageBatchStatus;
+use App\Enums\BatchSource;
+use App\Enums\BatchStatus;
 use App\Enums\SmsApproval;
-use App\Jobs\ProcessMessageBatchJob;
-use App\Models\MessageBatch;
+use App\Jobs\ProcessBatchJob;
+use App\Models\Batch;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
@@ -31,24 +31,24 @@ class ApproveAction
                     ->placeholder('Add an internal note for this approval…')
                     ->rows(3),
             ])
-            ->action(function (array $data, MessageBatch $record): void {
+            ->action(function (array $data, Batch $record): void {
                 $record->update([
-                    'status' => MessageBatchStatus::Processing,
+                    'status' => BatchStatus::Processing,
                     'approval' => SmsApproval::Approved,
                     'approved_by' => Auth::id(),
                     'approved_at' => now(),
                     'approval_note' => $data['approval_note'] ?? null,
                 ]);
 
-                ProcessMessageBatchJob::dispatch(
+                ProcessBatchJob::dispatch(
                     $record,
-                    $record->source_type instanceof MessageBatchSource
+                    $record->source_type instanceof BatchSource
                         ? $record->source_type->value
                         : (string) $record->source_type,
                     $record->source_config ?? [],
                     $record->body,
                     $record->extractBodyVariables(),
-                )->onQueue('message-batches');
+                )->onQueue('batches');
 
                 Notification::make()
                     ->title('Batch Approved')

@@ -13,7 +13,10 @@ Route::middleware(['auth:sanctum', 'api.access'])
         Route::get('/me', MeController::class)->name('me');
         Route::get('/balance', BalanceController::class)->name('balance');
         Route::get('/senders', SenderController::class)->name('senders');
-        Route::match(['get', 'post'], '/messages', [MessageController::class, 'send'])->name('messages.send');
+
+        Route::get('/messages', [MessageController::class, 'send'])->name('messages.send.get');
+        Route::post('/messages', [MessageController::class, 'send'])->name('messages.send');
+
         Route::get('/batches/{batch}', [MessageController::class, 'showBatch'])
             ->whereNumber('batch')
             ->name('batches.show');

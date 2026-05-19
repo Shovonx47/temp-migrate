@@ -2,9 +2,9 @@
 
 namespace App\Filament\Admin\Resources\Messaging\Approvals\Actions;
 
-use App\Enums\MessageBatchStatus;
+use App\Enums\BatchStatus;
 use App\Enums\SmsApproval;
-use App\Models\MessageBatch;
+use App\Models\Batch;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
@@ -30,9 +30,9 @@ class RejectAction
                     ->required()
                     ->rows(3),
             ])
-            ->action(function (array $data, MessageBatch $record): void {
+            ->action(function (array $data, Batch $record): void {
                 $record->update([
-                    'status' => MessageBatchStatus::Failed,
+                    'status' => BatchStatus::Failed,
                     'approval' => SmsApproval::Rejected,
                     'approved_by' => Auth::id(),
                     'approved_at' => now(),

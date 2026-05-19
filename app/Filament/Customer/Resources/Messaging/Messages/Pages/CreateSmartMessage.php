@@ -2,13 +2,13 @@
 
 namespace App\Filament\Customer\Resources\Messaging\Messages\Pages;
 
-use App\Enums\MessageBatchStatus;
+use App\Enums\BatchStatus;
 use App\Enums\SmsApproval;
-use App\Filament\Customer\Resources\Messaging\MessageBatches\MessageBatchResource;
+use App\Filament\Customer\Resources\Messaging\Batches\BatchResource;
 use App\Filament\Customer\Resources\Messaging\Messages\MessageResource;
-use App\Jobs\ProcessMessageBatchJob;
+use App\Jobs\ProcessBatchJob;
 use App\Models\Contact;
-use App\Models\MessageBatch;
+use App\Models\Batch;
 use App\Models\Sender;
 use App\Models\User;
 use App\Support\MessageMetrics;
@@ -51,13 +51,13 @@ class CreateSmartMessage extends CreateRecord
         $user = Auth::user();
         $requiresApproval = $user->requiresSmsApproval();
 
-        $batch = MessageBatch::create([
+        $batch = Batch::create([
             'user_id' => $user->id,
             'sender_id' => $data['sender_id'] ?? null,
             'body' => $body,
             'source_type' => $source,
             'source_config' => [],
-            'status' => $requiresApproval ? MessageBatchStatus::Pending : MessageBatchStatus::Processing,
+            'status' => $requiresApproval ? BatchStatus::Pending : BatchStatus::Processing,
             'approval' => $requiresApproval ? SmsApproval::Pending : null,
         ]);
 
@@ -66,13 +66,13 @@ class CreateSmartMessage extends CreateRecord
         ]);
 
         if (! $requiresApproval) {
-            ProcessMessageBatchJob::dispatch(
+            ProcessBatchJob::dispatch(
                 $batch,
                 $source,
                 $batch->source_config,
                 $body,
                 $bodyVariables,
-            )->onQueue('message-batches')->afterCommit();
+            )->onQueue('batches')->afterCommit();
         }
 
         Notification::make()
@@ -95,10 +95,10 @@ class CreateSmartMessage extends CreateRecord
 
     protected function getRedirectUrl(): string
     {
-        return MessageBatchResource::getUrl('view', ['record' => $this->record]);
+        return BatchResource::getUrl('view', ['record' => $this->record]);
     }
 
-    private function buildSourceConfig(string $source, array $data, MessageBatch $batch): array
+    private function buildSourceConfig(string $source, array $data, Batch $batch): array
     {
         return match ($source) {
             'manual' => ['recipients' => $data['recipients'] ?? []],
@@ -200,7 +200,7 @@ class CreateSmartMessage extends CreateRecord
             ->count();
     }
 
-    private function relocateUploadedFile(mixed $state, MessageBatch $batch): ?string
+    private function relocateUploadedFile(mixed $state, Batch $batch): ?string
     {
         if (is_array($state)) {
             $state = reset($state);
@@ -211,7 +211,7 @@ class CreateSmartMessage extends CreateRecord
         }
 
         $extension = strtolower(pathinfo($state, PATHINFO_EXTENSION)) ?: 'csv';
-        $destination = 'message-batches/'.$batch->id.'/source.'.$extension;
+        $destination = 'batches/'.$batch->id.'/source.'.$extension;
 
         Storage::disk('local')->move($state, $destination);
 

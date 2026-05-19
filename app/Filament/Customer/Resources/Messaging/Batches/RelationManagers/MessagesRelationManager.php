@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Customer\Resources\Messaging\MessageBatches\RelationManagers;
+namespace App\Filament\Customer\Resources\Messaging\Batches\RelationManagers;
 
 use App\Filament\Customer\Resources\Messaging\Messages\MessageResource;
 use Filament\Actions\CreateAction;

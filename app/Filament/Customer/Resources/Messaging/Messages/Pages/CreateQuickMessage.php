@@ -2,12 +2,12 @@
 
 namespace App\Filament\Customer\Resources\Messaging\Messages\Pages;
 
-use App\Enums\MessageBatchStatus;
+use App\Enums\BatchStatus;
 use App\Enums\SmsApproval;
-use App\Filament\Customer\Resources\Messaging\MessageBatches\MessageBatchResource;
+use App\Filament\Customer\Resources\Messaging\Batches\BatchResource;
 use App\Filament\Customer\Resources\Messaging\Messages\MessageResource;
-use App\Jobs\ProcessMessageBatchJob;
-use App\Models\MessageBatch;
+use App\Jobs\ProcessBatchJob;
+use App\Models\Batch;
 use App\Models\Sender;
 use App\Models\User;
 use App\Support\MessageMetrics;
@@ -111,24 +111,24 @@ class CreateQuickMessage extends CreateRecord
         $user = Auth::user();
         $requiresApproval = $user->requiresSmsApproval();
 
-        $batch = DB::transaction(fn (): MessageBatch => MessageBatch::create([
+        $batch = DB::transaction(fn (): Batch => Batch::create([
             'user_id' => $user->id,
             'sender_id' => $data['sender_id'] ?? null,
             'body' => $body,
             'source_type' => 'manual',
             'source_config' => ['recipients' => $recipients],
-            'status' => $requiresApproval ? MessageBatchStatus::Pending : MessageBatchStatus::Processing,
+            'status' => $requiresApproval ? BatchStatus::Pending : BatchStatus::Processing,
             'approval' => $requiresApproval ? SmsApproval::Pending : null,
         ]));
 
         if (! $requiresApproval) {
-            ProcessMessageBatchJob::dispatch(
+            ProcessBatchJob::dispatch(
                 $batch,
                 'manual',
                 $batch->source_config,
                 $body,
                 [],
-            )->onQueue('message-batches')->afterCommit();
+            )->onQueue('batches')->afterCommit();
         }
 
         Notification::make()
@@ -151,7 +151,7 @@ class CreateQuickMessage extends CreateRecord
 
     protected function getRedirectUrl(): string
     {
-        return MessageBatchResource::getUrl('view', ['record' => $this->record]);
+        return BatchResource::getUrl('view', ['record' => $this->record]);
     }
 
     /**

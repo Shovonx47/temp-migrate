@@ -16,10 +16,16 @@ return new class extends Migration
             $table->string('name');
             $table->string('email')->unique();
             $table->string('phone')->nullable()->unique();
-            $table->string('type')->default('customer')->index();
-            $table->string('approval')->default('pending')->index();
 
             $table->decimal('balance', 12, 4)->default(0);
+
+            $table->string('type')->default('customer')->index();
+            $table->string('status')->default('pending')->index();
+            $table->boolean('has_api_access')->default(false);
+            $table->boolean('needs_approval')->default(false);
+
+            $table->string('front_nid')->nullable();
+            $table->string('back_nid')->nullable();
 
             $table->string('password');
             $table->rememberToken();

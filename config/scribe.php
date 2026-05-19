@@ -243,12 +243,14 @@ return [
         'urlParameters' => [
             ...Defaults::URL_PARAMETERS_STRATEGIES,
         ],
-        'queryParameters' => [
-            ...Defaults::QUERY_PARAMETERS_STRATEGIES,
-        ],
-        'bodyParameters' => [
-            ...Defaults::BODY_PARAMETERS_STRATEGIES,
-        ],
+        'queryParameters' => removeStrategies(
+            Defaults::QUERY_PARAMETERS_STRATEGIES,
+            [Strategies\QueryParameters\GetFromInlineValidator::class],
+        ),
+        'bodyParameters' => removeStrategies(
+            Defaults::BODY_PARAMETERS_STRATEGIES,
+            [Strategies\BodyParameters\GetFromInlineValidator::class],
+        ),
         'responses' => configureStrategy(
             Defaults::RESPONSES_STRATEGIES,
             Strategies\Responses\ResponseCalls::withSettings(

@@ -51,18 +51,18 @@
     },
     "scripts": {
         "setup": [
-            "composer install",
+            "composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
-            "@php artisan key:generate",
-            "@php artisan migrate --force",
-            "npm install --ignore-scripts",
-            "npm run build"
+            "@php -r \"\\$env=file_get_contents('.env'); if(!preg_match('/^APP_KEY=base64:/m', \\$env)){ passthru('php artisan key:generate --ansi'); }\"",            "@php artisan key:generate",
+            "@php artisan migrate --force"
         ],
         "test": [
             "@php artisan config:clear --ansi @no_additional_args",
             "@php artisan test"
         ],
         "post-autoload-dump": [
+            "bun install",
+            "bun run build",
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi",
             "@php artisan filament:upgrade"

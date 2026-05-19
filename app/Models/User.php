@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 use Propaganistas\LaravelPhone\Casts\E164PhoneNumberCast;
 
 #[Fillable(['name', 'email', 'phone', 'type', 'approval', 'api_access', 'sms_auto_approved', 'balance', 'password', 'front_nid', 'back_nid'])]
@@ -28,7 +29,8 @@ use Propaganistas\LaravelPhone\Casts\E164PhoneNumberCast;
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory,
+    use HasApiTokens,
+        HasFactory,
         InteractsWithAppAuthentication,
         InteractsWithAppAuthenticationRecovery,
         Notifiable,

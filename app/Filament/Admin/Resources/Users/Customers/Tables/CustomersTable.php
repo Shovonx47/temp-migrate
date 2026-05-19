@@ -46,12 +46,10 @@ class CustomersTable
                     ->badge(),
                 IconColumn::make('api_access')
                     ->label('API')
-                    ->boolean()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->boolean(),
                 IconColumn::make('sms_auto_approved')
-                    ->label('Auto-approved')
-                    ->boolean()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->label('Auto Approve SMS')
+                    ->boolean(),
             ])
             ->filters([
                 SelectFilter::make('approval')

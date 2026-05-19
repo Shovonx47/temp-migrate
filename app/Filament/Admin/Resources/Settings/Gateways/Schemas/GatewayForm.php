@@ -34,6 +34,11 @@ class GatewayForm
                     ->live(onBlur: true)
                     ->dehydrated(fn (string $operation): bool => $operation === 'create')
                     ->disabledOn('edit'),
+                TextInput::make('requests_per_minute')
+                    ->label('Requests Per Minute')
+                    ->numeric()
+                    ->default(60)
+                    ->required(),
                 Select::make('is_enabled')
                     ->boolean()
                     ->default(false)

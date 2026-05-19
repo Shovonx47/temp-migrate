@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Users\Customers\Schemas;
 
+use App\Enums\UserApproval;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -9,6 +10,8 @@ use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Facades\Hash;
+use Ysfkaya\FilamentPhoneInput\Forms\PhoneInput;
 
 class CustomerForm
 {
@@ -17,6 +20,40 @@ class CustomerForm
         return $schema
             ->columns(1)
             ->components([
+                Section::make('Details')
+                    ->description('Basic customer profile and access credentials.')
+                    ->schema([
+                        TextInput::make('name')
+                            ->placeholder('e.g. Jahid Hasan')
+                            ->required()
+                            ->maxLength(255),
+                        TextInput::make('email')
+                            ->placeholder('e.g. jahid@example.com')
+                            ->email()
+                            ->required()
+                            ->maxLength(255)
+                            ->unique(ignoreRecord: true),
+                        PhoneInput::make('phone')
+                            ->placeholder('e.g. 01700000000')
+                            ->unique(ignoreRecord: true),
+                        Select::make('approval')
+                            ->placeholder('Select an approval status')
+                            ->options(UserApproval::class)
+                            ->default(UserApproval::Pending)
+                            ->required(),
+                        TextInput::make('password')
+                            ->placeholder('Enter a strong password')
+                            ->password()
+                            ->revealable()
+                            ->maxLength(255)
+                            ->required(fn (string $operation): bool => $operation === 'create')
+                            ->dehydrated(fn (?string $state): bool => filled($state))
+                            ->dehydrateStateUsing(fn (string $state): string => Hash::make($state))
+                            ->helperText(fn (string $operation): ?string => $operation === 'edit'
+                                ? 'Leave blank to keep the current password.'
+                                : null),
+                    ])
+                    ->columns(2),
                 Section::make('SMS Permissions')
                     ->description('Control what this customer is allowed to send and whether batches require admin approval.')
                     ->schema([

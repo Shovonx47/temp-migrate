@@ -26,14 +26,9 @@ class GatewaysTable
                     ->sortable(),
                 TextColumn::make('driver')
                     ->badge(),
-                //                TextColumn::make('daily_limit')
-                //                    ->abbreviate()
-                //                    ->sortable()
-                //                    ->placeholder('Unlimited'),
-                //                TextColumn::make('monthly_limit')
-                //                    ->abbreviate()
-                //                    ->sortable()
-                //                    ->placeholder('Unlimited'),
+                TextColumn::make('requests_per_minute')
+                    ->label('RPM')
+                    ->sortable(),
                 ToggleColumn::make('is_enabled'),
                 IconColumn::make('supports_bulk')
                     ->boolean(),

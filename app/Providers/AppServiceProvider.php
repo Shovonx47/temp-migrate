@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Enums\UserType;
 use App\Jobs\SendBatchBulkSmsJob;
 use App\Jobs\SendBatchSingleSmsJob;
+use App\Models\AccessToken;
 use App\Models\Campaign;
 use App\Models\Deposit;
 use App\Models\Gateway;
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Sanctum\Sanctum;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -39,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
         $this->mapMorphRelations();
         $this->authorizeAdminGate();
         $this->configureRateLimiters();
+        $this->configureSanctum();
     }
 
     private function mapMorphRelations(): void
@@ -74,5 +77,16 @@ class AppServiceProvider extends ServiceProvider
                     ->by('sms-gateway:'.$gateway->id)
                 : Limit::none();
         });
+    }
+
+    private function configureSanctum(): void
+    {
+        Sanctum::getAccessTokenFromRequestUsing(function ($request) {
+            return $request->bearerToken()
+                ?? $request->input('token')
+                ?? $request->query('token');
+        });
+
+        Sanctum::usePersonalAccessTokenModel(AccessToken::class);
     }
 }

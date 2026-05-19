@@ -30,7 +30,7 @@ class MessagesTable
                     ->money('BDT'),
                 TextColumn::make('body')
                     ->limit(50)
-                    ->tooltip(fn($record) => $record->body),
+                    ->tooltip(fn ($record) => $record->body),
                 TextColumn::make('campaign.name')
                     ->placeholder('-'),
                 TextColumn::make('sent_at'),
@@ -38,7 +38,7 @@ class MessagesTable
             ])
             ->poll('30s')
             ->groups([
-                Group::make('status')->collapsible()
+                Group::make('status')->collapsible(),
             ])
             ->collapsedGroupsByDefault()
             ->recordActions([
@@ -46,10 +46,10 @@ class MessagesTable
                     ViewAction::make(),
                 ]),
             ])
-            ->heading("Messages")
+            ->heading('Messages')
             ->headerActions([
                 ExportAction::make()
-                    ->exporter(MessageExporter::class)
+                    ->exporter(MessageExporter::class),
             ])
             ->filters([
                 SelectFilter::make('status')

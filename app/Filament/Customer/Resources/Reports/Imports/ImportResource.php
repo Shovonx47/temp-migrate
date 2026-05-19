@@ -18,7 +18,7 @@ class ImportResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentArrowUp;
 
-    protected static string | UnitEnum | null $navigationGroup = CustomerNavigationGroup::Reports;
+    protected static string|UnitEnum|null $navigationGroup = CustomerNavigationGroup::Reports;
 
     public static function table(Table $table): Table
     {

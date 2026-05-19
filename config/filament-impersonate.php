@@ -1,4 +1,5 @@
 <?php
+
 return [
     // After impersonating this is where we'll redirect you to.
     'redirect_to' => env('FILAMENT_IMPERSONATE_REDIRECT', '/'),
@@ -35,6 +36,6 @@ return [
                 'background' => '#1f2937',
                 'border' => '#374151',
             ],
-        ]
+        ],
     ],
 ];

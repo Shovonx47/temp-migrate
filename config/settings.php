@@ -1,6 +1,6 @@
 <?php
 
-//use Spatie\LaravelData\Data;
+// use Spatie\LaravelData\Data;
 use App\Settings\GeneralSettings;
 use Spatie\LaravelSettings\SettingsCasts\DateTimeInterfaceCast;
 use Spatie\LaravelSettings\SettingsCasts\DateTimeZoneCast;
@@ -14,7 +14,7 @@ return [
      * put them (manually) here.
      */
     'settings' => [
-        GeneralSettings::class
+        GeneralSettings::class,
     ],
 
     /*
@@ -88,7 +88,7 @@ return [
         DateTimeInterface::class => DateTimeInterfaceCast::class,
         DateTimeZone::class => DateTimeZoneCast::class,
         //        Spatie\DataTransferObject\DataTransferObject::class => Spatie\LaravelSettings\SettingsCasts\DtoCast::class,
-//        Data::class => DataCast::class,
+        //        Data::class => DataCast::class,
     ],
 
     /*

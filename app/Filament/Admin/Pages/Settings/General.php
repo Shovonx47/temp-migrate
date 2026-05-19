@@ -44,7 +44,7 @@ class General extends SettingsPage
                             ->disk('public')
                             ->label('Logo')
                             ->required(),
-                    ])
+                    ]),
             ]);
     }
 }

@@ -8,9 +8,9 @@ use App\Enums\MessageSource;
 use App\Exceptions\InsufficientBalanceException;
 use App\Exceptions\OperatorRateNotConfiguredException;
 use App\Exceptions\SenderRequiredException;
+use App\Models\Batch;
 use App\Models\Contact;
 use App\Models\Message;
-use App\Models\Batch;
 use App\Models\Sender;
 use App\Models\User;
 use App\Support\MessageMetrics;
@@ -60,11 +60,11 @@ class ProcessBatchJob implements ShouldQueue
      * @param  string[]  $bodyVariables
      */
     public function __construct(
-        public readonly Batch  $batch,
+        public readonly Batch $batch,
         public readonly string $sourceType,
-        public readonly array  $config,
+        public readonly array $config,
         public readonly string $body,
-        public readonly array  $bodyVariables,
+        public readonly array $bodyVariables,
     ) {}
 
     public function handle(RecipientFileParser $parser): void
@@ -248,10 +248,10 @@ class ProcessBatchJob implements ShouldQueue
     private function maybeFlush(
         Batch $batch,
         array &$rows,
-        int   $successCount,
-        int   $failedCount,
-        int   &$processedSinceFlush,
-        ?int  $latestCursor,
+        int $successCount,
+        int $failedCount,
+        int &$processedSinceFlush,
+        ?int $latestCursor,
     ): void {
         if ($processedSinceFlush < self::BATCH_SIZE) {
             return;
@@ -276,9 +276,9 @@ class ProcessBatchJob implements ShouldQueue
     private function flush(
         Batch $batch,
         array &$rows,
-        int   $successCount,
-        int   $failedCount,
-        ?int  $latestCursor,
+        int $successCount,
+        int $failedCount,
+        ?int $latestCursor,
     ): void {
         if ($rows === [] && $latestCursor === null) {
             return;

@@ -3,9 +3,9 @@
 use App\Enums\GatewayDriver;
 use App\Enums\MessageStatus;
 use App\Jobs\PollMessageDeliveryJob;
+use App\Models\Batch;
 use App\Models\Gateway;
 use App\Models\Message;
-use App\Models\Batch;
 use App\Models\Sender;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;

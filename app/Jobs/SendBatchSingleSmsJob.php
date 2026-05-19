@@ -4,8 +4,8 @@ namespace App\Jobs;
 
 use App\Actions\Billing\CreditBalance;
 use App\Enums\MessageStatus;
-use App\Models\Message;
 use App\Models\Batch;
+use App\Models\Message;
 use App\Models\User;
 use App\Services\Sms\Data\SmsRequest;
 use App\Support\Facades\Sms;
@@ -39,7 +39,7 @@ class SendBatchSingleSmsJob implements ShouldQueue
 
     public function __construct(
         public readonly Batch $batch,
-        public readonly int   $messageId,
+        public readonly int $messageId,
     ) {}
 
     /** @return array<int, object> */

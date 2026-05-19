@@ -51,8 +51,8 @@ class SenderForm
                                                 $query->where('type', 'customer');
                                             }
                                         )
-                                        ->tableConfiguration(CustomersTable::class)
-                                ])
+                                        ->tableConfiguration(CustomersTable::class),
+                                ]),
                         ]),
                     ]),
             ]);

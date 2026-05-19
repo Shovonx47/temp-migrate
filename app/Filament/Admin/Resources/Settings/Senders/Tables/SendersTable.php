@@ -11,7 +11,6 @@ use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\TrashedFilter;
@@ -36,7 +35,7 @@ class SendersTable
                     ->badge()
                     ->sortable(),
                 TextColumn::make('users.name')
-                ->label('Customers')
+                    ->label('Customers')
                     ->searchable()
                     ->badge(),
                 ToggleColumn::make('is_enabled'),
@@ -50,7 +49,7 @@ class SendersTable
                 ActionGroup::make([
                     ViewAction::make(),
                     EditAction::make(),
-                    DeleteAction::make()
+                    DeleteAction::make(),
                 ]),
             ])
             ->toolbarActions([

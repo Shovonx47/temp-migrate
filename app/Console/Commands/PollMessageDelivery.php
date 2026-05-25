@@ -17,7 +17,7 @@ use Illuminate\Console\Command;
  * A chunk size cap prevents the queue from being flooded when many messages are
  * due at the same time (e.g. after a Redis flush or a long server downtime).
  */
-class PollMessageDeliveryCommand extends Command
+class PollMessageDelivery extends Command
 {
     protected $signature = 'messages:poll-delivery
                             {--chunk=50 : Maximum number of jobs to dispatch per run}';

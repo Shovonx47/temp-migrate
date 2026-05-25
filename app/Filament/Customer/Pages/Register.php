@@ -17,7 +17,6 @@ use Filament\Schemas\Components\Wizard;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
-use Frolax\FilamentPasswordStrength\Forms\Components\PasswordInput;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\HtmlString;
@@ -125,18 +124,7 @@ final class Register extends BaseRegister
 
     protected function getPasswordFormComponent(): Component
     {
-        return PasswordInput::make('password')
-            ->minLength(12)
-            ->requireUppercase()
-            ->requireSymbol()
-            ->blockCommon()
-            ->checkBreached()
-            ->placeholder('Create a secure password')
-            ->withGenerator()
-            ->avoidPersonalInfo(['email', 'name'])
-            ->strengthDriver('zxcvbn');
-
-        /*return TextInput::make('password')
+        return TextInput::make('password')
             ->prefixIcon(Heroicon::OutlinedLockClosed)
             ->label('Password')
             ->placeholder('Create a secure password')
@@ -147,7 +135,7 @@ final class Register extends BaseRegister
             ->showAllValidationMessages()
             ->dehydrateStateUsing(fn ($state) => Hash::make($state))
             ->same('passwordConfirmation')
-            ->validationAttribute(__('filament-panels::auth/pages/register.form.password.validation_attribute'));*/
+            ->validationAttribute(__('filament-panels::auth/pages/register.form.password.validation_attribute'));
     }
 
     protected function getPasswordConfirmationFormComponent(): Component

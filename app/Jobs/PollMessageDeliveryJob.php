@@ -61,7 +61,7 @@ class PollMessageDeliveryJob implements ShouldQueue
         $message = Message::where('id', $this->messageId)
             ->where('status', MessageStatus::Sent)
             ->whereNotNull('gateway_message_id')
-            ->with('sender.gateway')
+            ->withWhereHas('sender.gateway')
             ->first();
 
         if (! $message) {
@@ -75,11 +75,7 @@ class PollMessageDeliveryJob implements ShouldQueue
             return;
         }
 
-        $gateway = $message->sender?->gateway;
-
-        if (! $gateway) {
-            return;
-        }
+        $gateway = $message->sender->gateway;
 
         $driver = Sms::usingGateway($gateway)->driver($gateway->driver->value);
 

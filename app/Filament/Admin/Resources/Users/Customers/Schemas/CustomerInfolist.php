@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Resources\Users\Customers\Schemas;
 
 use Filament\Infolists\Components\IconEntry;
+use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
@@ -23,10 +24,10 @@ class CustomerInfolist
                                     ->weight('bold'),
                                 TextEntry::make('email')
                                     ->copyable()
-                                    ->url(fn ($state) => "mailto:{$state}"),
+                                    ->url(fn($state) => "mailto:{$state}"),
                                 TextEntry::make('phone')
                                     ->copyable()
-                                    ->url(fn ($state) => "tel:{$state}"),
+                                    ->url(fn($state) => "tel:{$state}"),
                                 TextEntry::make('status')
                                     ->badge(),
                                 TextEntry::make('balance')
@@ -71,6 +72,15 @@ class CustomerInfolist
                             ])
                             ->columns(3),
                     ]),
+                Section::make()
+                    ->heading('KYC Information')
+                    ->columns()
+                    ->schema([
+                        ImageEntry::make('front_nid')
+                            ->label('Front Side of NID'),
+                        ImageEntry::make('back_nid')
+                            ->label('Back Side of NID'),
+                    ])
             ]);
     }
 }

@@ -2,7 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Users\Customers;
 
-use App\Enums\AdminNavigationGroup;
+use App\Enums\SupermanNavigationGroup;
 use App\Filament\Admin\Resources\Users\Customers\Pages\CreateCustomer;
 use App\Filament\Admin\Resources\Users\Customers\Pages\EditCustomer;
 use App\Filament\Admin\Resources\Users\Customers\Pages\ListCustomers;
@@ -25,7 +25,7 @@ class CustomerResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUsers;
 
-    protected static string|\UnitEnum|null $navigationGroup = AdminNavigationGroup::User;
+    protected static string|\UnitEnum|null $navigationGroup = SupermanNavigationGroup::User;
 
     protected static ?string $recordTitleAttribute = 'name';
 

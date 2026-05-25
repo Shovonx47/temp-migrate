@@ -19,11 +19,12 @@ class DepositAction
         return Action::make($name)
             ->icon(Heroicon::OutlinedPlus)
             ->label('Make Deposit')
+            ->modalIcon(Heroicon::OutlinedCurrencyBangladeshi)
             ->modalHeading('Add Balance to Customer')
             ->modalDescription("Enter the amount to add to the customer's balance.")
             ->modalWidth(Width::Medium)
             ->requiresConfirmation()
-            ->visible(fn (User $record) => $record->approval->isApproved())
+            ->visible(fn (User $record) => $record->status->isApproved())
             ->schema([
                 TextInput::make('amount')
                     ->prefix('BDT')

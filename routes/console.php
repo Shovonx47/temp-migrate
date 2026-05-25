@@ -2,9 +2,15 @@
 
 use Illuminate\Support\Facades\Schedule;
 
-Schedule::command('telescope:prune --hours=48')->daily();
+Schedule::command('telescope:prune --hours=48')
+    ->daily()
+    ->runInBackground();
 
-Schedule::command('campaigns:send-scheduled')
+Schedule::command('disposable:update')
+    ->daily()
+    ->runInBackground();
+
+Schedule::command('messages:poll-delivery')
     ->everyMinute()
     ->withoutOverlapping()
     ->runInBackground();

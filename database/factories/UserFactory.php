@@ -28,7 +28,7 @@ class UserFactory extends Factory
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'type' => 'customer',
-            'approval' => fake()->randomElement(['approved', 'pending', 'rejected']),
+            'status' => fake()->randomElement(['approved', 'pending', 'rejected']),
 
             'balance' => 10000,
 

@@ -42,7 +42,7 @@ return [
     |
     */
 
-    'path' => env('TELESCOPE_PATH', 'telescope'),
+    'path' => env('TELESCOPE_PATH', 'superman/telescope'),
 
     /*
     |--------------------------------------------------------------------------
@@ -95,6 +95,7 @@ return [
     'middleware' => [
         'web',
         Authorize::class,
+        'auth:superman',
     ],
 
     /*

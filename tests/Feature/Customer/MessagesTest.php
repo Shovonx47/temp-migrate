@@ -1,13 +1,13 @@
 <?php
 
-use App\Enums\MessageBatchStatus;
+use App\Enums\BatchStatus;
 use App\Filament\Customer\Resources\Messaging\Messages\MessageResource;
 use App\Filament\Customer\Resources\Messaging\Messages\Pages\CreateQuickMessage;
 use App\Filament\Customer\Resources\Messaging\Messages\Pages\ListMessages;
 use App\Filament\Customer\Resources\Messaging\Messages\Pages\ViewMessage;
-use App\Jobs\ProcessMessageBatchJob;
+use App\Jobs\ProcessBatchJob;
+use App\Models\Batch;
 use App\Models\Message;
-use App\Models\MessageBatch;
 use App\Models\Sender;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -62,20 +62,20 @@ test('customer can send a quick message via TagsInput', function () {
         ->call('create')
         ->assertHasNoFormErrors();
 
-    $batch = MessageBatch::query()->where('user_id', $user->id)->firstOrFail();
+    $batch = Batch::query()->where('user_id', $user->id)->firstOrFail();
 
     expect($batch->source_type)->toBe('manual')
         ->and($batch->body)->toBe('Hello there')
         ->and($batch->sender_id)->toBe($sender->id)
-        ->and($batch->status)->toBe(MessageBatchStatus::Processing)
+        ->and($batch->status)->toBe(BatchStatus::Processing)
         ->and($batch->source_config['recipients'])->toEqual([
             ['phone' => '01711000001', 'values' => []],
             ['phone' => '01711000002', 'values' => []],
         ]);
 
     Bus::assertDispatched(
-        ProcessMessageBatchJob::class,
-        fn (ProcessMessageBatchJob $job): bool => $job->batch->id === $batch->id
+        ProcessBatchJob::class,
+        fn (ProcessBatchJob $job): bool => $job->batch->id === $batch->id
             && $job->sourceType === 'manual'
             && $job->body === 'Hello there',
     );

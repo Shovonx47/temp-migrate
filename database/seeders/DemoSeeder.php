@@ -210,7 +210,6 @@ class DemoSeeder extends Seeder
                     'phone' => '+8801'
                         .fake()->randomElement([3, 4, 5, 6, 7, 8, 9])
                         .fake()->unique()->numerify('########'),
-                    'is_blocked' => false,
                     'meta' => null,
                     'created_at' => now(),
                     'updated_at' => now(),

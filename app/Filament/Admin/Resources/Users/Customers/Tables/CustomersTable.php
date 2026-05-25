@@ -2,9 +2,10 @@
 
 namespace App\Filament\Admin\Resources\Users\Customers\Tables;
 
-use App\Enums\UserApproval;
+use App\Enums\UserStatus;
 use App\Filament\Admin\Resources\Users\Customers\Actions\ApprovalAction;
 use App\Filament\Admin\Resources\Users\Customers\Actions\DepositAction;
+use App\Filament\Admin\Resources\Users\Customers\Actions\LoginAction;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -12,6 +13,7 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
@@ -23,6 +25,9 @@ class CustomersTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(function ($query) {
+                $query->where('type', 'customer');
+            })
             ->columns([
                 TextColumn::make('name')
                     ->label('Name')
@@ -36,13 +41,23 @@ class CustomersTable
                 TextColumn::make('balance')
                     ->label('Balance')
                     ->money('BDT'),
-                TextColumn::make('approval')
-                    ->label('Approval')
+                TextColumn::make('status')
+                    ->label('Status')
                     ->badge(),
             ])
             ->filters([
-                SelectFilter::make('approval')
-                    ->options(UserApproval::class),
+                SelectFilter::make('status')
+                    ->options(UserStatus::class),
+                TernaryFilter::make('api_access')
+                    ->label('API Access')
+                    ->placeholder('All')
+                    ->trueLabel('Enabled')
+                    ->falseLabel('Disabled'),
+                TernaryFilter::make('sms_auto_approved')
+                    ->label('SMS Auto-approved')
+                    ->placeholder('All')
+                    ->trueLabel('Auto-approved')
+                    ->falseLabel('Requires approval'),
                 TernaryFilter::make('email_verified_at')
                     ->label('Email Verified')
                     ->nullable()
@@ -63,6 +78,7 @@ class CustomersTable
                         ->label('View Customer'),
                     DepositAction::make(),
                     ApprovalAction::make(),
+                    LoginAction::make(),
                     EditAction::make()
                         ->label('Edit Customer'),
                 ]),

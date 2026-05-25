@@ -2,10 +2,12 @@
 
 namespace App\Filament\Customer\Resources\Messaging\Messages\Pages;
 
-use App\Filament\Customer\Resources\Messaging\MessageBatches\MessageBatchResource;
+use App\Enums\BatchStatus;
+use App\Enums\SmsApproval;
+use App\Filament\Customer\Resources\Messaging\Batches\BatchResource;
 use App\Filament\Customer\Resources\Messaging\Messages\MessageResource;
-use App\Jobs\ProcessMessageBatchJob;
-use App\Models\MessageBatch;
+use App\Jobs\ProcessBatchJob;
+use App\Models\Batch;
 use App\Models\Sender;
 use App\Models\User;
 use App\Support\MessageMetrics;
@@ -105,25 +107,36 @@ class CreateQuickMessage extends CreateRecord
 
         $this->assertAffordable($body, $recipients, (int) ($data['sender_id'] ?? 0));
 
-        $batch = DB::transaction(fn (): MessageBatch => MessageBatch::create([
-            'user_id' => Auth::id(),
+        /** @var User $user */
+        $user = Auth::user();
+        $requiresApproval = $user->requiresSmsApproval();
+
+        $batch = DB::transaction(fn (): Batch => Batch::create([
+            'user_id' => $user->id,
             'sender_id' => $data['sender_id'] ?? null,
             'body' => $body,
             'source_type' => 'manual',
             'source_config' => ['recipients' => $recipients],
+            'status' => $requiresApproval ? BatchStatus::Pending : BatchStatus::Processing,
+            'approval' => $requiresApproval ? SmsApproval::Pending : null,
         ]));
 
-        ProcessMessageBatchJob::dispatch(
-            $batch,
-            'manual',
-            $batch->source_config,
-            $body,
-            [],
-        )->onQueue('message-batches')->afterCommit();
+        if (! $requiresApproval) {
+            ProcessBatchJob::dispatch(
+                $batch,
+                'manual',
+                $batch->source_config,
+                $body,
+                [],
+            )->onQueue('batches')->afterCommit();
+        }
 
         Notification::make()
-            ->title('Messages are being processed')
-            ->body('We will notify you when the recipients are ready to send.')
+            ->title($requiresApproval ? 'Awaiting approval' : 'Messages are being processed')
+            ->body($requiresApproval
+                ? 'Your message batch is pending admin approval before sending.'
+                : 'We will notify you when the recipients are ready to send.'
+            )
             ->icon(Heroicon::Inbox)
             ->info()
             ->send();
@@ -138,7 +151,7 @@ class CreateQuickMessage extends CreateRecord
 
     protected function getRedirectUrl(): string
     {
-        return MessageBatchResource::getUrl('view', ['record' => $this->record]);
+        return BatchResource::getUrl('view', ['record' => $this->record]);
     }
 
     /**

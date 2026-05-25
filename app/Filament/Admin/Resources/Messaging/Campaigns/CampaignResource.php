@@ -2,7 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Messaging\Campaigns;
 
-use App\Enums\AdminNavigationGroup;
+use App\Enums\SupermanNavigationGroup;
 use App\Filament\Admin\Resources\Messaging\Campaigns\Pages\CreateCampaign;
 use App\Filament\Admin\Resources\Messaging\Campaigns\Pages\EditCampaign;
 use App\Filament\Admin\Resources\Messaging\Campaigns\Pages\ListCampaigns;
@@ -26,7 +26,7 @@ class CampaignResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedMegaphone;
 
-    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Messaging;
+    protected static string|UnitEnum|null $navigationGroup = SupermanNavigationGroup::Messaging;
 
     public static function form(Schema $schema): Schema
     {

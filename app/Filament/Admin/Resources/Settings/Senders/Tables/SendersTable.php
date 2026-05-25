@@ -4,13 +4,15 @@ namespace App\Filament\Admin\Resources\Settings\Senders\Tables;
 
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
-use Filament\Tables\Columns\IconColumn;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 
@@ -24,21 +26,21 @@ class SendersTable
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('sender_id')
+                    ->icon(Heroicon::OutlinedClipboard)
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->copyable()
+                    ->badge(),
                 TextColumn::make('type')
                     ->badge()
                     ->sortable(),
-                IconColumn::make('is_enabled')
-                    ->boolean(),
-                TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('users.name')
+                    ->label('Customers')
+                    ->searchable()
+                    ->badge(),
+                ToggleColumn::make('is_enabled'),
+                TextColumn::make('created_at'),
+                TextColumn::make('updated_at'),
             ])
             ->filters([
                 TrashedFilter::make(),
@@ -47,6 +49,7 @@ class SendersTable
                 ActionGroup::make([
                     ViewAction::make(),
                     EditAction::make(),
+                    DeleteAction::make(),
                 ]),
             ])
             ->toolbarActions([

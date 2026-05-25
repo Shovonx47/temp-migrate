@@ -2,7 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Settings\Senders;
 
-use App\Enums\AdminNavigationGroup;
+use App\Enums\SupermanNavigationGroup;
 use App\Filament\Admin\Resources\Settings\Senders\Pages\CreateSender;
 use App\Filament\Admin\Resources\Settings\Senders\Pages\EditSender;
 use App\Filament\Admin\Resources\Settings\Senders\Pages\ListSenders;
@@ -26,7 +26,9 @@ class SenderResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedIdentification;
 
-    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Settings;
+    protected static string|UnitEnum|null $navigationGroup = SupermanNavigationGroup::Settings;
+
+    protected static ?int $navigationSort = 2;
 
     public static function form(Schema $schema): Schema
     {

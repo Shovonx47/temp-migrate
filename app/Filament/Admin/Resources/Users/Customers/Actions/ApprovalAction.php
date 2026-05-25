@@ -2,7 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Users\Customers\Actions;
 
-use App\Enums\UserApproval;
+use App\Enums\UserStatus;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
@@ -22,34 +22,34 @@ class ApprovalAction
             ->modalWidth(Width::Medium)
             ->color('warning')
             ->requiresConfirmation()
-            ->visible(fn (User $record) => $record->approval->isPending())
+            ->visible(fn (User $record) => $record->status->isPending())
             ->fillForm(fn (User $record) => [
-                'approval' => $record->approval,
+                'approval' => $record->status,
             ])
             ->schema([
                 Select::make('approval')
                     ->label('Approval Status')
-                    ->options(UserApproval::class),
+                    ->options(UserStatus::class),
             ])
             ->action(function (array $data, User $record) {
-                $record->update(['approval' => $data['approval']]);
+                $record->update(['status' => $data['approval']]);
 
-                if ($record->wasChanged('approval')) {
+                if ($record->wasChanged('status')) {
                     Notification::make()
                         ->title('Approval Status Updated')
-                        ->body("Your approval status has been updated to {$record->approval->value}.")
+                        ->body("Your approval status has been updated to {$record->status->value}.")
                         ->success()
                         ->sendToDatabase($record);
 
                     Notification::make()
                         ->title('Approval Updated')
-                        ->body("Customer approval status has been updated to {$record->approval->value}.")
+                        ->body("Customer approval status has been updated to {$record->status->value}.")
                         ->success()
                         ->send();
                 } else {
                     Notification::make()
                         ->title('No Changes Made')
-                        ->body("The approval status is already set to {$record->approval->value}.")
+                        ->body("The approval status is already set to {$record->status->value}.")
                         ->warning()
                         ->send();
                 }

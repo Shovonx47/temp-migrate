@@ -2,17 +2,21 @@
 
 use App\Contracts\SmsGateway;
 use App\Contracts\SupportsBulkSms;
+use App\Contracts\SupportsDeliveryStatus;
+use App\Enums\DeliveryOutcome;
 use App\Enums\GatewayDriver;
 use App\Enums\MessageStatus;
 use App\Enums\SenderType;
+use App\Enums\TransactionDirection;
 use App\Jobs\SendBatchBulkSmsJob;
+use App\Models\Batch;
 use App\Models\Gateway;
 use App\Models\Message;
-use App\Models\MessageBatch;
 use App\Models\Sender;
 use App\Models\User;
 use App\Services\Sms\Data\BulkSmsRequest;
 use App\Services\Sms\Data\BulkSmsResponse;
+use App\Services\Sms\Data\DeliveryStatusResponse;
 use App\Services\Sms\Data\SmsRequest;
 use App\Services\Sms\Data\SmsResponse;
 use App\Support\Facades\Sms;
@@ -31,7 +35,7 @@ uses(RefreshDatabase::class);
 function makeBulkSendableBatch(
     string $body = 'Hello world',
     SenderType $senderType = SenderType::Numeric,
-): MessageBatch {
+): Batch {
     $user = User::factory()->create();
 
     $gateway = Gateway::factory()->create([
@@ -49,7 +53,7 @@ function makeBulkSendableBatch(
         'sender_id' => 'TestSender',
     ]);
 
-    return MessageBatch::factory()
+    return Batch::factory()
         ->for($user)
         ->create([
             'sender_id' => $sender->id,
@@ -59,7 +63,7 @@ function makeBulkSendableBatch(
 }
 
 /** Insert pending Message rows directly, bypassing the billing pipeline. */
-function insertBulkPendingMessages(MessageBatch $batch, int $count = 3, string $body = 'Hello world'): void
+function insertBulkPendingMessages(Batch $batch, int $count = 3, string $body = 'Hello world'): void
 {
     $now = now();
     $rows = [];
@@ -89,7 +93,7 @@ function insertBulkPendingMessages(MessageBatch $batch, int $count = 3, string $
  *
  * @param  int[]  $messageIds
  */
-function runBulkJob(MessageBatch $batch, array $messageIds = []): void
+function runBulkJob(Batch $batch, array $messageIds = []): void
 {
     (new SendBatchBulkSmsJob($batch, $messageIds))->handle();
 }
@@ -191,13 +195,84 @@ test('marks all messages failed when gateway returns unsuccessful response', fun
         ->and($messages->every(fn ($m) => $m->failed_at !== null))->toBeTrue();
 });
 
+test('sets poll_attempt and next_poll_at on messages when driver supports delivery status', function () {
+    $batch = makeBulkSendableBatch('No variables here');
+    insertBulkPendingMessages($batch, 2);
+
+    Sms::extend('log', function () {
+        return new class implements SmsGateway, SupportsBulkSms, SupportsDeliveryStatus
+        {
+            public function send(SmsRequest $r): SmsResponse
+            {
+                return new SmsResponse(successful: true);
+            }
+
+            public function sendBulk(BulkSmsRequest $r): BulkSmsResponse
+            {
+                $ids = array_map(static fn ($i) => 'msg-'.$i, range(1, count($r->recipients)));
+
+                return new BulkSmsResponse(successful: true, perRecipientIds: $ids);
+            }
+
+            public function fetchDeliveryStatus(string $id): DeliveryStatusResponse
+            {
+                return new DeliveryStatusResponse(outcome: DeliveryOutcome::Delivered);
+            }
+        };
+    });
+
+    $allIds = Message::where('message_batch_id', $batch->id)->pluck('id')->all();
+    runBulkJob($batch, $allIds);
+
+    $messages = Message::where('message_batch_id', $batch->id)->get();
+
+    expect($messages->every(fn ($m) => $m->poll_attempt === 1))->toBeTrue()
+        ->and($messages->every(fn ($m) => $m->next_poll_at !== null))->toBeTrue();
+});
+
+// ---------------------------------------------------------------------------
+// Refund cases
+// ---------------------------------------------------------------------------
+
+test('refunds total message cost to user balance when bulk send fails', function () {
+    $batch = makeBulkSendableBatch('No variables here');
+    $user = User::find($batch->user_id);
+    $balanceBefore = (float) $user->balance;
+
+    insertBulkPendingMessages($batch, 3); // 3 × 0.30 = 0.90
+
+    Sms::extend('log', function () {
+        return new class implements SmsGateway, SupportsBulkSms
+        {
+            public function send(SmsRequest $r): SmsResponse
+            {
+                return new SmsResponse(successful: false);
+            }
+
+            public function sendBulk(BulkSmsRequest $r): BulkSmsResponse
+            {
+                return new BulkSmsResponse(successful: false, errorMessage: 'Rate limit exceeded');
+            }
+        };
+    });
+
+    $allIds = Message::where('message_batch_id', $batch->id)->pluck('id')->all();
+    runBulkJob($batch, $allIds);
+
+    $user->refresh();
+    $totalCost = round(3 * 0.30, 4);
+
+    expect($user->balance)->toBe(round($balanceBefore + $totalCost, 4))
+        ->and($batch->transactions()->where('direction', TransactionDirection::Credit)->count())->toBe(1);
+});
+
 // ---------------------------------------------------------------------------
 // Guard cases
 // ---------------------------------------------------------------------------
 
 test('does nothing when batch has no sender configured', function () {
     $user = User::factory()->create();
-    $batch = MessageBatch::factory()->for($user)->create(['sender_id' => null]);
+    $batch = Batch::factory()->for($user)->create(['sender_id' => null]);
     insertBulkPendingMessages($batch, 2);
 
     runBulkJob($batch);

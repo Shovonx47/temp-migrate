@@ -3,7 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Enums\UserApproval;
+use App\Enums\UserStatus;
 use App\Enums\UserType;
 use Database\Factories\UserFactory;
 use Filament\Auth\MultiFactor\App\Concerns\InteractsWithAppAuthentication;
@@ -21,14 +21,16 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 use Propaganistas\LaravelPhone\Casts\E164PhoneNumberCast;
 
-#[Fillable(['name', 'email', 'phone', 'type', 'approval', 'balance', 'password'])]
-#[Hidden(['type', 'password', 'remember_token'])]
+#[Fillable(['name', 'email', 'phone', 'type', 'status', 'api_access', 'sms_auto_approved', 'balance', 'password', 'front_nid', 'back_nid'])]
+#[Hidden(['type', 'password', 'remember_token', 'front_nid', 'back_nid'])]
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory,
+    use HasApiTokens,
+        HasFactory,
         InteractsWithAppAuthentication,
         InteractsWithAppAuthenticationRecovery,
         Notifiable,
@@ -42,13 +44,23 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     protected function casts(): array
     {
         return [
-            'type' => UserType::class,
-            'approval' => UserApproval::class,
             'phone' => E164PhoneNumberCast::class,
-            'password' => 'hashed',
+
             'balance' => 'float',
+
+            'type' => UserType::class,
+            'status' => UserStatus::class,
+            'api_access' => 'boolean',
+            'sms_auto_approved' => 'boolean',
+
+            'password' => 'hashed',
             'email_verified_at' => 'datetime',
         ];
+    }
+
+    public function requiresSmsApproval(): bool
+    {
+        return !$this->sms_auto_approved;
     }
 
     public function operatorRates(): HasMany
@@ -120,5 +132,15 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     protected function phoneVerified(Builder $query): Builder
     {
         return $query->whereNotNull('phone_verified_at');
+    }
+
+    public function canImpersonate(): bool
+    {
+        return $this->type->isSuperman();
+    }
+
+    public function canBeImpersonated(): bool
+    {
+        return $this->type->isCustomer();
     }
 }

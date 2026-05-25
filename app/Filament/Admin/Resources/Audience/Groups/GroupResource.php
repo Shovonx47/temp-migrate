@@ -2,7 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Audience\Groups;
 
-use App\Enums\AdminNavigationGroup;
+use App\Enums\SupermanNavigationGroup;
 use App\Filament\Admin\Resources\Audience\Groups\Pages\CreateGroup;
 use App\Filament\Admin\Resources\Audience\Groups\Pages\EditGroup;
 use App\Filament\Admin\Resources\Audience\Groups\Pages\ListGroups;
@@ -26,7 +26,7 @@ class GroupResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;
 
-    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Audience;
+    protected static string|UnitEnum|null $navigationGroup = SupermanNavigationGroup::Audience;
 
     public static function form(Schema $schema): Schema
     {

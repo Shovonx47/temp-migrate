@@ -6,10 +6,21 @@ use Spatie\LaravelSettings\Settings;
 
 class GeneralSettings extends Settings
 {
-    public bool $topNavigation;
+    public string $appName = 'Sendora';
+
+    public string $logoUrl = 'logo.png';
 
     public static function group(): string
     {
         return 'general';
+    }
+
+    public function getLogoUrl(): string
+    {
+        if (file_exists(storage_path('app/public/'.$this->logoUrl))) {
+            return asset('storage/'.$this->logoUrl);
+        }
+
+        return asset($this->logoUrl);
     }
 }

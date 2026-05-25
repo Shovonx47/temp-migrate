@@ -4,14 +4,10 @@ namespace App\Filament\Customer\Resources\Messaging\Senders;
 
 use App\Enums\CustomerNavigationGroup;
 use App\Filament\Customer\Resources\Messaging\Senders\Pages\ListSenders;
-use App\Filament\Customer\Resources\Messaging\Senders\Pages\ViewSender;
-use App\Filament\Customer\Resources\Messaging\Senders\RelationManagers\CampaignsRelationManager;
-use App\Filament\Customer\Resources\Messaging\Senders\Schemas\SenderInfolist;
 use App\Filament\Customer\Resources\Messaging\Senders\Tables\SendersTable;
 use App\Models\Sender;
 use BackedEnum;
 use Filament\Resources\Resource;
-use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -34,23 +30,10 @@ class SenderResource extends Resource
         return SendersTable::configure($table);
     }
 
-    public static function infolist(Schema $schema): Schema
-    {
-        return SenderInfolist::configure($schema);
-    }
-
-    public static function getRelations(): array
-    {
-        return [
-            CampaignsRelationManager::class,
-        ];
-    }
-
     public static function getPages(): array
     {
         return [
             'index' => ListSenders::route('/'),
-            'view' => ViewSender::route('/{record}'),
         ];
     }
 

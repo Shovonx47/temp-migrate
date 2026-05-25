@@ -1,4 +1,7 @@
 @php
+    use App\Models\Contact;
+    use App\Models\Sender;
+
     $source = $get('source') ?? 'manual';
     $body = $get('body') ?? '';
     $bodyVariables = $get('body_variables') ?? [];
@@ -7,7 +10,7 @@
     $phoneCol = $mapping['phone'] ?? null;
     $varMap = $mapping['variables'] ?? [];
 
-    $sender = $senderId ? \App\Models\Sender::find($senderId) : null;
+    $sender = $senderId ? Sender::find($senderId) : null;
 
     $recipientCount = 0;
     $sampleRow = [];
@@ -41,9 +44,8 @@
         }
     } elseif ($source === 'group') {
         $groupIds = $get('groups') ?? [];
-        $contactsQuery = \App\Models\Contact::query()
-            ->whereHas('groups', fn ($q) => $q->whereIn('groups.id', $groupIds))
-            ->where('is_blocked', false);
+        $contactsQuery = Contact::query()
+            ->whereHas('groups', fn ($q) => $q->whereIn('groups.id', $groupIds));
         $recipientCount = $contactsQuery->count();
         $firstContact = $contactsQuery->first();
         if ($firstContact) {
@@ -133,7 +135,8 @@
             <p class="text-xs text-gray-500 dark:text-gray-400">Parts / message</p>
             <p class="text-sm font-medium text-gray-900 dark:text-gray-100 mt-1">{{ $partsPerMessage }}</p>
         </div>
-        <div class="border border-primary-200 dark:border-primary-900 rounded-lg px-4 py-3 bg-primary-50 dark:bg-primary-950">
+        <div
+            class="border border-primary-200 dark:border-primary-900 rounded-lg px-4 py-3 bg-primary-50 dark:bg-primary-950">
             <p class="text-xs text-primary-700 dark:text-primary-300">Total SMS</p>
             <p class="text-sm font-semibold text-primary-900 dark:text-primary-100 mt-1">{{ $totalSms }}</p>
         </div>
@@ -166,7 +169,8 @@
                     <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Message</p>
                     <p class="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{{ $renderedBody }}</p>
                 </div>
-                <div class="flex flex-wrap items-center gap-x-5 gap-y-1 pt-2 border-t border-gray-100 dark:border-gray-900 text-xs text-gray-600 dark:text-gray-400">
+                <div
+                    class="flex flex-wrap items-center gap-x-5 gap-y-1 pt-2 border-t border-gray-100 dark:border-gray-900 text-xs text-gray-600 dark:text-gray-400">
                     <div class="flex items-center gap-1.5">
                         <span class="font-medium text-gray-700 dark:text-gray-300">Remaining:</span>
                         <span>{{ $remainingInPart }}/{{ $perPartTotal }}</span>

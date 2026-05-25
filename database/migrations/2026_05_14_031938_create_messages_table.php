@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
+class CreateMessagesTable extends Migration
 {
     public function up(): void
     {
@@ -12,13 +12,15 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('campaign_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('message_batch_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('batch_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('sender_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('gateway_id')->nullable()->constrained()->nullOnDelete(); // snapshot
 
             $table->string('to'); // recipient phone number
             $table->text('body');
             $table->string('status')->default('pending'); // pending, sent, failed
+            $table->string('source', 16)->default('web');
+
             $table->string('gateway_message_id')->nullable(); // gateway's response id
 
             $table->decimal('cost', 10, 4)->default(0);
@@ -27,8 +29,12 @@ return new class extends Migration
 
             $table->text('failed_reason')->nullable();
 
+            $table->unsignedTinyInteger('poll_attempt')->nullable();
+
             $table->timestamp('sent_at')->nullable();
             $table->timestamp('failed_at')->nullable();
+            $table->timestamp('delivered_at')->nullable();
+            $table->timestamp('next_poll_at')->nullable();
             $table->timestamps();
 
             $table->index(['user_id', 'created_at']);
@@ -42,4 +48,4 @@ return new class extends Migration
     {
         Schema::dropIfExists('messages');
     }
-};
+}

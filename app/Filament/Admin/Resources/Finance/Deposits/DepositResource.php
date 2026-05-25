@@ -2,7 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Finance\Deposits;
 
-use App\Enums\AdminNavigationGroup;
+use App\Enums\SupermanNavigationGroup;
 use App\Filament\Admin\Resources\Finance\Deposits\Pages\ListDeposits;
 use App\Filament\Admin\Resources\Finance\Deposits\Pages\ViewDeposit;
 use App\Filament\Admin\Resources\Finance\Deposits\Schemas\DepositForm;
@@ -24,7 +24,7 @@ class DepositResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
 
-    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Finance;
+    protected static string|UnitEnum|null $navigationGroup = SupermanNavigationGroup::Finance;
 
     protected static ?string $navigationLabel = 'Deposits';
 

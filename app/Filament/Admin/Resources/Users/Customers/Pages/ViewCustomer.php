@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Resources\Users\Customers\Pages;
 
 use App\Filament\Admin\Resources\Users\Customers\Actions\ApprovalAction;
 use App\Filament\Admin\Resources\Users\Customers\Actions\DepositAction;
+use App\Filament\Admin\Resources\Users\Customers\Actions\LoginAction;
 use App\Filament\Admin\Resources\Users\Customers\CustomerResource;
 use Filament\Actions\EditAction;
 use Filament\Resources\Pages\ViewRecord;
@@ -15,8 +16,9 @@ class ViewCustomer extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            ApprovalAction::make(),
+            LoginAction::make(),
             DepositAction::make(),
+            ApprovalAction::make(),
             EditAction::make()
                 ->label('Edit Customer'),
         ];

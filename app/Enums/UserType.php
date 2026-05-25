@@ -34,4 +34,14 @@ enum UserType: string implements HasColor, HasIcon, HasLabel
             self::Customer => Heroicon::OutlinedUser,
         };
     }
+
+    public function isSuperman(): bool
+    {
+        return $this === self::Superman;
+    }
+
+    public function isCustomer(): bool
+    {
+        return $this === self::Customer;
+    }
 }

@@ -2,7 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Settings\Countries;
 
-use App\Enums\AdminNavigationGroup;
+use App\Enums\SupermanNavigationGroup;
 use App\Filament\Admin\Resources\Settings\Countries\Pages\CreateCountry;
 use App\Filament\Admin\Resources\Settings\Countries\Pages\EditCountry;
 use App\Filament\Admin\Resources\Settings\Countries\Pages\ListCountries;
@@ -24,9 +24,11 @@ class CountryResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedGlobeAlt;
 
-    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Settings;
+    protected static string|UnitEnum|null $navigationGroup = SupermanNavigationGroup::Settings;
 
     protected static ?string $recordTitleAttribute = 'name';
+
+    protected static ?int $navigationSort = 3;
 
     public static function form(Schema $schema): Schema
     {

@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
+class CreateUsersTable extends Migration
 {
     /**
      * Run the migrations.
@@ -15,11 +15,17 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
-            $table->string('phone')->nullable()->unique();
-            $table->string('type')->default('customer')->index();
-            $table->string('approval')->default('pending')->index();
+            $table->string('phone')->unique();
 
             $table->decimal('balance', 12, 4)->default(0);
+
+            $table->string('type')->default('customer')->index();
+            $table->string('status')->default('pending')->index();
+            $table->boolean('api_access')->default(false);
+            $table->boolean('sms_auto_approved')->default(false);
+
+            $table->string('front_nid')->nullable();
+            $table->string('back_nid')->nullable();
 
             $table->string('password');
             $table->rememberToken();
@@ -57,4 +63,4 @@ return new class extends Migration
         Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
     }
-};
+}

@@ -4,8 +4,6 @@ namespace App\Models;
 
 use Database\Factories\ContactFactory;
 use Illuminate\Database\Eloquent\Attributes\Guarded;
-use Illuminate\Database\Eloquent\Attributes\Scope;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -35,11 +33,5 @@ class Contact extends Model
     public function groups(): BelongsToMany
     {
         return $this->belongsToMany(Group::class, 'contact_group');
-    }
-
-    #[Scope]
-    protected function blocked(Builder $query): Builder
-    {
-        return $query->where('is_blocked', true);
     }
 }

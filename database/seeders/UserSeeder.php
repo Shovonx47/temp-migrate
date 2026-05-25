@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\UserStatus;
 use App\Enums\UserType;
 use App\Models\Sender;
 use App\Models\User;
@@ -29,6 +30,11 @@ class UserSeeder extends Seeder
             'password' => bcrypt('customer'),
             'email_verified_at' => now(),
             'balance' => 50,
+            'status' => UserStatus::Approved,
+            'front_nid' => 'path/to/front_nid.jpg',
+            'back_nid' => 'path/to/back_nid.jpg',
+            'api_access' => true,
+            'sms_auto_approved' => true,
         ]);
 
         $senders = Sender::inRandomOrder()

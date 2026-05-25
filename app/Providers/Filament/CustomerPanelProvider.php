@@ -2,17 +2,28 @@
 
 namespace App\Providers\Filament;
 
+use App\Enums\CustomerNavigationGroup;
+use App\Filament\Customer\Pages\Account\Banned;
+use App\Filament\Customer\Pages\Account\Kyc;
+use App\Filament\Customer\Pages\Account\Pending;
+use App\Filament\Customer\Pages\Account\Rejected;
 use App\Filament\Customer\Pages\Dashboard;
-use DutchCodingCompany\FilamentDeveloperLogins\FilamentDeveloperLoginsPlugin;
+use App\Filament\Customer\Pages\Register;
+use App\Http\Middleware\HandleCustomerApproval;
+use App\Http\Middleware\HandleCustomerKyc;
+use App\Settings\GeneralSettings;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
+use Filament\Facades\Filament;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationItem;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Support\Enums\Width;
+use Filament\Support\Icons\Heroicon;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -26,6 +37,8 @@ class CustomerPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
+        $generalSettings = app(GeneralSettings::class);
+
         return $panel
             // Identify
             ->id('customer')
@@ -34,7 +47,7 @@ class CustomerPanelProvider extends PanelProvider
 
             // Authentication
             ->login()
-            ->registration()
+            ->registration(Register::class)
             ->passwordReset()
             ->profile()
             ->emailVerification()
@@ -50,6 +63,11 @@ class CustomerPanelProvider extends PanelProvider
             ->databaseNotifications()
             ->lazyLoadedDatabaseNotifications()
             ->databaseNotificationsPolling('30s')
+
+            // Branding
+            ->brandName(fn () => $generalSettings->appName)
+            ->brandLogo(fn () => $generalSettings->getLogoUrl())
+            ->brandLogoHeight('50px')
 
             // Layout
             ->sidebarCollapsibleOnDesktop()
@@ -71,6 +89,10 @@ class CustomerPanelProvider extends PanelProvider
             )
             ->pages([
                 Dashboard::class,
+                Pending::class,
+                Rejected::class,
+                Banned::class,
+                Kyc::class,
             ])
 
             // Widgets
@@ -80,6 +102,15 @@ class CustomerPanelProvider extends PanelProvider
             )
             ->widgets([
                 //
+            ])
+
+            // Custom navigation
+            ->navigationItems([
+                NavigationItem::make('API Documentation')
+                    ->url(fn (): string => url('/docs'), shouldOpenInNewTab: true)
+                    ->icon(Heroicon::OutlinedBookOpen)
+                    ->group(CustomerNavigationGroup::Developer)
+                    ->visible(fn (): bool => (bool) Filament::auth()->user()?->api_access),
             ])
 
             // Middleware
@@ -96,14 +127,10 @@ class CustomerPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                HandleCustomerApproval::class,
+                HandleCustomerKyc::class,
             ])
-            ->plugins([
-                FilamentDeveloperLoginsPlugin::make()
-                    ->enabled(app()->environment('local') && request()->host() === 'sendora.test')
-                    ->users([
-                        'Customer' => 'customer@example.com',
-                    ]),
-            ])
+            ->plugins($this->plugins())
 
             ->renderHook(
                 name: PanelsRenderHook::GLOBAL_SEARCH_AFTER,
@@ -111,5 +138,28 @@ class CustomerPanelProvider extends PanelProvider
             )
             ->spa()
             ->unsavedChangesAlerts();
+    }
+
+    /**
+     * Conditionally register panel plugins.
+     *
+     * Plugins are only added if their package class is installed,
+     * allowing dev-only packages to be safely omitted in production.
+     */
+    protected function plugins(): array
+    {
+        $plugins = [];
+
+        $developerLogins = 'DutchCodingCompany\\FilamentDeveloperLogins\\FilamentDeveloperLoginsPlugin';
+
+        if (class_exists($developerLogins)) {
+            $plugins[] = $developerLogins::make()
+                ->enabled(app()->environment('local') && request()->host() === 'sendora.test')
+                ->users([
+                    'Customer' => 'customer@example.com',
+                ]);
+        }
+
+        return $plugins;
     }
 }

@@ -4,10 +4,11 @@ use App\Contracts\SmsGateway;
 use App\Enums\GatewayDriver;
 use App\Enums\MessageStatus;
 use App\Enums\SenderType;
+use App\Enums\TransactionDirection;
 use App\Jobs\SendBatchSingleSmsJob;
+use App\Models\Batch;
 use App\Models\Gateway;
 use App\Models\Message;
-use App\Models\MessageBatch;
 use App\Models\Sender;
 use App\Models\User;
 use App\Services\Sms\Data\SmsRequest;
@@ -28,7 +29,7 @@ uses(RefreshDatabase::class);
 function makeSingleSendableBatch(
     string $body = 'Hello {name}',
     SenderType $senderType = SenderType::Numeric,
-): MessageBatch {
+): Batch {
     $user = User::factory()->create();
 
     $gateway = Gateway::factory()->create([
@@ -46,7 +47,7 @@ function makeSingleSendableBatch(
         'sender_id' => 'TestSender',
     ]);
 
-    return MessageBatch::factory()
+    return Batch::factory()
         ->for($user)
         ->create([
             'sender_id' => $sender->id,
@@ -56,7 +57,7 @@ function makeSingleSendableBatch(
 }
 
 /** Insert a single pending Message row and return its ID. */
-function insertSinglePendingMessage(MessageBatch $batch, string $to = '+8801711000001', string $body = 'Hello John'): int
+function insertSinglePendingMessage(Batch $batch, string $to = '+8801711000001', string $body = 'Hello John'): int
 {
     $now = now();
     Message::insert([[
@@ -80,7 +81,7 @@ function insertSinglePendingMessage(MessageBatch $batch, string $to = '+88017110
         ->value('id');
 }
 
-function runSingleJob(MessageBatch $batch, int $messageId): void
+function runSingleJob(Batch $batch, int $messageId): void
 {
     (new SendBatchSingleSmsJob($batch, $messageId))->handle();
 }
@@ -111,7 +112,33 @@ test('marks message sent with gateway message ID', function () {
         ->and($message->sent_at)->not->toBeNull()
         ->and($message->gateway_message_id)->toBe('gw-123')
         ->and($message->failed_at)->toBeNull()
-        ->and($message->failed_reason)->toBeNull();
+        ->and($message->failed_reason)->toBeNull()
+        ->and($message->poll_attempt)->toBe(1)
+        ->and($message->next_poll_at)->not->toBeNull()
+        ->and($message->next_poll_at->isFuture())->toBeTrue();
+});
+
+test('does not set poll columns when gateway returns no message ID', function () {
+    $batch = makeSingleSendableBatch('Hello {name}');
+    $messageId = insertSinglePendingMessage($batch, body: 'Hello John');
+
+    Sms::extend('log', function () {
+        return new class implements SmsGateway
+        {
+            public function send(SmsRequest $r): SmsResponse
+            {
+                return new SmsResponse(successful: true, gatewayMessageId: null);
+            }
+        };
+    });
+
+    runSingleJob($batch, $messageId);
+
+    $message = Message::find($messageId);
+
+    expect($message->status)->toBe(MessageStatus::Sent)
+        ->and($message->poll_attempt)->toBeNull()
+        ->and($message->next_poll_at)->toBeNull();
 });
 
 test('marks message failed when gateway returns unsuccessful response', function () {
@@ -162,6 +189,98 @@ test('marks message failed when driver throws an exception', function () {
 });
 
 // ---------------------------------------------------------------------------
+// Refund cases
+// ---------------------------------------------------------------------------
+
+test('refunds message cost to user balance when gateway returns unsuccessful response', function () {
+    $batch = makeSingleSendableBatch();
+    $user = User::find($batch->user_id);
+    $balanceBefore = (float) $user->balance;
+    $messageId = insertSinglePendingMessage($batch); // cost = 0.30
+
+    Sms::extend('log', function () {
+        return new class implements SmsGateway
+        {
+            public function send(SmsRequest $r): SmsResponse
+            {
+                return new SmsResponse(successful: false, errorMessage: 'Invalid number');
+            }
+        };
+    });
+
+    runSingleJob($batch, $messageId);
+
+    $message = Message::find($messageId);
+    $user->refresh();
+
+    expect($user->balance)->toBe(round($balanceBefore + $message->cost, 4))
+        ->and($message->transactions()->where('direction', TransactionDirection::Credit)->count())->toBe(1);
+});
+
+test('refunds message cost to user balance when driver throws an exception', function () {
+    $batch = makeSingleSendableBatch();
+    $user = User::find($batch->user_id);
+    $balanceBefore = (float) $user->balance;
+    $messageId = insertSinglePendingMessage($batch); // cost = 0.30
+
+    Sms::extend('log', function () {
+        return new class implements SmsGateway
+        {
+            public function send(SmsRequest $r): SmsResponse
+            {
+                throw new RuntimeException('Network timeout');
+            }
+        };
+    });
+
+    runSingleJob($batch, $messageId);
+
+    $message = Message::find($messageId);
+    $user->refresh();
+
+    expect($user->balance)->toBe(round($balanceBefore + $message->cost, 4));
+});
+
+test('does not create a refund transaction when message cost is zero', function () {
+    $batch = makeSingleSendableBatch();
+    $user = User::find($batch->user_id);
+    $balanceBefore = (float) $user->balance;
+
+    // Insert a zero-cost message.
+    $now = now();
+    Message::insert([[
+        'user_id' => $batch->user_id,
+        'message_batch_id' => $batch->id,
+        'campaign_id' => null,
+        'sender_id' => $batch->sender_id,
+        'to' => '+8801711000009',
+        'body' => 'Hello',
+        'status' => MessageStatus::Pending->value,
+        'parts' => 1,
+        'rate' => 0.0,
+        'cost' => 0.0,
+        'created_at' => $now,
+        'updated_at' => $now,
+    ]]);
+    $messageId = (int) Message::where('message_batch_id', $batch->id)->value('id');
+
+    Sms::extend('log', fn () => new class implements SmsGateway
+    {
+        public function send(SmsRequest $r): SmsResponse
+        {
+            return new SmsResponse(successful: false, errorMessage: 'Rejected');
+        }
+    });
+
+    runSingleJob($batch, $messageId);
+
+    $user->refresh();
+
+    expect($user->balance)->toBe($balanceBefore)
+        ->and(Message::find($messageId)->transactions()->count())->toBe(0);
+});
+
+// ---------------------------------------------------------------------------
 // Guard / idempotency cases
 // ---------------------------------------------------------------------------
 
@@ -195,7 +314,7 @@ test('does nothing when message is already sent (idempotency guard)', function (
 
 test('does nothing when batch has no sender configured', function () {
     $user = User::factory()->create();
-    $batch = MessageBatch::factory()->for($user)->create(['sender_id' => null]);
+    $batch = Batch::factory()->for($user)->create(['sender_id' => null]);
     $messageId = insertSinglePendingMessage($batch);
 
     runSingleJob($batch, $messageId);

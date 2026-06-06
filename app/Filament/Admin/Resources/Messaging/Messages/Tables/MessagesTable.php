@@ -22,8 +22,11 @@ class MessagesTable
                 TextColumn::make('to')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('body')
+                    ->sortable()
+                    ->limit(50)
+                    ->tooltip(fn($record) => $record->body),
                 TextColumn::make('status')
-                    ->searchable()
                     ->sortable()
                     ->badge(),
                 TextColumn::make('cost')

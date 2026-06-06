@@ -153,6 +153,7 @@ class ProcessBatchJob implements ShouldQueue
                 }
 
                 $body = $this->resolveBody($recipient);
+                $metrics = MessageMetrics::for($body);
                 $rows[] = [
                     'user_id' => $batch->user_id,
                     'campaign_id' => null,
@@ -164,7 +165,8 @@ class ProcessBatchJob implements ShouldQueue
                     'source' => $batch->source_type === BatchSource::API
                         ? MessageSource::API->value
                         : MessageSource::Web->value,
-                    'parts' => MessageMetrics::for($body)->parts,
+                    'parts' => $metrics->parts,
+                    'is_unicode' => $metrics->encoding === MessageMetrics::UCS2,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];

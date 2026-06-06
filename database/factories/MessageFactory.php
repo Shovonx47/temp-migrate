@@ -25,6 +25,7 @@ class MessageFactory extends Factory
             'status' => fake()->randomElement(MessageStatus::cases()),
             'gateway_message_id' => fake()->optional()->uuid(),
             'cost' => fake()->randomFloat(4, 0, 5),
+            'is_unicode' => false,
             'failed_reason' => null,
             'sent_at' => null,
             'failed_at' => null,
@@ -52,6 +53,14 @@ class MessageFactory extends Factory
             'status' => MessageStatus::Failed,
             'failed_reason' => fake()->sentence(),
             'failed_at' => now(),
+        ]);
+    }
+
+    public function unicode(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'is_unicode' => true,
+            'body' => 'আপনার কোড: 123456',
         ]);
     }
 }

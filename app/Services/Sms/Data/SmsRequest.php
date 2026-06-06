@@ -8,5 +8,6 @@ readonly class SmsRequest
         public string $to,
         public string $body,
         public ?string $from = null,
+        public bool $isUnicode = false,
     ) {}
 }

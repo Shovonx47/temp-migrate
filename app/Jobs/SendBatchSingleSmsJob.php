@@ -69,7 +69,7 @@ class SendBatchSingleSmsJob implements ShouldQueue
 
         $message = Message::where('id', $this->messageId)
             ->where('status', MessageStatus::Pending)
-            ->select(['id', 'to', 'body', 'cost', 'user_id'])
+            ->select(['id', 'to', 'body', 'cost', 'user_id', 'is_unicode'])
             ->first();
 
         // Idempotency guard: already processed or doesn't exist.
@@ -85,6 +85,7 @@ class SendBatchSingleSmsJob implements ShouldQueue
                 to: (string) $message->to,
                 body: $message->body,
                 from: $batch->sender?->sender_id,
+                isUnicode: (bool) $message->is_unicode,
             ));
 
             if ($response->successful) {
@@ -122,8 +123,11 @@ class SendBatchSingleSmsJob implements ShouldQueue
             ]);
 
             if (($message->cost ?? 0) > 0) {
+                /** @var User $user */
+                $user = User::findOrFail($message->user_id);
+
                 app(CreditBalance::class)->handle(
-                    user: User::findOrFail($message->user_id),
+                    user: $user,
                     amount: $message->cost,
                     transactionable: $message,
                     description: 'Refund: SMS failed to send',

@@ -83,7 +83,7 @@ class SendBatchBulkSmsJob implements ShouldQueue
             ? Message::whereIn('id', $this->messageIds)->where('status', MessageStatus::Pending)
             : $batch->messages()->where('status', MessageStatus::Pending);
 
-        $messages = $query->select(['id', 'to', 'cost'])->orderBy('id')->get();
+        $messages = $query->select(['id', 'to', 'cost', 'is_unicode'])->orderBy('id')->get();
 
         if ($messages->isEmpty()) {
             return;
@@ -95,6 +95,7 @@ class SendBatchBulkSmsJob implements ShouldQueue
             recipients: $recipients,
             body: $batch->body,
             from: $from,
+            isUnicode: (bool) $messages->first()->is_unicode,
         ));
 
         $this->applyBulkResponse($messages, $response);

@@ -30,6 +30,7 @@ class Message extends Model implements Transactionable
             'failed_at' => 'datetime',
             'delivered_at' => 'datetime',
             'next_poll_at' => 'datetime',
+            'is_unicode' => 'boolean',
         ];
     }
 

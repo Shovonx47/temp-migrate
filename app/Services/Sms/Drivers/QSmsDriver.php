@@ -39,6 +39,7 @@ final readonly class QSmsDriver implements SmsGateway, SupportsBulkSms, Supports
                 'SenderId' => $request->from ?? '',
                 'MobileNumbers' => str($request->to)->remove('+')->toString(),
                 'Message' => $request->body,
+                'Is_Unicode' => $request->isUnicode ? 'true' : 'false',
             ]);
 
             $data = $response->json() ?? [];
@@ -80,6 +81,7 @@ final readonly class QSmsDriver implements SmsGateway, SupportsBulkSms, Supports
                 'SenderId' => $request->from ?? '',
                 'MobileNumbers' => $mobileNumbers,
                 'Message' => $request->body,
+                'Is_Unicode' => $request->isUnicode ? 'true' : 'false',
             ]);
 
             $data = $response->json() ?? [];

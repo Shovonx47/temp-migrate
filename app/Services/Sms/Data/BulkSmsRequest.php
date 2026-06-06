@@ -11,5 +11,6 @@ readonly class BulkSmsRequest
         public array $recipients,
         public string $body,
         public ?string $from = null,
+        public bool $isUnicode = false,
     ) {}
 }

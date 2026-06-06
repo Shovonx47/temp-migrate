@@ -91,7 +91,7 @@ test('manual source completes cleanly when every recipient is valid', function (
     );
 
     expect(Message::count())->toBe(2)
-        ->and(Message::where('message_batch_id', $batch->id)->count())->toBe(2)
+        ->and(Message::where('batch_id', $batch->id)->count())->toBe(2)
         ->and(Storage::disk('local')->files('batches/'.$batch->id))->toBeEmpty();
 });
 
@@ -703,7 +703,7 @@ test('SendBatchSingleSmsJob is dispatched once per message when gateway does not
         body: 'Hi',
     );
 
-    $insertedIds = Message::where('message_batch_id', $batch->id)
+    $insertedIds = Message::where('batch_id', $batch->id)
         ->orderBy('id')
         ->pluck('id')
         ->all();
@@ -747,7 +747,7 @@ test('SendBatchBulkSmsJob is dispatched per flush when gateway supports bulk and
         body: 'Hi', // no variables → bulk strategy
     );
 
-    $insertedIds = Message::where('message_batch_id', $batch->id)
+    $insertedIds = Message::where('batch_id', $batch->id)
         ->orderBy('id')
         ->pluck('id')
         ->all();

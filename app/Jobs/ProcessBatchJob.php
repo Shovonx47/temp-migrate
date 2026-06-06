@@ -156,7 +156,7 @@ class ProcessBatchJob implements ShouldQueue
                 $rows[] = [
                     'user_id' => $batch->user_id,
                     'campaign_id' => null,
-                    'message_batch_id' => $batch->id,
+                    'batch_id' => $batch->id,
                     'sender_id' => $batch->sender_id,
                     'to' => $formattedNumber,
                     'body' => $body,
@@ -300,7 +300,7 @@ class ProcessBatchJob implements ShouldQueue
                 $updates['last_processed_cursor'] = $latestCursor;
             }
 
-            DB::table('message_batches')->where('id', $batch->id)->update($updates);
+            DB::table('batches')->where('id', $batch->id)->update($updates);
         });
 
         if ($messageIds !== []) {

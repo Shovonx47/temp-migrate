@@ -62,7 +62,7 @@ function insertSinglePendingMessage(Batch $batch, string $to = '+8801711000001',
     $now = now();
     Message::insert([[
         'user_id' => $batch->user_id,
-        'message_batch_id' => $batch->id,
+        'batch_id' => $batch->id,
         'campaign_id' => null,
         'sender_id' => $batch->sender_id,
         'to' => $to,
@@ -75,7 +75,7 @@ function insertSinglePendingMessage(Batch $batch, string $to = '+8801711000001',
         'updated_at' => $now,
     ]]);
 
-    return (int) Message::where('message_batch_id', $batch->id)
+    return (int) Message::where('batch_id', $batch->id)
         ->where('to', $to)
         ->orderByDesc('id')
         ->value('id');
@@ -250,7 +250,7 @@ test('does not create a refund transaction when message cost is zero', function 
     $now = now();
     Message::insert([[
         'user_id' => $batch->user_id,
-        'message_batch_id' => $batch->id,
+        'batch_id' => $batch->id,
         'campaign_id' => null,
         'sender_id' => $batch->sender_id,
         'to' => '+8801711000009',
@@ -262,7 +262,7 @@ test('does not create a refund transaction when message cost is zero', function 
         'created_at' => $now,
         'updated_at' => $now,
     ]]);
-    $messageId = (int) Message::where('message_batch_id', $batch->id)->value('id');
+    $messageId = (int) Message::where('batch_id', $batch->id)->value('id');
 
     Sms::extend('log', fn () => new class implements SmsGateway
     {

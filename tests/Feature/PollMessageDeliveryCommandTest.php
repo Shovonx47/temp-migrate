@@ -37,7 +37,7 @@ function makeSentMessageWithPollColumns(array $overrides = [], ?User $user = nul
         ->state(array_merge([
             'campaign_id' => null,
             'sender_id' => $sender->id,
-            'message_batch_id' => $batch->id,
+            'batch_id' => $batch->id,
             'gateway_message_id' => 'gw-001',
             'sent_at' => now()->subMinutes(3),
             'poll_attempt' => 1,

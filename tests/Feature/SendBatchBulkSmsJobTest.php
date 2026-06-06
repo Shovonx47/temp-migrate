@@ -71,7 +71,7 @@ function insertBulkPendingMessages(Batch $batch, int $count = 3, string $body = 
     for ($i = 1; $i <= $count; $i++) {
         $rows[] = [
             'user_id' => $batch->user_id,
-            'message_batch_id' => $batch->id,
+            'batch_id' => $batch->id,
             'campaign_id' => null,
             'sender_id' => $batch->sender_id,
             'to' => '+8801711000'.str_pad((string) $i, 3, '0', STR_PAD_LEFT),
@@ -123,10 +123,10 @@ test('marks all messages sent with per-recipient gateway IDs', function () {
         };
     });
 
-    $allIds = Message::where('message_batch_id', $batch->id)->orderBy('id')->pluck('id')->all();
+    $allIds = Message::where('batch_id', $batch->id)->orderBy('id')->pluck('id')->all();
     runBulkJob($batch, $allIds);
 
-    $messages = Message::where('message_batch_id', $batch->id)->orderBy('id')->get();
+    $messages = Message::where('batch_id', $batch->id)->orderBy('id')->get();
 
     expect($messages)->toHaveCount(3)
         ->and($messages->every(fn ($m) => $m->status === MessageStatus::Sent))->toBeTrue()
@@ -153,10 +153,10 @@ test('marks all messages sent with shared batch ID when driver returns single ID
         };
     });
 
-    $allIds = Message::where('message_batch_id', $batch->id)->pluck('id')->all();
+    $allIds = Message::where('batch_id', $batch->id)->pluck('id')->all();
     runBulkJob($batch, $allIds);
 
-    $messages = Message::where('message_batch_id', $batch->id)->get();
+    $messages = Message::where('batch_id', $batch->id)->get();
 
     expect($messages->every(fn ($m) => $m->status === MessageStatus::Sent))->toBeTrue()
         ->and($messages->every(fn ($m) => $m->gateway_message_id === 'batch-xyz'))->toBeTrue();
@@ -185,10 +185,10 @@ test('marks all messages failed when gateway returns unsuccessful response', fun
         };
     });
 
-    $allIds = Message::where('message_batch_id', $batch->id)->pluck('id')->all();
+    $allIds = Message::where('batch_id', $batch->id)->pluck('id')->all();
     runBulkJob($batch, $allIds);
 
-    $messages = Message::where('message_batch_id', $batch->id)->get();
+    $messages = Message::where('batch_id', $batch->id)->get();
 
     expect($messages->every(fn ($m) => $m->status === MessageStatus::Failed))->toBeTrue()
         ->and($messages->every(fn ($m) => $m->failed_reason === 'Rate limit exceeded'))->toBeTrue()
@@ -221,10 +221,10 @@ test('sets poll_attempt and next_poll_at on messages when driver supports delive
         };
     });
 
-    $allIds = Message::where('message_batch_id', $batch->id)->pluck('id')->all();
+    $allIds = Message::where('batch_id', $batch->id)->pluck('id')->all();
     runBulkJob($batch, $allIds);
 
-    $messages = Message::where('message_batch_id', $batch->id)->get();
+    $messages = Message::where('batch_id', $batch->id)->get();
 
     expect($messages->every(fn ($m) => $m->poll_attempt === 1))->toBeTrue()
         ->and($messages->every(fn ($m) => $m->next_poll_at !== null))->toBeTrue();
@@ -256,7 +256,7 @@ test('refunds total message cost to user balance when bulk send fails', function
         };
     });
 
-    $allIds = Message::where('message_batch_id', $batch->id)->pluck('id')->all();
+    $allIds = Message::where('batch_id', $batch->id)->pluck('id')->all();
     runBulkJob($batch, $allIds);
 
     $user->refresh();
@@ -294,7 +294,7 @@ test('does nothing when driver does not implement SupportsBulkSms', function () 
         };
     });
 
-    $allIds = Message::where('message_batch_id', $batch->id)->pluck('id')->all();
+    $allIds = Message::where('batch_id', $batch->id)->pluck('id')->all();
     runBulkJob($batch, $allIds);
 
     // Driver does not support bulk — job exits early, messages stay pending.
@@ -313,7 +313,7 @@ test('only processes the specified message IDs', function () {
     $batch = makeBulkSendableBatch('No variables');
     insertBulkPendingMessages($batch, 3);
 
-    $allIds = Message::where('message_batch_id', $batch->id)->orderBy('id')->pluck('id')->all();
+    $allIds = Message::where('batch_id', $batch->id)->orderBy('id')->pluck('id')->all();
     $targetIds = [$allIds[0], $allIds[1]]; // send first 2, leave third pending
 
     Sms::extend('log', function () {

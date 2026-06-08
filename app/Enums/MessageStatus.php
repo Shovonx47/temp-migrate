@@ -12,6 +12,7 @@ use Illuminate\Contracts\Support\Htmlable;
 enum MessageStatus: string implements HasColor, HasIcon, HasLabel
 {
     case Pending = 'pending';
+    case Sending = 'sending';
     case Sent = 'sent';
     case Delivered = 'delivered';
     case Failed = 'failed';
@@ -25,6 +26,7 @@ enum MessageStatus: string implements HasColor, HasIcon, HasLabel
     {
         return match ($this) {
             self::Pending => 'warning',
+            self::Sending => 'primary',
             self::Sent => 'info',
             self::Delivered => 'success',
             self::Failed => 'danger',
@@ -35,6 +37,7 @@ enum MessageStatus: string implements HasColor, HasIcon, HasLabel
     {
         return match ($this) {
             self::Pending => Heroicon::OutlinedClock,
+            self::Sending => Heroicon::OutlinedPlay,
             self::Sent => Heroicon::OutlinedPaperAirplane,
             self::Delivered => Heroicon::OutlinedCheckBadge,
             self::Failed => Heroicon::OutlinedXCircle,

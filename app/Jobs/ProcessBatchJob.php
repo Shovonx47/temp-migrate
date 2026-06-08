@@ -19,6 +19,7 @@ use App\Support\RecipientFileParser;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +27,7 @@ use Illuminate\Support\Facades\Storage;
 use Propaganistas\LaravelPhone\PhoneNumber;
 use Throwable;
 
-class ProcessBatchJob implements ShouldQueue
+class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
 {
     use Queueable;
 
@@ -66,6 +67,11 @@ class ProcessBatchJob implements ShouldQueue
         public readonly string $body,
         public readonly array $bodyVariables,
     ) {}
+
+    public function uniqueId(): string
+    {
+        return 'batch:'.$this->batch->id;
+    }
 
     public function handle(RecipientFileParser $parser): void
     {

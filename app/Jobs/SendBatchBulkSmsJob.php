@@ -79,9 +79,26 @@ class SendBatchBulkSmsJob implements ShouldQueue
 
         $from = $batch->sender?->sender_id;
 
-        $query = $this->messageIds !== []
-            ? Message::whereIn('id', $this->messageIds)->where('status', MessageStatus::Pending)
-            : $batch->messages()->where('status', MessageStatus::Pending);
+        // Atomic idempotency guard: claim all pending messages in this chunk
+        // by flipping status from Pending → Sending in a single UPDATE.
+        // If another worker already claimed them, affected rows will be 0.
+        $ids = $this->messageIds;
+        $claimedQuery = $ids !== []
+            ? DB::table('messages')->whereIn('id', $ids)->where('status', MessageStatus::Pending->value)
+            : DB::table('messages')->where('batch_id', $batch->id)->where('status', MessageStatus::Pending->value);
+
+        $claimed = $claimedQuery->update([
+            'status' => MessageStatus::Sending->value,
+            'updated_at' => now(),
+        ]);
+
+        if ($claimed === 0) {
+            return;
+        }
+
+        $query = $ids !== []
+            ? Message::whereIn('id', $ids)->where('status', MessageStatus::Sending->value)
+            : Message::where('batch_id', $batch->id)->where('status', MessageStatus::Sending->value);
 
         $messages = $query->select(['id', 'to', 'cost', 'is_unicode'])->orderBy('id')->get();
 

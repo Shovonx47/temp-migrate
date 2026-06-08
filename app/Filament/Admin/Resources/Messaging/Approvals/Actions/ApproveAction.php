@@ -13,6 +13,7 @@ use Filament\Notifications\Notification;
 use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class ApproveAction
 {
@@ -32,13 +33,33 @@ class ApproveAction
                     ->rows(3),
             ])
             ->action(function (array $data, Batch $record): void {
-                $record->update([
-                    'status' => BatchStatus::Processing,
-                    'approval' => SmsApproval::Approved,
-                    'approved_by' => Auth::id(),
-                    'approved_at' => now(),
-                    'approval_note' => $data['approval_note'] ?? null,
-                ]);
+                // Atomic guard: only proceed if this batch is still awaiting approval.
+                // Prevents duplicate dispatch when two admins approve simultaneously.
+                $affected = DB::table('batches')
+                    ->where('id', $record->id)
+                    ->where('status', BatchStatus::Pending->value)
+                    ->where('approval', SmsApproval::Pending->value)
+                    ->update([
+                        'status' => BatchStatus::Processing->value,
+                        'approval' => SmsApproval::Approved->value,
+                        'approved_by' => Auth::id(),
+                        'approved_at' => now(),
+                        'approval_note' => $data['approval_note'] ?? null,
+                        'updated_at' => now(),
+                    ]);
+
+                if ($affected === 0) {
+                    Notification::make()
+                        ->title('Already processed')
+                        ->body('This batch has already been approved or rejected by another admin.')
+                        ->warning()
+                        ->send();
+
+                    return;
+                }
+
+                // Refresh the model so downstream code sees the updated state.
+                $record->refresh();
 
                 ProcessBatchJob::dispatch(
                     $record,
@@ -48,7 +69,7 @@ class ApproveAction
                     $record->source_config ?? [],
                     $record->body,
                     $record->extractBodyVariables(),
-                )->onQueue('batches');
+                )->onQueue('batches')->afterCommit();
 
                 Notification::make()
                     ->title('Batch Approved')

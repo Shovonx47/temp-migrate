@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 #[Guarded(['id'])]
 class Batch extends Model implements Transactionable
@@ -114,14 +115,21 @@ class Batch extends Model implements Transactionable
 
     public function retry(): void
     {
-        if ($this->status !== BatchStatus::Failed) {
+        // Atomic guard: only retry if still in Failed status.
+        $affected = DB::table('batches')
+            ->where('id', $this->id)
+            ->where('status', BatchStatus::Failed->value)
+            ->update([
+                'status' => BatchStatus::Processing->value,
+                'completed_at' => null,
+                'updated_at' => now(),
+            ]);
+
+        if ($affected === 0) {
             return;
         }
 
-        $this->update([
-            'status' => BatchStatus::Processing,
-            'completed_at' => null,
-        ]);
+        $this->refresh();
 
         ProcessBatchJob::dispatch(
             $this,
@@ -129,7 +137,7 @@ class Batch extends Model implements Transactionable
             $this->source_config ?? [],
             $this->body,
             $this->extractBodyVariables(),
-        )->onQueue('batches');
+        )->onQueue('batches')->afterCommit();
     }
 
     /**

@@ -31,8 +31,7 @@ class DepositAction
                     ->label('Amount')
                     ->placeholder('Enter amount')
                     ->numeric()
-                    ->required()
-                    ->minValue(0),
+                    ->required(),
             ])
             ->action(function (array $data, User $record) {
                 DB::transaction(function () use ($data, $record) {

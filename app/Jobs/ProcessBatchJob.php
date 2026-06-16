@@ -407,7 +407,7 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
     private function iterateRecipients(RecipientFileParser $parser, ?int $cursor): iterable
     {
         return match ($this->sourceType) {
-            'manual' => $this->iterateManual($cursor),
+            'manual', 'api' => $this->iterateManual($cursor),
             'upload' => $this->iterateUpload($parser, $cursor),
             'group' => $this->iterateGroup($cursor),
             default => [],
@@ -417,7 +417,7 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
     private function computeTotalRecipients(RecipientFileParser $parser): int
     {
         return match ($this->sourceType) {
-            'manual' => count($this->config['recipients'] ?? []),
+            'manual', 'api' => count($this->config['recipients'] ?? []),
             'upload' => $this->countUploadRecipients($parser),
             'group' => $this->countGroupRecipients(),
             default => 0,

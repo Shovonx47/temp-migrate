@@ -16,7 +16,6 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class CampaignResource extends Resource
@@ -62,11 +61,5 @@ class CampaignResource extends Resource
             'create' => CreateCampaign::route('/create'),
             'view' => ViewCampaign::route('/{record}'),
         ];
-    }
-
-    public static function getEloquentQuery(): Builder
-    {
-        return parent::getEloquentQuery()
-            ->where('user_id', auth()->id());
     }
 }

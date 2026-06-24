@@ -60,7 +60,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 
     public function requiresSmsApproval(): bool
     {
-        return !$this->sms_auto_approved;
+        return ! $this->sms_auto_approved;
     }
 
     public function operatorRates(): HasMany

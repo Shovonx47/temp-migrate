@@ -24,10 +24,10 @@ class CustomerInfolist
                                     ->weight('bold'),
                                 TextEntry::make('email')
                                     ->copyable()
-                                    ->url(fn($state) => "mailto:{$state}"),
+                                    ->url(fn ($state) => "mailto:{$state}"),
                                 TextEntry::make('phone')
                                     ->copyable()
-                                    ->url(fn($state) => "tel:{$state}"),
+                                    ->url(fn ($state) => "tel:{$state}"),
                                 TextEntry::make('status')
                                     ->badge(),
                                 TextEntry::make('balance')
@@ -80,7 +80,7 @@ class CustomerInfolist
                             ->label('Front Side of NID'),
                         ImageEntry::make('back_nid')
                             ->label('Back Side of NID'),
-                    ])
+                    ]),
             ]);
     }
 }

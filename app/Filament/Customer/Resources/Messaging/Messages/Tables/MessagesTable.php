@@ -9,6 +9,7 @@ use Filament\Actions\ExportAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Grouping\Group;
@@ -52,9 +53,18 @@ class MessagesTable
                     ->exporter(MessageExporter::class),
             ])
             ->filters([
+                SelectFilter::make('sender_id')
+                    ->label('Sender')
+                    ->relationship(
+                        name: 'sender',
+                        titleAttribute: 'sender_id',
+                        modifyQueryUsing: fn ($query) => $query->accessible()
+                    ),
                 SelectFilter::make('status')
                     ->options(MessageStatus::class),
                 Filter::make('created_at')
+                    ->columnSpan(2)
+                    ->columns(2)
                     ->schema([
                         DatePicker::make('created_from')
                             ->label('Created From'),
@@ -70,6 +80,6 @@ class MessagesTable
                             $query->whereDate('created_at', '<=', $data['created_until']);
                         }
                     }),
-            ]);
+            ], layout: FiltersLayout::AboveContent);
     }
 }

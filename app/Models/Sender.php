@@ -47,4 +47,13 @@ class Sender extends Model
     {
         return $query->where('is_enabled', true);
     }
+
+    #[Scope]
+    protected function accessible(Builder $query): Builder
+    {
+        return $query->where('is_enabled', true)
+            ->whereHas('users', function ($query) {
+                $query->where('user_id', auth()->id());
+            });
+    }
 }

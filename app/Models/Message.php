@@ -6,14 +6,17 @@ use App\Concerns\HasTransactions;
 use App\Contracts\Transactionable;
 use App\Enums\MessageSource;
 use App\Enums\MessageStatus;
+use App\Models\Scopes\OwnedByUser;
 use Database\Factories\MessageFactory;
 use Illuminate\Database\Eloquent\Attributes\Guarded;
+use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Propaganistas\LaravelPhone\Casts\E164PhoneNumberCast;
 
 #[Guarded(['id'])]
+#[ScopedBy(OwnedByUser::class)]
 class Message extends Model implements Transactionable
 {
     /** @use HasFactory<MessageFactory> */

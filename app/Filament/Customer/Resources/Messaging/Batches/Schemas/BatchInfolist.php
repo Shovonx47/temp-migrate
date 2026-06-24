@@ -18,6 +18,7 @@ class BatchInfolist
             ->components([
                 Section::make('Message')
                     ->icon(Heroicon::OutlinedChatBubbleLeftRight)
+                    ->columnSpanFull()
                     ->schema([
                         TextEntry::make('body')
                             ->label('Template')
@@ -33,28 +34,29 @@ class BatchInfolist
                                     ->label('Sender ID')
                                     ->placeholder('—'),
                             ]),
-                        Grid::make(3)
-                            ->schema([
-                                TextEntry::make('messages_count')
-                                    ->label('Pending')
-                                    ->counts(['messages' => fn ($query) => $query->whereStatus('pending')])
-                                    ->formatStateUsing(fn (int $state) => Number::abbreviate($state)),
-                                TextEntry::make('messages_count')
-                                    ->label('Sent')
-                                    ->counts(['messages' => fn ($query) => $query->whereStatus('sent')])
-                                    ->formatStateUsing(fn (int $state) => Number::abbreviate($state)),
-                                TextEntry::make('messages_count')
-                                    ->label('Delivered')
-                                    ->counts(['messages' => fn ($query) => $query->whereStatus('delivered')])
-                                    ->formatStateUsing(fn (int $state) => Number::abbreviate($state)),
-                                TextEntry::make('messages_count')
-                                    ->label('Failed')
-                                    ->counts(['messages' => fn ($query) => $query->whereStatus('failed')])
-                                    ->formatStateUsing(fn (int $state) => Number::abbreviate($state)),
-                            ]),
+                    ]),
+                Section::make('Message Statistics')
+                    ->columns(4)
+                    ->schema([
+                        TextEntry::make('messages_count')
+                            ->label('Pending')
+                            ->counts(['messages' => fn ($query) => $query->whereStatus('pending')])
+                            ->formatStateUsing(fn (int $state) => Number::abbreviate($state)),
+                        TextEntry::make('messages_count')
+                            ->label('Sent')
+                            ->counts(['messages' => fn ($query) => $query->whereStatus('sent')])
+                            ->formatStateUsing(fn (int $state) => Number::abbreviate($state)),
+                        TextEntry::make('messages_count')
+                            ->label('Delivered')
+                            ->counts(['messages' => fn ($query) => $query->whereStatus('delivered')])
+                            ->formatStateUsing(fn (int $state) => Number::abbreviate($state)),
+                        TextEntry::make('messages_count')
+                            ->label('Failed')
+                            ->counts(['messages' => fn ($query) => $query->whereStatus('failed')])
+                            ->formatStateUsing(fn (int $state) => Number::abbreviate($state)),
                     ]),
 
-                Section::make('Statistics')
+                Section::make('Import Statistics')
                     ->icon(Heroicon::OutlinedChartBar)
                     ->afterHeader([
                         Action::make('downloadInvalidReport')
@@ -72,7 +74,7 @@ class BatchInfolist
                                 && (int) $record->invalid_count > 0),
                     ])
                     ->schema([
-                        Grid::make(2)
+                        Grid::make(4)
                             ->schema([
                                 TextEntry::make('total_recipients')
                                     ->label('Total')

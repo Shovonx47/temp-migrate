@@ -19,4 +19,4 @@ class AddIsUnicodeToMessagesTable extends Migration
             $table->dropColumn('is_unicode');
         });
     }
-};
+}

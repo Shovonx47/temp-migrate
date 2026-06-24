@@ -16,7 +16,6 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class MessageResource extends Resource
@@ -59,11 +58,5 @@ class MessageResource extends Resource
             'create-quick' => CreateQuickMessage::route('/quick'),
             'view' => ViewMessage::route('/{record}'),
         ];
-    }
-
-    public static function getEloquentQuery(): Builder
-    {
-        return parent::getEloquentQuery()
-            ->where('user_id', auth()->id());
     }
 }

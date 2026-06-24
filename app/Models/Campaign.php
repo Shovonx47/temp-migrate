@@ -5,8 +5,10 @@ namespace App\Models;
 use App\Concerns\HasTransactions;
 use App\Contracts\Transactionable;
 use App\Enums\CampaignStatus;
+use App\Models\Scopes\OwnedByUser;
 use Database\Factories\CampaignFactory;
 use Illuminate\Database\Eloquent\Attributes\Guarded;
+use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Guarded(['id'])]
+#[ScopedBy(OwnedByUser::class)]
 class Campaign extends Model implements Transactionable
 {
     /** @use HasFactory<CampaignFactory> */

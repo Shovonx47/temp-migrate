@@ -4,14 +4,17 @@ namespace App\Models;
 
 use App\Enums\TransactionableType;
 use App\Enums\TransactionDirection;
+use App\Models\Scopes\OwnedByUser;
 use Database\Factories\TransactionFactory;
 use Illuminate\Database\Eloquent\Attributes\Guarded;
+use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 #[Guarded(['id'])]
+#[ScopedBy(OwnedByUser::class)]
 class Transaction extends Model
 {
     /** @use HasFactory<TransactionFactory> */

@@ -17,7 +17,6 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class GroupResource extends Resource
@@ -62,11 +61,5 @@ class GroupResource extends Resource
             'view' => ViewGroup::route('/{record}'),
             'edit' => EditGroup::route('/{record}/edit'),
         ];
-    }
-
-    public static function getEloquentQuery(): Builder
-    {
-        return parent::getEloquentQuery()
-            ->where('user_id', auth()->id());
     }
 }

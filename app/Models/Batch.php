@@ -8,8 +8,10 @@ use App\Enums\BatchSource;
 use App\Enums\BatchStatus;
 use App\Enums\SmsApproval;
 use App\Jobs\ProcessBatchJob;
+use App\Models\Scopes\OwnedByUser;
 use Database\Factories\BatchFactory;
 use Illuminate\Database\Eloquent\Attributes\Guarded;
+use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -18,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 
 #[Guarded(['id'])]
+#[ScopedBy(OwnedByUser::class)]
 class Batch extends Model implements Transactionable
 {
     /** @use HasFactory<BatchFactory> */
@@ -89,7 +92,7 @@ class Batch extends Model implements Transactionable
                 return $processed > 0 ? (string) $processed : '—';
             }
 
-            return "{$this->progress_percent}% ({$processed} / {$total})";
+            return "{$this->progress_percent}%";
         });
     }
 

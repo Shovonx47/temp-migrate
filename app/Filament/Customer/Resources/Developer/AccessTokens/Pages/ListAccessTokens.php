@@ -22,9 +22,14 @@ class ListAccessTokens extends ListRecords
                 ->createAnother(false)
                 ->modalWidth(Width::Medium)
                 ->action(function (array $data) {
+                    $expiresAt = match ($data['expires_at']) {
+                        'never' => null,
+                        default => now()->addDays($data['expires_at']),
+                    };
+
                     $token = Filament::auth()->user()->createToken(
                         name: $data['name'],
-                        expiresAt: $data['expires_at']
+                        expiresAt: $expiresAt
                     );
 
                     $this->replaceMountedAction('viewToken', ['token' => $token->plainTextToken]);

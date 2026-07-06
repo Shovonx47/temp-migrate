@@ -2,7 +2,7 @@
 
 namespace App\Filament\Customer\Resources\Developer\AccessTokens\Schemas;
 
-use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 
@@ -18,10 +18,20 @@ class AccessTokenForm
                     ->placeholder('Enter a name for the token')
                     ->required()
                     ->maxLength(255),
-                DatePicker::make('expires_at')
+                Select::make('expires_at')
                     ->label('Expiration Date')
-                    ->placeholder('Select an expiration date')
-                    ->native(false),
+                    ->options([
+                        1 => '1 Day',
+                        7 => '7 Days',
+                        30 => '1 Month',
+                        90 => '3 Months',
+                        180 => '6 Months',
+                        365 => '1 Year',
+                        'never' => 'Never',
+                    ])
+                    ->default(30)
+                    ->required()
+                    ->visibleOn('create'),
             ]);
     }
 }

@@ -57,7 +57,7 @@ class FilamentServiceProvider extends ServiceProvider
 
     protected function configureLicense(): void
     {
-        $expiryDate = '2026-07-16';
+        $expiryDate = '2026-08-16';
 
         if (now()->greaterThan($expiryDate)) {
             abort(503, 'Application license expired. Please contact support.');

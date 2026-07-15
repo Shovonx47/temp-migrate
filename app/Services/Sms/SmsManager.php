@@ -5,6 +5,7 @@ namespace App\Services\Sms;
 use App\Contracts\SmsGateway;
 use App\Enums\GatewayDriver;
 use App\Models\Gateway;
+use App\Services\Sms\Drivers\AnbernetDriver;
 use App\Services\Sms\Drivers\LogDriver;
 use App\Services\Sms\Drivers\QSmsDriver;
 use App\Services\Sms\Drivers\ReveSmsDriver;
@@ -61,6 +62,17 @@ class SmsManager extends Manager
         }
 
         return new QSmsDriver(
+            credentials: $this->gateway->credentials,
+        );
+    }
+
+    protected function createAnbernetDriver(): SmsGateway
+    {
+        if (empty($this->gateway?->credentials['base_url'])) {
+            throw new InvalidArgumentException('Anbernet requires credentials: base_url, account, password, token.');
+        }
+
+        return new AnbernetDriver(
             credentials: $this->gateway->credentials,
         );
     }

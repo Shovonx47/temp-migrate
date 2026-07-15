@@ -62,5 +62,34 @@ return [
                 ],
             ],
         ],
+
+        'anbernet' => [
+            'title' => 'Anbernet',
+            'credentials' => [
+                'base_url' => [
+                    'label' => 'Base URL',
+                    'placeholder' => 'https://rapi.anbernet.com:9978',
+                    'helper' => 'RAPI: https://rapi.anbernet.com:9978 or WAPI: https://wapi.anbernet.com:9956',
+                    'required' => true,
+                ],
+                'account' => [
+                    'label' => 'Account',
+                    'placeholder' => 'Enter your account name',
+                    'required' => true,
+                ],
+                'password' => [
+                    'label' => 'Password',
+                    'placeholder' => 'Enter your account password',
+                    'required' => true,
+                    'password' => true,
+                ],
+                'token' => [
+                    'label' => 'Token',
+                    'placeholder' => 'Enter your API token',
+                    'required' => true,
+                    'password' => true,
+                ],
+            ],
+        ],
     ],
 ];

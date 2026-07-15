@@ -4,7 +4,7 @@ use App\Enums\SenderType;
 use App\Models\Gateway;
 use Illuminate\Database\Migrations\Migration;
 
-return new class extends Migration
+class AddAnbernetGateway extends Migration
 {
     public function up(): void
     {

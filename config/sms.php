@@ -91,5 +91,86 @@ return [
                 ],
             ],
         ],
+
+        'infozillion' => [
+            'title' => 'InfoZillion (MNPSP)',
+            'credentials' => [
+                'base_url' => [
+                    'label' => 'Base URL',
+                    'placeholder' => 'https://a2papiintl.mnpspbd.com',
+                    'helper' => 'MNO URL: https://a2papiintl.mnpspbd.com or IPTSP URL: https://a2papiintl.mnpspbd.com',
+                    'required' => true,
+                ],
+                'api_type' => [
+                    'label' => 'API Type',
+                    'placeholder' => 'mno',
+                    'helper' => 'MNO: uses /a2p-sms/ endpoints. IPTSP: uses /a2p-sms-iptsp/ endpoints.',
+                    'required' => true,
+                ],
+                'username' => [
+                    'label' => 'Username',
+                    'placeholder' => 'Enter your aggregator username at MNO',
+                    'required' => true,
+                ],
+                'password' => [
+                    'label' => 'Password',
+                    'placeholder' => 'Enter your aggregator password at MNO',
+                    'required' => true,
+                    'password' => true,
+                ],
+                'bill_msisdn' => [
+                    'label' => 'Bill MSISDN',
+                    'placeholder' => '8801XXXXXXXXX',
+                    'helper' => 'Your registered billing MSISDN at the MNO platform.',
+                    'required' => true,
+                ],
+                'api_key' => [
+                    'label' => 'API Key',
+                    'placeholder' => 'Enter your MNPSP API key',
+                    'required' => true,
+                    'password' => true,
+                ],
+                'username_secondary' => [
+                    'label' => 'Secondary Username',
+                    'placeholder' => 'Optional retry username',
+                    'helper' => 'Used as retry option if primary credentials fail.',
+                    'required' => false,
+                ],
+                'password_secondary' => [
+                    'label' => 'Secondary Password',
+                    'placeholder' => 'Optional retry password',
+                    'required' => false,
+                    'password' => true,
+                ],
+                'bill_msisdn_secondary' => [
+                    'label' => 'Secondary Bill MSISDN',
+                    'placeholder' => 'Optional retry MSISDN',
+                    'required' => false,
+                ],
+                'transaction_type' => [
+                    'label' => 'Transaction Type',
+                    'placeholder' => 'T',
+                    'helper' => 'T for Transactional, P for Promotional.',
+                    'required' => true,
+                ],
+                'message_type' => [
+                    'label' => 'Message Type',
+                    'placeholder' => '1',
+                    'helper' => '1: English Text, 2: English Flash, 3: Unicode Bangla, 4: Unicode Flash Bangla.',
+                    'required' => true,
+                ],
+                'is_long_sms' => [
+                    'label' => 'Long SMS',
+                    'placeholder' => 'false',
+                    'helper' => 'Set to true for messages exceeding 160 characters.',
+                    'required' => false,
+                ],
+                'campaign_id' => [
+                    'label' => 'Campaign ID',
+                    'placeholder' => 'Optional for Transactional, required for Promotional',
+                    'required' => false,
+                ],
+            ],
+        ],
     ],
 ];

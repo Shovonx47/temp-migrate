@@ -6,6 +6,7 @@ use App\Contracts\SmsGateway;
 use App\Enums\GatewayDriver;
 use App\Models\Gateway;
 use App\Services\Sms\Drivers\AnbernetDriver;
+use App\Services\Sms\Drivers\InfozillionDriver;
 use App\Services\Sms\Drivers\LogDriver;
 use App\Services\Sms\Drivers\QSmsDriver;
 use App\Services\Sms\Drivers\ReveSmsDriver;
@@ -73,6 +74,17 @@ class SmsManager extends Manager
         }
 
         return new AnbernetDriver(
+            credentials: $this->gateway->credentials,
+        );
+    }
+
+    protected function createInfozillionDriver(): SmsGateway
+    {
+        if (empty($this->gateway?->credentials['base_url'])) {
+            throw new InvalidArgumentException('Infozillion requires credentials: base_url, username, password, bill_msisdn, api_key.');
+        }
+
+        return new InfozillionDriver(
             credentials: $this->gateway->credentials,
         );
     }

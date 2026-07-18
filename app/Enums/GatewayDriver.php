@@ -14,6 +14,7 @@ enum GatewayDriver: string implements HasIcon, HasLabel
     case ReveSMS = 'revesms';
     case QSMS = 'qsms';
     case Anbernet = 'anbernet';
+    case Infozillion = 'infozillion';
 
     public function getLabel(): string|Htmlable|null
     {
@@ -27,6 +28,7 @@ enum GatewayDriver: string implements HasIcon, HasLabel
             GatewayDriver::ReveSMS => BrandIcon::ReveSMS,
             GatewayDriver::QSMS => Heroicon::OutlinedDevicePhoneMobile,
             GatewayDriver::Anbernet => BrandIcon::Anbernet,
+            GatewayDriver::Infozillion => BrandIcon::Infozillion,
         };
     }
 }

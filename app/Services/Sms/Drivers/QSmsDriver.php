@@ -119,7 +119,7 @@ final readonly class QSmsDriver implements SmsGateway, SupportsBulkSms, Supports
         }
     }
 
-    public function fetchDeliveryStatus(string $gatewayMessageId): DeliveryStatusResponse
+    public function fetchDeliveryStatus(string $gatewayMessageId, ?string $recipient = null): DeliveryStatusResponse
     {
         try {
             $response = $this->client()->get('api/v2/MessageStatus', [

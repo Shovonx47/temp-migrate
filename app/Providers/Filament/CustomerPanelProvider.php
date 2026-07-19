@@ -106,6 +106,18 @@ class CustomerPanelProvider extends PanelProvider
 
             // Custom navigation
             ->navigationItems([
+                NavigationItem::make('Quick Message')
+                    ->url(fn (): string => url('/messaging/messages/quick'))
+                    ->icon(Heroicon::OutlinedBolt)
+                    ->isActiveWhen(fn (): bool => request()->is('messaging/messages/quick'))
+                    ->sort(1),
+
+                NavigationItem::make('Smart Message')
+                    ->url(fn (): string => url('/messaging/messages/smart'))
+                    ->icon(Heroicon::OutlinedSparkles)
+                    ->isActiveWhen(fn (): bool => request()->is('messaging/messages/smart'))
+                    ->sort(2),
+
                 NavigationItem::make('API Documentation')
                     ->url(fn (): string => url('/docs'), shouldOpenInNewTab: true)
                     ->icon(Heroicon::OutlinedBookOpen)

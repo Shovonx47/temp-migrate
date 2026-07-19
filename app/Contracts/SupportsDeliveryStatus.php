@@ -15,5 +15,5 @@ interface SupportsDeliveryStatus
      *   - DeliveryOutcome::InTransit  – the SMSC/carrier has not yet produced a final status;
      *                                   the caller should retry after a delay
      */
-    public function fetchDeliveryStatus(string $gatewayMessageId): DeliveryStatusResponse;
+    public function fetchDeliveryStatus(string $gatewayMessageId, ?string $recipient = null): DeliveryStatusResponse;
 }

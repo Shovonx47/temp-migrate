@@ -214,7 +214,7 @@ test('sets poll_attempt and next_poll_at on messages when driver supports delive
                 return new BulkSmsResponse(successful: true, perRecipientIds: $ids);
             }
 
-            public function fetchDeliveryStatus(string $id): DeliveryStatusResponse
+            public function fetchDeliveryStatus(string $id, ?string $recipient = null): DeliveryStatusResponse
             {
                 return new DeliveryStatusResponse(outcome: DeliveryOutcome::Delivered);
             }

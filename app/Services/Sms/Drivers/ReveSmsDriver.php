@@ -106,7 +106,7 @@ final readonly class ReveSmsDriver implements SmsGateway, SupportsBulkSms, Suppo
         }
     }
 
-    public function fetchDeliveryStatus(string $gatewayMessageId): DeliveryStatusResponse
+    public function fetchDeliveryStatus(string $gatewayMessageId, ?string $recipient = null): DeliveryStatusResponse
     {
         try {
             $response = $this->client()->get('getstatus', [

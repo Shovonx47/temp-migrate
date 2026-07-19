@@ -46,6 +46,39 @@ test('send returns successful response with gateway message id', function () {
         ->and($result->gatewayMessageId)->toBe('2f637717-3de4-4b15-8d69-c794e3e97f9e');
 });
 
+test('send handles integer serverResponseCode from API', function () {
+    Http::fake([
+        '*/a2p-sms/api/v1/send-sms' => Http::response([
+            'serverTxnId' => '07339d8b-da8f-440f-9bd0-8504db0c4e73',
+            'serverResponseCode' => 9000,
+            'serverResponseMessage' => 'Request successful!',
+            'mnoTxnId' => '8183178448560021362',
+            'mnoResponseCode' => '1000',
+            'mnoResponseMessage' => 'Success',
+        ]),
+    ]);
+
+    $driver = new InfozillionDriver([
+        'base_url' => 'https://a2papiintl.mnpspbd.com',
+        'api_type' => 'mno',
+        'username' => 'test_user',
+        'password' => 'test_pass',
+        'bill_msisdn' => '8801526589635',
+        'api_key' => 'test_api_key',
+        'transaction_type' => 'T',
+        'message_type' => '1',
+    ]);
+
+    $result = $driver->send(new SmsRequest(
+        to: '8801720102673',
+        body: 'Test message',
+        from: '22222',
+    ));
+
+    expect($result->successful)->toBeTrue()
+        ->and($result->gatewayMessageId)->toBe('07339d8b-da8f-440f-9bd0-8504db0c4e73');
+});
+
 test('send returns failure when serverResponseCode is not 9000', function () {
     Http::fake([
         '*/a2p-sms/api/v1/send-sms' => Http::response([

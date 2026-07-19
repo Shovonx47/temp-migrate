@@ -97,7 +97,7 @@ final readonly class AnbernetDriver implements SmsGateway, SupportsBulkSms, Supp
         }
     }
 
-    public function fetchDeliveryStatus(string $gatewayMessageId): DeliveryStatusResponse
+    public function fetchDeliveryStatus(string $gatewayMessageId, ?string $recipient = null): DeliveryStatusResponse
     {
         try {
             $response = $this->client()->post('api/v1/dlrcheck', [

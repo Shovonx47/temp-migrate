@@ -58,7 +58,7 @@ function makeSentMessageWithDriver(
                 return new SmsResponse(successful: true);
             }
 
-            public function fetchDeliveryStatus(string $gatewayMessageId): DeliveryStatusResponse
+            public function fetchDeliveryStatus(string $gatewayMessageId, ?string $recipient = null): DeliveryStatusResponse
             {
                 return $this->dlrResponse;
             }

@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Http;
 
 final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, SupportsDashboard, SupportsDeliveryStatus
 {
-    private const A2P_SUCCESS_CODE = '9000';
+    private const string A2P_SUCCESS_CODE = '9000';
 
     public function __construct(private array $credentials = []) {}
 
@@ -39,7 +39,7 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
 
             $data = $response->json() ?? [];
 
-            if ($response->failed() || ($data['serverResponseCode'] ?? '') !== self::A2P_SUCCESS_CODE) {
+            if ($response->failed() || ((string) ($data['serverResponseCode'] ?? '')) !== self::A2P_SUCCESS_CODE) {
                 return new SmsResponse(
                     successful: false,
                     errorMessage: $data['serverResponseMessage'] ?? 'Unknown error',
@@ -75,7 +75,7 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
 
             $data = $response->json() ?? [];
 
-            if ($response->failed() || ($data['serverResponseCode'] ?? '') !== self::A2P_SUCCESS_CODE) {
+            if ($response->failed() || ((string) ($data['serverResponseCode'] ?? '')) !== self::A2P_SUCCESS_CODE) {
                 return new BulkSmsResponse(
                     successful: false,
                     errorMessage: $data['serverResponseMessage'] ?? 'Unknown error',
@@ -96,7 +96,7 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
         }
     }
 
-    public function fetchDeliveryStatus(string $gatewayMessageId): DeliveryStatusResponse
+    public function fetchDeliveryStatus(string $gatewayMessageId, ?string $recipient = null): DeliveryStatusResponse
     {
         try {
             $response = $this->client()->post(
@@ -109,14 +109,14 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
                     'passwordSecondary' => $this->credentials['password_secondary'] ?? '',
                     'billMsisdnSecondary' => $this->credentials['bill_msisdn_secondary'] ?? '',
                     'apiKey' => $this->credentials['api_key'] ?? '',
-                    'msisdnList' => [],
+                    'msisdnList' => $recipient !== null ? [ltrim($recipient, '+')] : [],
                     'serverReference' => $gatewayMessageId,
                 ],
             );
 
             $data = $response->json() ?? [];
 
-            if ($response->failed() || ($data['serverResponseCode'] ?? '') !== self::A2P_SUCCESS_CODE) {
+            if ($response->failed() || ((string) ($data['serverResponseCode'] ?? '')) !== self::A2P_SUCCESS_CODE) {
                 return new DeliveryStatusResponse(
                     outcome: DeliveryOutcome::InTransit,
                     errorMessage: $data['serverResponseMessage'] ?? 'Delivery check failed',
@@ -174,7 +174,7 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
             $response = $this->client()->post($this->resolveEndpoint($endpoint), $payload);
             $data = $response->json() ?? [];
 
-            if ($response->failed() || ($data['serverResponseCode'] ?? '') !== self::A2P_SUCCESS_CODE) {
+            if ($response->failed() || ((string) ($data['serverResponseCode'] ?? '')) !== self::A2P_SUCCESS_CODE) {
                 return null;
             }
 
@@ -192,7 +192,7 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
             'billMsisdn' => $this->credentials['bill_msisdn'] ?? '',
             'apiKey' => $this->credentials['api_key'] ?? '',
             'cli' => $senderId,
-            'msisdnList' => $recipients,
+            'msisdnList' => array_map(fn (string $msisdn) => ltrim($msisdn, '+'), $recipients),
             'transactionType' => $this->credentials['transaction_type'] ?? 'T',
             'messageType' => $isUnicode ? '3' : ($this->credentials['message_type'] ?? '1'),
             'isLongSMS' => (bool) ($this->credentials['is_long_sms'] ?? false),

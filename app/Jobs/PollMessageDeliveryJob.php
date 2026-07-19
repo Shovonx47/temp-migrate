@@ -83,7 +83,7 @@ class PollMessageDeliveryJob implements ShouldQueue
             return;
         }
 
-        $dlr = $driver->fetchDeliveryStatus((string) $message->gateway_message_id);
+        $dlr = $driver->fetchDeliveryStatus((string) $message->gateway_message_id, (string) $message->to);
         $now = Carbon::now();
 
         match ($dlr->outcome) {

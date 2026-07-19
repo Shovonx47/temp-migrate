@@ -21,7 +21,7 @@ class RecentTransactionsWidget extends BaseWidget
             ->query(
                 Transaction::where('user_id', auth()->id())
                     ->latest()
-                    ->limit(10)
+                    ->limit(5)
             )
             ->columns([
                 TextColumn::make('created_at')

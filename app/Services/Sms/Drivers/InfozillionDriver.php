@@ -4,18 +4,21 @@ namespace App\Services\Sms\Drivers;
 
 use App\Contracts\SmsGateway;
 use App\Contracts\SupportsBulkSms;
+use App\Contracts\SupportsDashboard;
 use App\Contracts\SupportsDeliveryStatus;
 use App\Enums\DeliveryOutcome;
 use App\Services\Sms\Data\BulkSmsRequest;
 use App\Services\Sms\Data\BulkSmsResponse;
+use App\Services\Sms\Data\DashboardData;
 use App\Services\Sms\Data\DeliveryStatusResponse;
 use App\Services\Sms\Data\SmsRequest;
 use App\Services\Sms\Data\SmsResponse;
+use App\Services\Sms\Data\StatCard;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 
-final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, SupportsDeliveryStatus
+final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, SupportsDashboard, SupportsDeliveryStatus
 {
     private const A2P_SUCCESS_CODE = '9000';
 
@@ -130,6 +133,57 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
         }
     }
 
+    public function getDashboardData(): DashboardData
+    {
+        $cards = [];
+
+        $wallet = $this->fetchBalance('check-current-balance', [
+            'apiKey' => $this->credentials['api_key'] ?? '',
+        ]);
+
+        $cards[] = new StatCard(
+            label: 'Wallet Balance',
+            value: $wallet ?? 'N/A',
+            description: 'Available balance at CP end',
+            color: $wallet !== null ? 'success' : 'danger',
+            icon: 'heroicon-o-banknotes',
+        );
+
+        foreach (['GP' => 'GrameenPhone', 'RB' => 'Robi', 'TT' => 'Teletalk', 'BL' => 'Banglalink'] as $code => $name) {
+            $balance = $this->fetchBalance('check-credit-balance', [
+                'username' => $this->credentials['username'] ?? '',
+                'password' => $this->credentials['password'] ?? '',
+                'mno' => $code,
+                'apiKey' => $this->credentials['api_key'] ?? '',
+            ]);
+
+            $cards[] = new StatCard(
+                label: "{$name} Balance",
+                value: $balance ?? 'N/A',
+                description: "{$code} carrier credit",
+                icon: 'heroicon-o-device-phone-mobile',
+            );
+        }
+
+        return new DashboardData(cards: $cards);
+    }
+
+    private function fetchBalance(string $endpoint, array $payload): ?string
+    {
+        try {
+            $response = $this->client()->post($this->resolveEndpoint($endpoint), $payload);
+            $data = $response->json() ?? [];
+
+            if ($response->failed() || ($data['serverResponseCode'] ?? '') !== self::A2P_SUCCESS_CODE) {
+                return null;
+            }
+
+            return $data['availableBalance'] ?? null;
+        } catch (ConnectionException) {
+            return null;
+        }
+    }
+
     private function buildSendPayload(array $recipients, string $body, string $senderId, bool $isUnicode): array
     {
         $payload = [
@@ -214,6 +268,10 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
             'check-delivery-report' => $type === 'iptsp'
                 ? 'a2p-proxy-api-iptsp/api/v1/check-delivery-report'
                 : 'a2p-proxy-api/api/v1/check-delivery-report',
+            'check-credit-balance' => $type === 'iptsp'
+                ? 'a2p-proxy-api-iptsp/api/v1/check-credit-balance'
+                : 'a2p-proxy-api/api/v1/check-credit-balance',
+            'check-current-balance' => 'a2p-wallet/api/v1/check-current-balance',
             default => $action,
         };
     }

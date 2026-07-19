@@ -101,6 +101,11 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         return $this->hasMany(Campaign::class, 'user_id');
     }
 
+    public function batches(): HasMany
+    {
+        return $this->hasMany(Batch::class, 'user_id');
+    }
+
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class, 'user_id');

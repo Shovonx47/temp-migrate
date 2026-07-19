@@ -12,11 +12,11 @@ class CampaignStatsWidget extends BaseWidget
 
     public function getStats(): array
     {
-        $stats = auth()->user()->campaigns()
+        $stats = auth()->user()->batches()
             ->selectRaw('COUNT(*) as total')
             ->selectRaw("COALESCE(SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END), 0) as processing")
             ->selectRaw("COALESCE(SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END), 0) as completed")
-            ->selectRaw("COALESCE(SUM(CASE WHEN status = 'scheduled' THEN 1 ELSE 0 END), 0) as scheduled")
+            ->selectRaw("COALESCE(SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END), 0) as pending")
             ->first();
 
         return [
@@ -34,8 +34,8 @@ class CampaignStatsWidget extends BaseWidget
                 ->color('primary')
                 ->icon('heroicon-o-check-circle'),
 
-            Stat::make('Scheduled', Number::abbreviate((int) $stats->scheduled))
-                ->description('Upcoming campaigns')
+            Stat::make('Pending', Number::abbreviate((int) $stats->pending))
+                ->description('Awaiting approval')
                 ->color('warning')
                 ->icon('heroicon-o-clock'),
         ];

@@ -14,6 +14,7 @@ use App\Models\Message;
 use App\Models\Sender;
 use App\Models\User;
 use App\Support\MessageMetrics;
+use App\Support\MnoCarrier;
 use App\Support\OperatorRateResolver;
 use App\Support\RecipientFileParser;
 use Filament\Actions\Action;
@@ -51,6 +52,8 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
     private bool $isMaskingSender = false;
 
     private bool $usesBulkSending = false;
+
+    private ?string $gatewayMnoCode = null;
 
     /**
      * @param  array<string, mixed>  $config
@@ -124,6 +127,13 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
 
                 if ($formattedNumber === null) {
                     $this->recordFailure($phoneRaw, 'Invalid phone number format', $failedCount, $processedSinceFlush);
+                    $this->maybeFlush($batch, $rows, $successCount, $failedCount, $processedSinceFlush, $latestCursor);
+
+                    continue;
+                }
+
+                if ($this->gatewayMnoCode !== null && ! MnoCarrier::matchesCarrier($formattedNumber, $this->gatewayMnoCode)) {
+                    $this->recordFailure($phoneRaw, 'Carrier mismatch: recipient belongs to a different operator than the gateway', $failedCount, $processedSinceFlush);
                     $this->maybeFlush($batch, $rows, $successCount, $failedCount, $processedSinceFlush, $latestCursor);
 
                     continue;
@@ -767,5 +777,10 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
         $this->isMaskingSender = $sender->type->isMasking();
         $this->rateResolver = OperatorRateResolver::forUser($user);
         $this->usesBulkSending = ! $batch->hasBodyVariables() && ($sender->gateway?->supports_bulk ?? false);
+
+        $gateway = $sender->gateway;
+        if ($gateway !== null && data_get($gateway->credentials, 'api_type') === 'mno') {
+            $this->gatewayMnoCode = MnoCarrier::fromBillMsisdn((string) data_get($gateway->credentials, 'bill_msisdn', ''));
+        }
     }
 }

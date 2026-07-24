@@ -775,3 +775,208 @@ test('no send job is dispatched when all recipients are invalid', function () {
     Bus::assertNotDispatched(SendBatchBulkSmsJob::class);
     Bus::assertNotDispatched(SendBatchSingleSmsJob::class);
 });
+
+test('MNO gateway filters non-matching carrier recipients', function () {
+    $user = User::factory()->create(['balance' => 100]);
+
+    $gateway = Gateway::factory()->create([
+        'driver' => GatewayDriver::Infozillion,
+        'credentials' => [
+            'api_type' => 'mno',
+            'bill_msisdn' => '8801712345678',
+            'username' => 'test_user',
+            'password' => 'test_pass',
+            'api_key' => 'test_key',
+        ],
+        'is_enabled' => true,
+        'supports_bulk' => true,
+    ]);
+    $sender = Sender::factory()->create([
+        'gateway_id' => $gateway->id,
+        'type' => SenderType::Numeric,
+    ]);
+
+    $batch = Batch::factory()->for($user)->create(['sender_id' => $sender->id]);
+
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [
+            ['phone' => '01711000001', 'values' => []], // GP - matches
+            ['phone' => '01711000002', 'values' => []], // GP - matches
+            ['phone' => '01411000001', 'values' => []], // BL - mismatch
+            ['phone' => '01511000001', 'values' => []], // TT - mismatch
+        ]],
+        body: 'Hi',
+    );
+
+    expect(Message::count())->toBe(2)
+        ->and(Message::pluck('to')->map(fn ($p): string => (string) $p)->all())->toBe(['+8801711000001', '+8801711000002'])
+        ->and($batch->fresh()->valid_count)->toBe(2)
+        ->and($batch->fresh()->invalid_count)->toBe(2)
+        ->and($batch->fresh()->status)->toBe(BatchStatus::Completed);
+
+    $reports = Storage::disk('local')->files('batches/'.$batch->id);
+    expect($reports)->not->toBeEmpty();
+
+    $csv = Storage::disk('local')->get($reports[0]);
+    expect($csv)->toContain('Carrier mismatch')
+        ->and(substr_count($csv, 'Carrier mismatch'))->toBe(2);
+});
+
+test('MNO gateway accepts all matching carrier recipients', function () {
+    $user = User::factory()->create(['balance' => 100]);
+
+    $gateway = Gateway::factory()->create([
+        'driver' => GatewayDriver::Infozillion,
+        'credentials' => [
+            'api_type' => 'mno',
+            'bill_msisdn' => '8801712345678',
+            'username' => 'test_user',
+            'password' => 'test_pass',
+            'api_key' => 'test_key',
+        ],
+        'is_enabled' => true,
+        'supports_bulk' => true,
+    ]);
+    $sender = Sender::factory()->create([
+        'gateway_id' => $gateway->id,
+        'type' => SenderType::Numeric,
+    ]);
+
+    $batch = Batch::factory()->for($user)->create(['sender_id' => $sender->id]);
+
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [
+            ['phone' => '01711000001', 'values' => []], // GP
+            ['phone' => '01711000002', 'values' => []], // GP
+            ['phone' => '01311000001', 'values' => []], // GP (013 prefix)
+        ]],
+        body: 'Hi',
+    );
+
+    expect(Message::count())->toBe(3)
+        ->and($batch->fresh()->valid_count)->toBe(3)
+        ->and($batch->fresh()->invalid_count)->toBe(0)
+        ->and(Storage::disk('local')->files('batches/'.$batch->id))->toBeEmpty();
+});
+
+test('IPTSP gateway has no carrier filtering', function () {
+    $user = User::factory()->create(['balance' => 100]);
+
+    $gateway = Gateway::factory()->create([
+        'driver' => GatewayDriver::Infozillion,
+        'credentials' => [
+            'api_type' => 'iptsp',
+            'bill_msisdn' => '8801712345678',
+            'username' => 'test_user',
+            'password' => 'test_pass',
+            'api_key' => 'test_key',
+        ],
+        'is_enabled' => true,
+        'supports_bulk' => true,
+    ]);
+    $sender = Sender::factory()->create([
+        'gateway_id' => $gateway->id,
+        'type' => SenderType::Numeric,
+    ]);
+
+    $batch = Batch::factory()->for($user)->create(['sender_id' => $sender->id]);
+
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [
+            ['phone' => '01711000001', 'values' => []], // GP
+            ['phone' => '01411000001', 'values' => []], // BL
+            ['phone' => '01511000001', 'values' => []], // TT
+        ]],
+        body: 'Hi',
+    );
+
+    expect(Message::count())->toBe(3)
+        ->and($batch->fresh()->valid_count)->toBe(3)
+        ->and($batch->fresh()->invalid_count)->toBe(0);
+});
+
+test('gateway with unrecognized bill_msisdn prefix has no filtering', function () {
+    $user = User::factory()->create(['balance' => 100]);
+
+    $gateway = Gateway::factory()->create([
+        'driver' => GatewayDriver::Infozillion,
+        'credentials' => [
+            'api_type' => 'mno',
+            'bill_msisdn' => '8801212345678', // unknown prefix
+            'username' => 'test_user',
+            'password' => 'test_pass',
+            'api_key' => 'test_key',
+        ],
+        'is_enabled' => true,
+        'supports_bulk' => true,
+    ]);
+    $sender = Sender::factory()->create([
+        'gateway_id' => $gateway->id,
+        'type' => SenderType::Numeric,
+    ]);
+
+    $batch = Batch::factory()->for($user)->create(['sender_id' => $sender->id]);
+
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [
+            ['phone' => '01711000001', 'values' => []], // GP
+            ['phone' => '01411000001', 'values' => []], // BL
+        ]],
+        body: 'Hi',
+    );
+
+    expect(Message::count())->toBe(2)
+        ->and($batch->fresh()->valid_count)->toBe(2)
+        ->and($batch->fresh()->invalid_count)->toBe(0);
+});
+
+test('MNO gateway with BL bill_msisdn only accepts BL numbers', function () {
+    $user = User::factory()->create(['balance' => 100]);
+
+    $gateway = Gateway::factory()->create([
+        'driver' => GatewayDriver::Infozillion,
+        'credentials' => [
+            'api_type' => 'mno',
+            'bill_msisdn' => '8801412345678', // BL
+            'username' => 'test_user',
+            'password' => 'test_pass',
+            'api_key' => 'test_key',
+        ],
+        'is_enabled' => true,
+        'supports_bulk' => true,
+    ]);
+    $sender = Sender::factory()->create([
+        'gateway_id' => $gateway->id,
+        'type' => SenderType::Numeric,
+    ]);
+
+    $batch = Batch::factory()->for($user)->create(['sender_id' => $sender->id]);
+
+    runBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [
+            ['phone' => '01411000001', 'values' => []], // BL - matches
+            ['phone' => '01911000001', 'values' => []], // BL (019 prefix) - matches
+            ['phone' => '01711000001', 'values' => []], // GP - mismatch
+        ]],
+        body: 'Hi',
+    );
+
+    expect(Message::count())->toBe(2)
+        ->and($batch->fresh()->valid_count)->toBe(2)
+        ->and($batch->fresh()->invalid_count)->toBe(1);
+
+    $reports = Storage::disk('local')->files('batches/'.$batch->id);
+    $csv = Storage::disk('local')->get($reports[0]);
+    expect($csv)->toContain('Carrier mismatch')
+        ->and(substr_count($csv, 'Carrier mismatch'))->toBe(1);
+});

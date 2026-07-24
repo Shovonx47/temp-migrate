@@ -503,3 +503,153 @@ test('delivery check uses IPTSP endpoint when api_type is iptsp', function () {
 
     expect($result->outcome)->toBe(DeliveryOutcome::Delivered);
 });
+
+/*
+|--------------------------------------------------------------------------
+| Dashboard tests
+|--------------------------------------------------------------------------
+*/
+
+test('getDashboardData checks MNO balances when api_type is mno', function () {
+    Http::fake([
+        '*/a2p-wallet/api/v1/check-current-balance' => Http::response([
+            'serverResponseCode' => '9000',
+            'availableBalance' => '500.00',
+        ]),
+        '*/a2p-proxy-api/api/v1/check-credit-balance' => Http::response([
+            'serverResponseCode' => '9000',
+            'availableBalance' => '200.00',
+        ]),
+    ]);
+
+    $driver = new InfozillionDriver([
+        'base_url' => 'https://a2papiintl.mnpspbd.com',
+        'api_type' => 'mno',
+        'username' => 'test_user',
+        'password' => 'test_pass',
+        'bill_msisdn' => '8801526589635',
+        'api_key' => 'test_api_key',
+    ]);
+
+    $dashboard = $driver->getDashboardData();
+
+    expect($dashboard->cards)->toHaveCount(5)
+        ->and($dashboard->cards[0]->label)->toBe('Wallet Balance')
+        ->and($dashboard->cards[0]->value)->toBe('500.00')
+        ->and($dashboard->cards[1]->label)->toBe('GrameenPhone Balance')
+        ->and($dashboard->cards[2]->label)->toBe('Robi Balance')
+        ->and($dashboard->cards[3]->label)->toBe('Teletalk Balance')
+        ->and($dashboard->cards[4]->label)->toBe('Banglalink Balance');
+
+    Http::assertSent(function ($request) {
+        return $request->url() === 'https://a2papiintl.mnpspbd.com/a2p-proxy-api/api/v1/check-credit-balance'
+            && $request->data()['mno'] === 'GP';
+    });
+});
+
+test('getDashboardData checks IPTSP balances when api_type is iptsp', function () {
+    Http::fake([
+        '*/a2p-wallet/api/v1/check-current-balance' => Http::response([
+            'serverResponseCode' => '9000',
+            'availableBalance' => '1000.00',
+        ]),
+        '*/a2p-proxy-api-iptsp/api/v1/check-credit-balance' => Http::response([
+            'serverResponseCode' => '9000',
+            'availableBalance' => '300.00',
+        ]),
+    ]);
+
+    $driver = new InfozillionDriver([
+        'base_url' => 'https://a2papiintl.mnpspbd.com',
+        'api_type' => 'iptsp',
+        'username' => 'test_user',
+        'password' => 'test_pass',
+        'bill_msisdn' => '8801526589635',
+        'api_key' => 'test_api_key',
+    ]);
+
+    $dashboard = $driver->getDashboardData();
+
+    expect($dashboard->cards)->toHaveCount(11)
+        ->and($dashboard->cards[0]->label)->toBe('Wallet Balance')
+        ->and($dashboard->cards[1]->label)->toBe('ADN Balance')
+        ->and($dashboard->cards[2]->label)->toBe('Mirnet Balance')
+        ->and($dashboard->cards[3]->label)->toBe('Bracnet Balance')
+        ->and($dashboard->cards[4]->label)->toBe('AmberIT Balance')
+        ->and($dashboard->cards[5]->label)->toBe('RanksITT Balance')
+        ->and($dashboard->cards[6]->label)->toBe('Premium Balance')
+        ->and($dashboard->cards[7]->label)->toBe('FusionNet Balance')
+        ->and($dashboard->cards[8]->label)->toBe('Brilliant Balance')
+        ->and($dashboard->cards[9]->label)->toBe('Metronet Balance')
+        ->and($dashboard->cards[10]->label)->toBe('RaceOnline Balance');
+
+    Http::assertSent(function ($request) {
+        return $request->url() === 'https://a2papiintl.mnpspbd.com/a2p-proxy-api-iptsp/api/v1/check-credit-balance'
+            && $request->data()['mno'] === 'ADN';
+    });
+});
+
+test('getDashboardData respects enabled_carriers filter for MNO', function () {
+    Http::fake([
+        '*/a2p-wallet/api/v1/check-current-balance' => Http::response([
+            'serverResponseCode' => '9000',
+            'availableBalance' => '500.00',
+        ]),
+        '*/a2p-proxy-api/api/v1/check-credit-balance' => Http::response([
+            'serverResponseCode' => '9000',
+            'availableBalance' => '200.00',
+        ]),
+    ]);
+
+    $driver = new InfozillionDriver([
+        'base_url' => 'https://a2papiintl.mnpspbd.com',
+        'api_type' => 'mno',
+        'username' => 'test_user',
+        'password' => 'test_pass',
+        'bill_msisdn' => '8801526589635',
+        'api_key' => 'test_api_key',
+        'enabled_carriers' => ['GP', 'RB'],
+    ]);
+
+    $dashboard = $driver->getDashboardData();
+
+    expect($dashboard->cards)->toHaveCount(3)
+        ->and($dashboard->cards[0]->label)->toBe('Wallet Balance')
+        ->and($dashboard->cards[1]->label)->toBe('GrameenPhone Balance')
+        ->and($dashboard->cards[2]->label)->toBe('Robi Balance');
+
+    Http::assertSent(function ($request) {
+        return $request->url() === 'https://a2papiintl.mnpspbd.com/a2p-proxy-api/api/v1/check-credit-balance'
+            && $request->data()['mno'] === 'RB';
+    });
+});
+
+test('getDashboardData respects enabled_carriers filter for IPTSP', function () {
+    Http::fake([
+        '*/a2p-wallet/api/v1/check-current-balance' => Http::response([
+            'serverResponseCode' => '9000',
+            'availableBalance' => '1000.00',
+        ]),
+        '*/a2p-proxy-api-iptsp/api/v1/check-credit-balance' => Http::response([
+            'serverResponseCode' => '9000',
+            'availableBalance' => '300.00',
+        ]),
+    ]);
+
+    $driver = new InfozillionDriver([
+        'base_url' => 'https://a2papiintl.mnpspbd.com',
+        'api_type' => 'iptsp',
+        'username' => 'test_user',
+        'password' => 'test_pass',
+        'bill_msisdn' => '8801526589635',
+        'api_key' => 'test_api_key',
+        'enabled_carriers' => ['RT', 'BN'],
+    ]);
+
+    $dashboard = $driver->getDashboardData();
+
+    expect($dashboard->cards)->toHaveCount(3)
+        ->and($dashboard->cards[0]->label)->toBe('Wallet Balance')
+        ->and($dashboard->cards[1]->label)->toBe('Bracnet Balance')
+        ->and($dashboard->cards[2]->label)->toBe('RanksITT Balance');
+});

@@ -100,6 +100,32 @@ class GatewayForm
         $config = data_get($driverConfig, $section, []);
 
         foreach ($config as $key => $options) {
+            $type = $options['type'] ?? 'text';
+
+            if ($type === 'hidden') {
+                continue;
+            }
+
+            if ($type === 'multi_select') {
+                $fields[] = Select::make("$section.$key")
+                    ->label($options['label'] ?? ucfirst($key))
+                    ->multiple()
+                    ->options(fn (Get $get) => self::getCarrierOptions($get("{$section}.api_type") ?? 'mno'))
+                    ->live()
+                    ->required($options['required'] ?? false);
+
+                continue;
+            }
+
+            if ($type === 'select') {
+                $fields[] = Select::make("$section.$key")
+                    ->label($options['label'] ?? ucfirst($key))
+                    ->options($options['options'] ?? [])
+                    ->required($options['required'] ?? false);
+
+                continue;
+            }
+
             $field = TextInput::make("$section.$key")
                 ->label($options['label'] ?? ucfirst($key))
                 ->placeholder($options['placeholder'] ?? "$placeholderPrefix $key")
@@ -113,6 +139,30 @@ class GatewayForm
         }
 
         return $fields;
+    }
+
+    private static function getCarrierOptions(string $apiType): array
+    {
+        return match ($apiType) {
+            'iptsp' => [
+                'ADN' => 'ADN',
+                'MN' => 'Mirnet',
+                'BN' => 'Bracnet',
+                'AIT' => 'AmberIT',
+                'RT' => 'RanksITT',
+                'PRM' => 'Premium',
+                'FN' => 'FusionNet',
+                'BR' => 'Brilliant',
+                'MTN' => 'Metronet',
+                'RCO' => 'RaceOnline',
+            ],
+            default => [
+                'GP' => 'GrameenPhone',
+                'RB' => 'Robi',
+                'TT' => 'Teletalk',
+                'BL' => 'Banglalink',
+            ],
+        };
     }
 
     public static function getDriverOptions(): Collection

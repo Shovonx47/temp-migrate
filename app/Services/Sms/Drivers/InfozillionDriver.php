@@ -135,21 +135,45 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
 
     public function getDashboardData(): DashboardData
     {
-        $cards = [];
+        $mnoCodes = $this->credentials['api_type'] === 'iptsp'
+            ? [
+                'ADN' => 'ADN',
+                'MN' => 'Mirnet',
+                'BN' => 'Bracnet',
+                'AIT' => 'AmberIT',
+                'RT' => 'RanksITT',
+                'PRM' => 'Premium',
+                'FN' => 'FusionNet',
+                'BR' => 'Brilliant',
+                'MTN' => 'Metronet',
+                'RCO' => 'RaceOnline',
+            ]
+            : [
+                'GP' => 'GrameenPhone',
+                'RB' => 'Robi',
+                'TT' => 'Teletalk',
+                'BL' => 'Banglalink',
+            ];
+
+        $enabledCarriers = $this->credentials['enabled_carriers'] ?? [];
+
+        if (! empty($enabledCarriers) && is_array($enabledCarriers)) {
+            $mnoCodes = array_filter($mnoCodes, fn ($name, $code) => in_array($code, $enabledCarriers), ARRAY_FILTER_USE_BOTH);
+        }
 
         $wallet = $this->fetchBalance('check-current-balance', [
             'apiKey' => $this->credentials['api_key'] ?? '',
         ]);
 
-        $cards[] = new StatCard(
+        $cards = [new StatCard(
             label: 'Wallet Balance',
             value: $wallet ?? 'N/A',
             description: 'Available balance at CP end',
             color: $wallet !== null ? 'success' : 'danger',
             icon: 'heroicon-o-banknotes',
-        );
+        )];
 
-        foreach (['GP' => 'GrameenPhone', 'RB' => 'Robi', 'TT' => 'Teletalk', 'BL' => 'Banglalink'] as $code => $name) {
+        foreach ($mnoCodes as $code => $name) {
             $balance = $this->fetchBalance('check-credit-balance', [
                 'username' => $this->credentials['username'] ?? '',
                 'password' => $this->credentials['password'] ?? '',
@@ -283,6 +307,7 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
         return Http::baseUrl($baseUrl)
             ->withoutVerifying()
             ->asJson()
-            ->acceptJson();
+            ->acceptJson()
+            ->timeout(10);
     }
 }

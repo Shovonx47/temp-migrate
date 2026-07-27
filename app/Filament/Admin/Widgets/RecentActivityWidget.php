@@ -13,7 +13,7 @@ class RecentActivityWidget extends BaseWidget
 
     protected ?string $pollingInterval = '60s';
 
-    protected int|string|array $columnSpan = 'full';
+    protected int|string|array $columnSpan = 1;
 
     public function table(Table $table): Table
     {

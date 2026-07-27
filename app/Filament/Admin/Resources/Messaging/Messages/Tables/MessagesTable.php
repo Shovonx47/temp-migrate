@@ -4,10 +4,12 @@ namespace App\Filament\Admin\Resources\Messaging\Messages\Tables;
 
 use App\Enums\MessageSource;
 use App\Enums\MessageStatus;
+use App\Filament\Exports\MessageExporter;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ExportAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Columns\Summarizers\Count;
@@ -106,6 +108,10 @@ class MessagesTable
                             );
                     }),
             ], layout: FiltersLayout::AboveContent)
+            ->headerActions([
+                ExportAction::make()
+                    ->exporter(MessageExporter::class),
+            ])
             ->recordActions([
                 ActionGroup::make([
                     ViewAction::make(),

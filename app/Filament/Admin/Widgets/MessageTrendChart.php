@@ -2,15 +2,19 @@
 
 namespace App\Filament\Admin\Widgets;
 
+use App\Filament\Concerns\HasDateFilter;
 use App\Models\Message;
 use Carbon\Carbon;
 use Filament\Widgets\ChartWidget;
+use Filament\Widgets\Concerns\InteractsWithPageFilters;
 
 class MessageTrendChart extends ChartWidget
 {
+    use InteractsWithPageFilters;
+
     protected ?string $heading = 'Message Trends';
 
-    protected ?string $description = 'Messages sent per day (last 30 days)';
+    protected ?string $description = 'Messages sent per day';
 
     protected int|string|array $columnSpan = 1;
 
@@ -18,10 +22,13 @@ class MessageTrendChart extends ChartWidget
 
     protected function getData(): array
     {
+        [$from, $to] = HasDateFilter::resolveDateRange($this->pageFilters);
+
         $data = Message::withoutGlobalScopes()
-            ->where('sent_at', '>=', now()->subDays(30))
+            ->where('created_at', '>=', $from)
+            ->where('created_at', '<=', $to)
             ->toBase()
-            ->selectRaw('DATE(sent_at) as date, COUNT(*) as count')
+            ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
             ->groupBy('date')
             ->orderBy('date')
             ->get();

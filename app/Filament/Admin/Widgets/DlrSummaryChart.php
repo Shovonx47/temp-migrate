@@ -2,14 +2,18 @@
 
 namespace App\Filament\Admin\Widgets;
 
+use App\Filament\Concerns\HasDateFilter;
 use App\Models\Message;
 use Filament\Widgets\ChartWidget;
+use Filament\Widgets\Concerns\InteractsWithPageFilters;
 
 class DlrSummaryChart extends ChartWidget
 {
+    use InteractsWithPageFilters;
+
     protected ?string $heading = 'DLR Summary';
 
-    protected ?string $description = 'Delivery status breakdown (last 30 days)';
+    protected ?string $description = 'Delivery status breakdown';
 
     protected int|string|array $columnSpan = 1;
 
@@ -17,8 +21,11 @@ class DlrSummaryChart extends ChartWidget
 
     protected function getData(): array
     {
+        [$from, $to] = HasDateFilter::resolveDateRange($this->pageFilters);
+
         $baseQuery = Message::withoutGlobalScopes()
-            ->where('created_at', '>=', now()->subDays(30));
+            ->where('created_at', '>=', $from)
+            ->where('created_at', '<=', $to);
 
         $delivered = (clone $baseQuery)->where('status', 'delivered')->count();
         $failed = (clone $baseQuery)->where('status', 'failed')->count();

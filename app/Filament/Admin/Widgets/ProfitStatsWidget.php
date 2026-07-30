@@ -2,12 +2,16 @@
 
 namespace App\Filament\Admin\Widgets;
 
+use App\Filament\Concerns\HasDateFilter;
 use App\Services\Analytics\ProfitCalculationService;
+use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class ProfitStatsWidget extends BaseWidget
 {
+    use InteractsWithPageFilters;
+
     protected ?string $pollingInterval = '60s';
 
     protected int|array|null $columns = 4;
@@ -15,32 +19,26 @@ class ProfitStatsWidget extends BaseWidget
     public function getStats(): array
     {
         $service = app(ProfitCalculationService::class);
-        $summary = $service->getSummary();
+        [$from, $to] = HasDateFilter::resolveDateRange($this->pageFilters);
 
-        $today = $summary['today'];
-        $thisMonth = $summary['this_month'];
-        $overall = $summary['overall'];
+        $period = $service->calculateForPeriod($from, $to);
+        $overall = $service->calculateForPeriod(now()->subYears(10), now());
 
         return [
-            Stat::make('Revenue Today', number_format($today['revenue'], 2).' BDT')
-                ->description($today['messages'].' messages')
+            Stat::make('Period Revenue', number_format($period['revenue'], 2).' BDT')
+                ->description($period['messages'].' messages')
                 ->color('success')
                 ->icon('heroicon-o-banknotes'),
 
-            Stat::make('Cost Today', number_format($today['cost'], 2).' BDT')
+            Stat::make('Period Cost', number_format($period['cost'], 2).' BDT')
                 ->description('Gateway cost')
                 ->color('danger')
                 ->icon('heroicon-o-arrow-trending-down'),
 
-            Stat::make('Profit Today', number_format($today['profit'], 2).' BDT')
-                ->description($today['margin'].'% margin')
-                ->color($today['profit'] >= 0 ? 'success' : 'danger')
+            Stat::make('Period Profit', number_format($period['profit'], 2).' BDT')
+                ->description($period['margin'].'% margin')
+                ->color($period['profit'] >= 0 ? 'success' : 'danger')
                 ->icon('heroicon-o-chart-bar'),
-
-            Stat::make('Profit This Month', number_format($thisMonth['profit'], 2).' BDT')
-                ->description($thisMonth['margin'].'% margin')
-                ->color($thisMonth['profit'] >= 0 ? 'success' : 'danger')
-                ->icon('heroicon-o-calendar'),
 
             Stat::make('Total Revenue', number_format($overall['revenue'], 2).' BDT')
                 ->description('All time')

@@ -210,25 +210,29 @@ class ProfitCalculationService
     }
 
     /**
-     * Get daily profit trend for the last N days.
+     * Get daily profit trend for a date range.
      *
      * @return array<int, array{date: string, revenue: float, cost: float, profit: float}>
      */
-    public function getDailyTrend(int $days = 30): array
+    public function getDailyTrend(?Carbon $from = null, ?Carbon $to = null): array
     {
-        $cacheKey = "profit.trend.{$days}";
+        $from = $from ?? now()->subDays(30);
+        $to = $to ?? now();
 
-        return Cache::remember($cacheKey, 300, function () use ($days) {
-            return $this->computeDailyTrend($days);
+        $cacheKey = 'profit.trend.'.$from->toDateString().'_'.$to->toDateString();
+
+        return Cache::remember($cacheKey, 300, function () use ($from, $to) {
+            return $this->computeDailyTrend($from, $to);
         });
     }
 
-    private function computeDailyTrend(int $days): array
+    private function computeDailyTrend(Carbon $from, Carbon $to): array
     {
         $results = [];
+        $days = $from->diffInDays($to) + 1;
 
         for ($i = $days - 1; $i >= 0; $i--) {
-            $date = now()->subDays($i);
+            $date = $to->copy()->subDays($i);
             $result = $this->computeForPeriod(
                 $date->copy()->startOfDay(),
                 $date->copy()->endOfDay()

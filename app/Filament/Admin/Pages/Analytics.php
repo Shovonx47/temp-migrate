@@ -5,9 +5,11 @@ namespace App\Filament\Admin\Pages;
 use App\Enums\SupermanNavigationGroup;
 use App\Filament\Admin\Widgets\GatewayCostBreakdownWidget;
 use App\Filament\Admin\Widgets\GatewayPerformanceChart;
+use App\Filament\Admin\Widgets\OperatorCostBreakdownWidget;
 use App\Filament\Admin\Widgets\OperatorTrafficChart;
 use App\Filament\Admin\Widgets\ProfitStatsWidget;
 use App\Filament\Admin\Widgets\ProfitTrendChart;
+use App\Filament\Concerns\HasDateFilter;
 use BackedEnum;
 use Filament\Pages\Dashboard as BasePage;
 use Filament\Support\Icons\Heroicon;
@@ -15,7 +17,9 @@ use UnitEnum;
 
 class Analytics extends BasePage
 {
-    protected static string $routePath = 'analytics';
+    use HasDateFilter;
+
+    protected static string $routePath = 'analytics/cost-profit';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChartBar;
 
@@ -23,7 +27,7 @@ class Analytics extends BasePage
 
     protected static ?int $navigationSort = 1;
 
-    protected static ?string $title = 'Analytics';
+    protected static ?string $title = 'Cost & Profit Analytics';
 
     protected static ?string $navigationLabel = 'Cost & Profit';
 
@@ -33,6 +37,7 @@ class Analytics extends BasePage
             ProfitStatsWidget::class,
             ProfitTrendChart::class,
             GatewayCostBreakdownWidget::class,
+            OperatorCostBreakdownWidget::class,
             GatewayPerformanceChart::class,
             OperatorTrafficChart::class,
         ];

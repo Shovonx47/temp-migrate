@@ -2,23 +2,28 @@
 
 namespace App\Filament\Admin\Widgets;
 
+use App\Filament\Concerns\HasDateFilter;
 use App\Services\Analytics\ProfitCalculationService;
 use Filament\Widgets\ChartWidget;
+use Filament\Widgets\Concerns\InteractsWithPageFilters;
 
 class ProfitTrendChart extends ChartWidget
 {
+    use InteractsWithPageFilters;
+
     protected ?string $heading = 'Profit Trend';
 
-    protected ?string $description = 'Daily revenue, cost, and profit (last 30 days)';
+    protected ?string $description = 'Daily revenue, cost, and profit';
 
-    protected int|string|array $columnSpan = 1;
+    protected int|string|array $columnSpan = 'full';
 
     protected ?string $pollingInterval = '300s';
 
     protected function getData(): array
     {
         $service = app(ProfitCalculationService::class);
-        $trend = $service->getDailyTrend(30);
+        [$from, $to] = HasDateFilter::resolveDateRange($this->pageFilters);
+        $trend = $service->getDailyTrend($from, $to);
 
         return [
             'datasets' => [

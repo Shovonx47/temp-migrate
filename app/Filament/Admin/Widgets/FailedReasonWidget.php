@@ -2,14 +2,18 @@
 
 namespace App\Filament\Admin\Widgets;
 
+use App\Filament\Concerns\HasDateFilter;
 use App\Models\Message;
 use Filament\Widgets\ChartWidget;
+use Filament\Widgets\Concerns\InteractsWithPageFilters;
 
 class FailedReasonWidget extends ChartWidget
 {
+    use InteractsWithPageFilters;
+
     protected ?string $heading = 'Failed Reason Summary';
 
-    protected ?string $description = 'Top failure reasons (last 30 days)';
+    protected ?string $description = 'Top failure reasons';
 
     protected int|string|array $columnSpan = 1;
 
@@ -17,8 +21,11 @@ class FailedReasonWidget extends ChartWidget
 
     protected function getData(): array
     {
+        [$from, $to] = HasDateFilter::resolveDateRange($this->pageFilters);
+
         $data = Message::withoutGlobalScopes()
-            ->where('created_at', '>=', now()->subDays(30))
+            ->where('created_at', '>=', $from)
+            ->where('created_at', '<=', $to)
             ->where('status', 'failed')
             ->whereNotNull('failed_reason')
             ->selectRaw('failed_reason, COUNT(*) as count')

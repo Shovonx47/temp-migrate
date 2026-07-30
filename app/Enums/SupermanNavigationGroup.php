@@ -10,11 +10,11 @@ use Illuminate\Contracts\Support\Htmlable;
 
 enum SupermanNavigationGroup: string implements HasIcon, HasLabel
 {
+    case Analytics = 'analytics';
     case User = 'user';
     case Messaging = 'messaging';
     case Audience = 'audience';
     case Finance = 'finance';
-    case Analytics = 'analytics';
     case Settings = 'settings';
 
     public function getLabel(): string|Htmlable|null

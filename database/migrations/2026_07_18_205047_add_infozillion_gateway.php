@@ -38,4 +38,4 @@ class AddInfozillionGateway extends Migration
     {
         Gateway::where('driver', 'infozillion')->delete();
     }
-};
+}

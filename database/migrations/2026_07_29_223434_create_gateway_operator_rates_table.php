@@ -30,4 +30,4 @@ class CreateGatewayOperatorRatesTable extends Migration
     {
         Schema::dropIfExists('gateway_operator_rates');
     }
-};
+}

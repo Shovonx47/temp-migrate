@@ -43,4 +43,4 @@ class AddAnbernetGateway extends Migration
     {
         Gateway::where('driver', 'anbernet')->delete();
     }
-};
+}

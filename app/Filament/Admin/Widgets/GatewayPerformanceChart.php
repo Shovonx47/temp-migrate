@@ -2,14 +2,18 @@
 
 namespace App\Filament\Admin\Widgets;
 
+use App\Filament\Concerns\HasDateFilter;
 use App\Models\Message;
 use Filament\Widgets\ChartWidget;
+use Filament\Widgets\Concerns\InteractsWithPageFilters;
 
 class GatewayPerformanceChart extends ChartWidget
 {
+    use InteractsWithPageFilters;
+
     protected ?string $heading = 'Gateway Performance';
 
-    protected ?string $description = 'Messages per gateway (last 30 days)';
+    protected ?string $description = 'Messages per gateway';
 
     protected int|string|array $columnSpan = 1;
 
@@ -17,8 +21,11 @@ class GatewayPerformanceChart extends ChartWidget
 
     protected function getData(): array
     {
+        [$from, $to] = HasDateFilter::resolveDateRange($this->pageFilters);
+
         $data = Message::withoutGlobalScopes()
-            ->where('sent_at', '>=', now()->subDays(30))
+            ->where('messages.created_at', '>=', $from)
+            ->where('messages.created_at', '<=', $to)
             ->join('gateways', 'messages.gateway_id', '=', 'gateways.id')
             ->selectRaw('gateways.name as gateway, COUNT(*) as count')
             ->groupBy('gateways.name')

@@ -2,15 +2,19 @@
 
 namespace App\Filament\Admin\Widgets;
 
+use App\Filament\Concerns\HasDateFilter;
 use App\Models\Operator;
 use Filament\Widgets\ChartWidget;
+use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Illuminate\Support\Facades\DB;
 
 class OperatorTrafficChart extends ChartWidget
 {
+    use InteractsWithPageFilters;
+
     protected ?string $heading = 'Operator Traffic';
 
-    protected ?string $description = 'Messages per operator (last 30 days)';
+    protected ?string $description = 'Messages per operator';
 
     protected int|string|array $columnSpan = 1;
 
@@ -18,6 +22,8 @@ class OperatorTrafficChart extends ChartWidget
 
     protected function getData(): array
     {
+        [$from, $to] = HasDateFilter::resolveDateRange($this->pageFilters);
+
         $operators = Operator::query()
             ->active()
             ->with('country')
@@ -35,7 +41,8 @@ class OperatorTrafficChart extends ChartWidget
         }
 
         $messages = DB::table('messages')
-            ->where('created_at', '>=', now()->subDays(30))
+            ->where('created_at', '>=', $from)
+            ->where('created_at', '<=', $to)
             ->whereNotNull('to')
             ->select('to')
             ->get();

@@ -112,7 +112,7 @@ class CustomerPanelProvider extends PanelProvider
                     ->isActiveWhen(fn (): bool => request()->is('messaging/messages/quick'))
                     ->sort(1),
 
-                NavigationItem::make('Smart Message')
+                NavigationItem::make('Bulk Message')
                     ->url(fn (): string => url('/messaging/messages/smart'))
                     ->icon(Heroicon::OutlinedSparkles)
                     ->isActiveWhen(fn (): bool => request()->is('messaging/messages/smart'))

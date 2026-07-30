@@ -7,6 +7,7 @@ use App\Filament\Admin\Resources\Settings\Gateways\Pages\CreateGateway;
 use App\Filament\Admin\Resources\Settings\Gateways\Pages\EditGateway;
 use App\Filament\Admin\Resources\Settings\Gateways\Pages\ListGateways;
 use App\Filament\Admin\Resources\Settings\Gateways\Pages\ViewGateway;
+use App\Filament\Admin\Resources\Settings\Gateways\RelationManagers\OperatorRatesRelationManager;
 use App\Filament\Admin\Resources\Settings\Gateways\Schemas\GatewayForm;
 use App\Filament\Admin\Resources\Settings\Gateways\Schemas\GatewayInfolist;
 use App\Filament\Admin\Resources\Settings\Gateways\Tables\GatewaysTable;
@@ -48,7 +49,7 @@ class GatewayResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            OperatorRatesRelationManager::class,
         ];
     }
 

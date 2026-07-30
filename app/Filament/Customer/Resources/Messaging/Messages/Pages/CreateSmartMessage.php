@@ -29,9 +29,9 @@ class CreateSmartMessage extends CreateRecord
 
     protected static bool $canCreateAnother = false;
 
-    protected static ?string $navigationLabel = 'Smart Message';
+    protected static ?string $navigationLabel = 'Bulk Message';
 
-    protected static ?string $title = 'Smart Message';
+    protected static ?string $title = 'Bulk Message';
 
     protected ?bool $hasDatabaseTransactions = true;
 

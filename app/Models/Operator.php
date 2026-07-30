@@ -37,6 +37,11 @@ class Operator extends Model
         return $this->hasMany(UserOperatorRate::class);
     }
 
+    public function gatewayOperatorRates(): HasMany
+    {
+        return $this->hasMany(GatewayOperatorRate::class);
+    }
+
     #[Scope]
     protected function active(Builder $query): Builder
     {

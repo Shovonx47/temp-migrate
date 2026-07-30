@@ -21,7 +21,7 @@ class ListMessages extends ListRecords
                 ->color('gray')
                 ->url(fn (): string => MessageResource::getUrl('create-quick')),
             CreateAction::make()
-                ->label('Smart Message')
+                ->label('Bulk Message')
                 ->icon(Heroicon::OutlinedSparkles)
                 ->color('gray')
                 ->url(MessageResource::getUrl('create-smart')),

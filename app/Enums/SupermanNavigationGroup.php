@@ -14,6 +14,7 @@ enum SupermanNavigationGroup: string implements HasIcon, HasLabel
     case Messaging = 'messaging';
     case Audience = 'audience';
     case Finance = 'finance';
+    case Analytics = 'analytics';
     case Settings = 'settings';
 
     public function getLabel(): string|Htmlable|null
@@ -31,6 +32,7 @@ enum SupermanNavigationGroup: string implements HasIcon, HasLabel
             self::Messaging => Heroicon::OutlinedChatBubbleLeftRight,
             self::Audience => Heroicon::OutlinedUsers,
             self::Finance => Heroicon::OutlinedBanknotes,
+            self::Analytics => Heroicon::OutlinedChartBar,
             self::Settings => Heroicon::OutlinedCog,
         };
     }

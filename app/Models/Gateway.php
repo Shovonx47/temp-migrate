@@ -36,6 +36,11 @@ class Gateway extends Model
         return $this->hasMany(Sender::class, 'gateway_id');
     }
 
+    public function gatewayOperatorRates(): HasMany
+    {
+        return $this->hasMany(GatewayOperatorRate::class);
+    }
+
     #[Scope]
     protected function enabled(Builder $query): Builder
     {

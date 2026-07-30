@@ -62,7 +62,7 @@ class ProfitCalculationService
     }
 
     /**
-     * Calculate profit for a date range.
+     * Calculate profit for a date range using gateway costs.
      *
      * @return array{revenue: float, cost: float, profit: float, margin: float, messages: int}
      */
@@ -80,40 +80,15 @@ class ProfitCalculationService
 
     private function computeForPeriod(Carbon $from, Carbon $to): array
     {
-        $messages = DB::table('messages')
-            ->join('senders', 'messages.sender_id', '=', 'senders.id')
-            ->where('messages.created_at', '>=', $from)
-            ->where('messages.created_at', '<=', $to)
-            ->where('messages.status', '!=', 'failed')
-            ->select([
-                'messages.to as phone',
-                'messages.cost',
-                'messages.parts',
-                'messages.rate',
-                'senders.type as sender_type',
-            ])
-            ->get();
+        $result = DB::table('messages')
+            ->where('created_at', '>=', $from)
+            ->where('created_at', '<=', $to)
+            ->where('status', '!=', 'failed')
+            ->selectRaw('COUNT(*) as count, COALESCE(SUM(cost), 0) as revenue, COALESCE(SUM(gateway_cost), 0) as cost')
+            ->first();
 
-        $revenue = 0.0;
-        $cost = 0.0;
-        $count = $messages->count();
-
-        foreach ($messages as $message) {
-            $revenue += (float) $message->cost;
-
-            $operator = $this->matchOperator($message->phone);
-            if ($operator === null) {
-                continue;
-            }
-
-            $isMasking = $message->sender_type !== 'numeric';
-            $buyingRate = $isMasking
-                ? ($operator->masking_price ?? 0)
-                : ($operator->non_masking_price ?? 0);
-
-            $cost += $buyingRate * (int) $message->parts;
-        }
-
+        $revenue = (float) ($result->revenue ?? 0);
+        $cost = (float) ($result->cost ?? 0);
         $profit = $revenue - $cost;
         $margin = $revenue > 0 ? ($profit / $revenue) * 100 : 0;
 
@@ -122,7 +97,7 @@ class ProfitCalculationService
             'cost' => round($cost, 2),
             'profit' => round($profit, 2),
             'margin' => round($margin, 1),
-            'messages' => $count,
+            'messages' => (int) ($result->count ?? 0),
         ];
     }
 
@@ -146,15 +121,13 @@ class ProfitCalculationService
     private function computeOperatorBreakdown(Carbon $from, Carbon $to): array
     {
         $messages = DB::table('messages')
-            ->join('senders', 'messages.sender_id', '=', 'senders.id')
             ->where('messages.created_at', '>=', $from)
             ->where('messages.created_at', '<=', $to)
             ->where('messages.status', '!=', 'failed')
             ->select([
                 'messages.to as phone',
                 'messages.cost',
-                'messages.parts',
-                'senders.type as sender_type',
+                'messages.gateway_cost',
             ])
             ->get();
 
@@ -177,14 +150,7 @@ class ProfitCalculationService
 
             $breakdown[$operatorId]['messages']++;
             $breakdown[$operatorId]['revenue'] += (float) $message->cost;
-
-            if ($operator !== null) {
-                $isMasking = $message->sender_type !== 'numeric';
-                $buyingRate = $isMasking
-                    ? ($operator->masking_price ?? 0)
-                    : ($operator->non_masking_price ?? 0);
-                $breakdown[$operatorId]['cost'] += $buyingRate * (int) $message->parts;
-            }
+            $breakdown[$operatorId]['cost'] += (float) $message->gateway_cost;
         }
 
         foreach ($breakdown as &$item) {
@@ -193,10 +159,54 @@ class ProfitCalculationService
             $item['cost'] = round($item['cost'], 2);
         }
 
-        // Sort by messages descending
         usort($breakdown, fn ($a, $b) => $b['messages'] <=> $a['messages']);
 
         return array_values($breakdown);
+    }
+
+    /**
+     * Get profit breakdown by gateway for a date range.
+     *
+     * @return array<int, array{gateway: string, messages: int, revenue: float, cost: float, profit: float, margin: float}>
+     */
+    public function getGatewayBreakdown(?Carbon $from = null, ?Carbon $to = null): array
+    {
+        $from = $from ?? today();
+        $to = $to ?? now();
+
+        $cacheKey = 'profit.gateway.'.md5($from->toDateString().$to->toDateString());
+
+        return Cache::remember($cacheKey, 300, function () use ($from, $to) {
+            return $this->computeGatewayBreakdown($from, $to);
+        });
+    }
+
+    private function computeGatewayBreakdown(Carbon $from, Carbon $to): array
+    {
+        $results = DB::table('messages')
+            ->join('gateways', 'messages.gateway_id', '=', 'gateways.id')
+            ->where('messages.created_at', '>=', $from)
+            ->where('messages.created_at', '<=', $to)
+            ->where('messages.status', '!=', 'failed')
+            ->selectRaw('gateways.name as gateway, COUNT(*) as messages, COALESCE(SUM(messages.cost), 0) as revenue, COALESCE(SUM(messages.gateway_cost), 0) as cost')
+            ->groupBy('gateways.name')
+            ->orderByDesc('messages')
+            ->get();
+
+        return $results->map(function ($row) {
+            $revenue = (float) $row->revenue;
+            $cost = (float) $row->cost;
+            $profit = $revenue - $cost;
+
+            return [
+                'gateway' => $row->gateway,
+                'messages' => (int) $row->messages,
+                'revenue' => round($revenue, 2),
+                'cost' => round($cost, 2),
+                'profit' => round($profit, 2),
+                'margin' => $revenue > 0 ? round(($profit / $revenue) * 100, 1) : 0,
+            ];
+        })->toArray();
     }
 
     /**

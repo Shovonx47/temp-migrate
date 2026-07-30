@@ -13,6 +13,7 @@ use App\Models\Contact;
 use App\Models\Message;
 use App\Models\Sender;
 use App\Models\User;
+use App\Support\GatewayCostResolver;
 use App\Support\MessageMetrics;
 use App\Support\MnoCarrier;
 use App\Support\OperatorRateResolver;
@@ -48,6 +49,8 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
     private bool $uploadPathResolved = false;
 
     private ?OperatorRateResolver $rateResolver = null;
+
+    private ?GatewayCostResolver $gatewayCostResolver = null;
 
     private bool $isMaskingSender = false;
 
@@ -365,6 +368,9 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
             $row['rate'] = $rate;
             $row['cost'] = round($rate * (int) $row['parts'], 4);
             $totalCost = round($totalCost + $row['cost'], 4);
+
+            $gatewayRate = $this->gatewayCostResolver?->resolve((string) $row['to'], $this->isMaskingSender) ?? 0.0;
+            $row['gateway_cost'] = round($gatewayRate * (int) $row['parts'], 4);
         }
         unset($row);
 
@@ -777,6 +783,10 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
         $this->isMaskingSender = $sender->type->isMasking();
         $this->rateResolver = OperatorRateResolver::forUser($user);
         $this->usesBulkSending = ! $batch->hasBodyVariables() && ($sender->gateway?->supports_bulk ?? false);
+
+        if ($sender->gateway !== null) {
+            $this->gatewayCostResolver = GatewayCostResolver::forGateway($sender->gateway);
+        }
 
         $gateway = $sender->gateway;
         if ($gateway !== null && data_get($gateway->credentials, 'api_type') === 'mno') {

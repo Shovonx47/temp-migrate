@@ -32,6 +32,10 @@ class GatewaysTable
                 ToggleColumn::make('is_enabled'),
                 IconColumn::make('supports_bulk')
                     ->boolean(),
+                TextColumn::make('gatewayOperatorRates_count')
+                    ->counts('gatewayOperatorRates')
+                    ->label('Rates'),
+                TextColumn::make('created_at'),
                 TextColumn::make('created_at'),
                 TextColumn::make('updated_at'),
             ])

@@ -67,7 +67,10 @@ test('financial analytics page renders moved revenue and user widgets', function
 test('financial analytics page loads successfully', function () {
     actingAs($this->user, 'superman');
 
-    $this->get('/superman/analytics/financial')->assertOk();
+    $this->get('/superman/analytics/financial')
+        ->assertOk()
+        ->assertSee('date_range')
+        ->assertSee('Last 30 Days');
 });
 
 test('cost and profit analytics page renders top operators widget', function () {
@@ -84,5 +87,8 @@ test('cost and profit analytics page renders top operators widget', function () 
 test('cost and profit analytics page loads successfully', function () {
     actingAs($this->user, 'superman');
 
-    $this->get('/superman/analytics/cost-profit')->assertOk();
+    $this->get('/superman/analytics/cost-profit')
+        ->assertOk()
+        ->assertSee('date_range')
+        ->assertSee('Last 30 Days');
 });

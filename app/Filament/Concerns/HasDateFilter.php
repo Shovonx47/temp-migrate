@@ -4,6 +4,7 @@ namespace App\Filament\Concerns;
 
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
+use Filament\Pages\Dashboard\Concerns\HasFiltersForm;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
@@ -11,48 +12,51 @@ use Illuminate\Support\Carbon;
 
 trait HasDateFilter
 {
+    use HasFiltersForm;
+
     public function filtersForm(Schema $schema): Schema
     {
         return $schema->components([
             Grid::make([
-                'md' => 3,
-                'xl' => 4,
-            ])->schema([
-                Select::make('date_range')
-                    ->options([
-                        'today' => 'Today',
-                        'yesterday' => 'Yesterday',
-                        'this_week' => 'This Week',
-                        'last_7_days' => 'Last 7 Days',
-                        'this_month' => 'This Month',
-                        'last_30_days' => 'Last 30 Days',
-                        'this_year' => 'This Year',
-                        'custom' => 'Custom Range',
-                    ])
-                    ->default('last_30_days')
-                    ->live()
-                    ->selectablePlaceholder(false)
-                    ->columnSpan([
-                        'md' => 3,
-                        'xl' => 1,
-                    ]),
-                DatePicker::make('date_from')
-                    ->label('From')
-                    ->visible(fn (Get $get): bool => $get('date_range') === 'custom')
-                    ->live(onBlur: true)
-                    ->columnSpan([
-                        'md' => 1,
-                        'xl' => 1,
-                    ]),
-                DatePicker::make('date_to')
-                    ->label('To')
-                    ->visible(fn (Get $get): bool => $get('date_range') === 'custom')
-                    ->live(onBlur: true)
-                    ->columnSpan([
-                        'md' => 1,
-                        'xl' => 1,
-                    ]),
-            ]),
+                'md' => 12,
+            ])
+                ->columnSpanFull()
+                ->schema([
+                    Select::make('date_range')
+                        ->options([
+                            'today' => 'Today',
+                            'yesterday' => 'Yesterday',
+                            'this_week' => 'This Week',
+                            'last_7_days' => 'Last 7 Days',
+                            'this_month' => 'This Month',
+                            'last_30_days' => 'Last 30 Days',
+                            'this_year' => 'This Year',
+                            'custom' => 'Custom Range',
+                        ])
+                        ->default('last_30_days')
+                        ->live()
+                        ->selectablePlaceholder(false)
+                        ->columnSpan([
+                            'md' => 4,
+                            'xl' => 3,
+                        ]),
+                    DatePicker::make('date_from')
+                        ->label('From')
+                        ->visible(fn (Get $get): bool => $get('date_range') === 'custom')
+                        ->live(onBlur: true)
+                        ->columnSpan([
+                            'md' => 4,
+                            'xl' => 3,
+                        ]),
+                    DatePicker::make('date_to')
+                        ->label('To')
+                        ->visible(fn (Get $get): bool => $get('date_range') === 'custom')
+                        ->live(onBlur: true)
+                        ->columnSpan([
+                            'md' => 4,
+                            'xl' => 3,
+                        ]),
+                ]),
         ]);
     }
 

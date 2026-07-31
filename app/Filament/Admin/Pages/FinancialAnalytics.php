@@ -6,9 +6,11 @@ use App\Enums\SupermanNavigationGroup;
 use App\Filament\Admin\Widgets\DepositMethodChart;
 use App\Filament\Admin\Widgets\DepositTrendChart;
 use App\Filament\Admin\Widgets\FinancialStatsWidget;
+use App\Filament\Admin\Widgets\RevenueStatsWidget;
 use App\Filament\Admin\Widgets\SpendingTrendChart;
 use App\Filament\Admin\Widgets\TopCustomersByPeriodWidget;
 use App\Filament\Admin\Widgets\TransactionVolumeChart;
+use App\Filament\Admin\Widgets\UserStatsWidget;
 use App\Filament\Concerns\HasDateFilter;
 use BackedEnum;
 use Filament\Pages\Dashboard as BasePage;
@@ -35,16 +37,18 @@ class FinancialAnalytics extends BasePage
     {
         return [
             FinancialStatsWidget::class,
+            RevenueStatsWidget::class,
+            UserStatsWidget::class,
             DepositTrendChart::class,
             SpendingTrendChart::class,
-            TopCustomersByPeriodWidget::class,
             DepositMethodChart::class,
             TransactionVolumeChart::class,
+            TopCustomersByPeriodWidget::class,
         ];
     }
 
     public function getColumns(): int|array
     {
-        return 3;
+        return 2;
     }
 }

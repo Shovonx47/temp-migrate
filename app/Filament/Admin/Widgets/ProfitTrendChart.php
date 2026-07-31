@@ -15,7 +15,7 @@ class ProfitTrendChart extends ChartWidget
 
     protected ?string $description = 'Daily revenue, cost, and profit';
 
-    protected int|string|array $columnSpan = 'full';
+    protected int|string|array $columnSpan = 2;
 
     protected ?string $pollingInterval = '300s';
 

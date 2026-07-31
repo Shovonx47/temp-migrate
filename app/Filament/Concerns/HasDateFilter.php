@@ -14,7 +14,10 @@ trait HasDateFilter
     public function filtersForm(Schema $schema): Schema
     {
         return $schema->components([
-            Grid::make(3)->schema([
+            Grid::make([
+                'md' => 3,
+                'xl' => 4,
+            ])->schema([
                 Select::make('date_range')
                     ->options([
                         'today' => 'Today',
@@ -28,15 +31,27 @@ trait HasDateFilter
                     ])
                     ->default('last_30_days')
                     ->live()
-                    ->columnSpan(1),
+                    ->selectablePlaceholder(false)
+                    ->columnSpan([
+                        'md' => 3,
+                        'xl' => 1,
+                    ]),
                 DatePicker::make('date_from')
                     ->label('From')
                     ->visible(fn (Get $get): bool => $get('date_range') === 'custom')
-                    ->columnSpan(1),
+                    ->live(onBlur: true)
+                    ->columnSpan([
+                        'md' => 1,
+                        'xl' => 1,
+                    ]),
                 DatePicker::make('date_to')
                     ->label('To')
                     ->visible(fn (Get $get): bool => $get('date_range') === 'custom')
-                    ->columnSpan(1),
+                    ->live(onBlur: true)
+                    ->columnSpan([
+                        'md' => 1,
+                        'xl' => 1,
+                    ]),
             ]),
         ]);
     }

@@ -9,6 +9,7 @@ use App\Filament\Admin\Widgets\OperatorCostBreakdownWidget;
 use App\Filament\Admin\Widgets\OperatorTrafficChart;
 use App\Filament\Admin\Widgets\ProfitStatsWidget;
 use App\Filament\Admin\Widgets\ProfitTrendChart;
+use App\Filament\Admin\Widgets\TopOperatorsWidget;
 use App\Filament\Concerns\HasDateFilter;
 use BackedEnum;
 use Filament\Pages\Dashboard as BasePage;
@@ -40,6 +41,7 @@ class Analytics extends BasePage
             OperatorCostBreakdownWidget::class,
             GatewayPerformanceChart::class,
             OperatorTrafficChart::class,
+            TopOperatorsWidget::class,
         ];
     }
 

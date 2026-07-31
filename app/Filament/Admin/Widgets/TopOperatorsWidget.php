@@ -3,12 +3,12 @@
 namespace App\Filament\Admin\Widgets;
 
 use App\Models\Operator;
-use Filament\Tables;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Filament\Widgets\TableWidget;
+use Filament\Widgets\TableWidget as BaseWidget;
 use Illuminate\Support\Facades\DB;
 
-class TopOperatorsWidget extends TableWidget
+class TopOperatorsWidget extends BaseWidget
 {
     protected static ?string $heading = 'Top Operators';
 
@@ -18,10 +18,34 @@ class TopOperatorsWidget extends TableWidget
 
     public function table(Table $table): Table
     {
-        $operators = Operator::query()
-            ->active()
-            ->with('country')
-            ->get();
+        return $table
+            ->records(fn (): array => $this->getOperatorStats())
+            ->paginated(false)
+            ->columns([
+                TextColumn::make('operator')
+                    ->label('Operator')
+                    ->weight('medium'),
+
+                TextColumn::make('messages')
+                    ->label('Messages')
+                    ->numeric()
+                    ->alignEnd(),
+
+                TextColumn::make('revenue')
+                    ->label('Revenue')
+                    ->money('BDT')
+                    ->alignEnd(),
+            ]);
+    }
+
+    /**
+     * Aggregated message traffic + revenue per operator, matched by MSISDN prefix.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function getOperatorStats(): array
+    {
+        $operators = Operator::query()->active()->with('country')->get();
 
         $codeMap = [];
         foreach ($operators as $operator) {
@@ -64,34 +88,8 @@ class TopOperatorsWidget extends TableWidget
             $stats[$matched]['revenue'] += (float) $message->cost;
         }
 
-        usort($stats, fn ($a, $b) => $b['messages'] <=> $a['messages']);
+        usort($stats, fn (array $a, array $b): int => $b['messages'] <=> $a['messages']);
 
-        $collection = collect(array_slice($stats, 0, 10));
-
-        return $table
-            ->query(
-                Operator::query()
-                    ->active()
-                    ->with('country')
-                    ->whereIn('name', $collection->pluck('operator'))
-            )
-            ->columns([
-                Tables\Columns\TextColumn::make('name')
-                    ->label('Operator')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('country.name')
-                    ->label('Country'),
-                Tables\Columns\TextColumn::make('codes')
-                    ->label('Prefixes')
-                    ->formatStateUsing(fn ($state) => implode(', ', (array) $state)),
-                Tables\Columns\TextColumn::make('masking_price')
-                    ->label('Masking Rate')
-                    ->numeric(decimalPlaces: 2)
-                    ->suffix(' BDT'),
-                Tables\Columns\TextColumn::make('non_masking_price')
-                    ->label('Non-Masking Rate')
-                    ->numeric(decimalPlaces: 2)
-                    ->suffix(' BDT'),
-            ]);
+        return array_slice(array_values($stats), 0, 10);
     }
 }

@@ -2,23 +2,10 @@
 
 namespace App\Filament\Admin\Pages;
 
-use App\Filament\Admin\Widgets\DlrSummaryChart;
-use App\Filament\Admin\Widgets\FailedReasonWidget;
-use App\Filament\Admin\Widgets\GatewayPerformanceChart;
 use App\Filament\Admin\Widgets\MessageStatsWidget;
-use App\Filament\Admin\Widgets\MessageTrendChart;
-use App\Filament\Admin\Widgets\OperatorTrafficChart;
 use App\Filament\Admin\Widgets\PendingApprovalsWidget;
-use App\Filament\Admin\Widgets\ProfitStatsWidget;
-use App\Filament\Admin\Widgets\ProfitTrendChart;
 use App\Filament\Admin\Widgets\RecentActivityWidget;
-use App\Filament\Admin\Widgets\RevenueStatsWidget;
-use App\Filament\Admin\Widgets\RevenueTrendChart;
 use App\Filament\Admin\Widgets\SystemStatsWidget;
-use App\Filament\Admin\Widgets\TopCustomersWidget;
-use App\Filament\Admin\Widgets\TopOperatorsWidget;
-use App\Filament\Admin\Widgets\UserGrowthChart;
-use App\Filament\Admin\Widgets\UserStatsWidget;
 use Filament\Pages\Dashboard as BasePage;
 
 class Dashboard extends BasePage
@@ -29,22 +16,9 @@ class Dashboard extends BasePage
     {
         return [
             SystemStatsWidget::class,
-            RevenueStatsWidget::class,
             MessageStatsWidget::class,
-            UserStatsWidget::class,
-            ProfitStatsWidget::class,
-            // MessageTrendChart::class,
-            // RevenueTrendChart::class,
-            // UserGrowthChart::class,
-            // GatewayPerformanceChart::class,
-            // OperatorTrafficChart::class,
-            // FailedReasonWidget::class,
-            // DlrSummaryChart::class,
-            // ProfitTrendChart::class,
-            RecentActivityWidget::class,
-            TopCustomersWidget::class,
-            TopOperatorsWidget::class,
             PendingApprovalsWidget::class,
+            RecentActivityWidget::class,
         ];
     }
 }

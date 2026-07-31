@@ -14,7 +14,7 @@ class ProfitStatsWidget extends BaseWidget
 
     protected ?string $pollingInterval = '60s';
 
-    protected int|array|null $columns = 4;
+    protected int|array|null $columns = 3;
 
     public function getStats(): array
     {

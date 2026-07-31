@@ -37,9 +37,9 @@ class MessagingAnalytics extends BasePage
             MessageStatsByPeriodWidget::class,
             MessageTrendChart::class,
             DeliveryRateTrendChart::class,
+            SourceDistributionChart::class,
             DlrSummaryChart::class,
             FailedReasonWidget::class,
-            SourceDistributionChart::class,
         ];
     }
 

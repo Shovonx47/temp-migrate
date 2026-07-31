@@ -28,23 +28,6 @@ class MessageStatsWidget extends BaseWidget
             ->where('status', 'delivered')
             ->count();
 
-        $todayProcessing = Message::withoutGlobalScopes()
-            ->whereDate('created_at', today())
-            ->where('status', 'sending')
-            ->count();
-
-        $dlrReceived = Message::withoutGlobalScopes()
-            ->whereDate('created_at', today())
-            ->whereNotNull('delivered_at')
-            ->count();
-
-        $dlrPending = Message::withoutGlobalScopes()
-            ->whereDate('created_at', today())
-            ->whereNotNull('sent_at')
-            ->whereNull('delivered_at')
-            ->where('status', '!=', 'failed')
-            ->count();
-
         $deliveryRate = $todayMessages > 0
             ? round(($todayDelivered / $todayMessages) * 100, 1)
             : 0;
@@ -67,21 +50,6 @@ class MessageStatsWidget extends BaseWidget
                 ->description('Delivery failures')
                 ->color('danger')
                 ->icon('heroicon-o-x-circle'),
-
-            Stat::make('Processing', number_format($todayProcessing))
-                ->description('Currently sending')
-                ->color('info')
-                ->icon('heroicon-o-arrow-path'),
-
-            Stat::make('DLR Received', number_format($dlrReceived))
-                ->description('Confirmations received')
-                ->color('success')
-                ->icon('heroicon-o-check-circle'),
-
-            Stat::make('DLR Pending', number_format($dlrPending))
-                ->description('Awaiting confirmation')
-                ->color('warning')
-                ->icon('heroicon-o-clock'),
 
             Stat::make('Cost Today', number_format($todayCost, 2).' BDT')
                 ->description('Today\'s spend')

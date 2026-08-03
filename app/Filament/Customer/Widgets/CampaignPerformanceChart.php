@@ -3,13 +3,17 @@
 namespace App\Filament\Customer\Widgets;
 
 use App\Enums\BatchStatus;
+use App\Filament\Concerns\HasDateFilter;
 use Filament\Widgets\ChartWidget;
+use Filament\Widgets\Concerns\InteractsWithPageFilters;
 
 class CampaignPerformanceChart extends ChartWidget
 {
+    use InteractsWithPageFilters;
+
     protected ?string $heading = 'Campaign Performance';
 
-    protected ?string $description = 'Campaigns by status';
+    protected ?string $description = 'Campaigns by status in the selected period';
 
     protected int|string|array $columnSpan = 1;
 
@@ -17,7 +21,11 @@ class CampaignPerformanceChart extends ChartWidget
 
     protected function getData(): array
     {
+        [$from, $to] = HasDateFilter::resolveDateRange($this->pageFilters);
+
         $data = auth()->user()->batches()
+            ->where('created_at', '>=', $from)
+            ->where('created_at', '<=', $to)
             ->selectRaw('status, COUNT(*) as count')
             ->groupBy('status')
             ->get();

@@ -122,12 +122,6 @@ return [
                     'required' => true,
                     'password' => true,
                 ],
-                'bill_msisdn' => [
-                    'label' => 'Bill MSISDN',
-                    'placeholder' => '8801XXXXXXXXX',
-                    'helper' => 'Your registered billing MSISDN at the MNO platform.',
-                    'required' => true,
-                ],
                 'api_key' => [
                     'label' => 'API Key',
                     'placeholder' => 'Enter your MNPSP API key',
@@ -145,10 +139,6 @@ return [
                 ],
                 'password_secondary' => [
                     'label' => 'Secondary Password',
-                    'type' => 'hidden',
-                ],
-                'bill_msisdn_secondary' => [
-                    'label' => 'Secondary Bill MSISDN',
                     'type' => 'hidden',
                 ],
                 'transaction_type' => [

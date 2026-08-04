@@ -206,6 +206,41 @@ test('send includes secondary credentials when provided', function () {
     });
 });
 
+test('send uses bill_msisdn as cli sender id', function () {
+    Http::fake([
+        '*/a2p-sms/api/v1/send-sms' => Http::response([
+            'serverTxnId' => 'cli-test-txn',
+            'serverResponseCode' => '9000',
+            'serverResponseMessage' => 'Request successful!',
+        ]),
+    ]);
+
+    $driver = new InfozillionDriver([
+        'base_url' => 'https://a2papiintl.mnpspbd.com',
+        'api_type' => 'mno',
+        'username' => 'test_user',
+        'password' => 'test_pass',
+        'bill_msisdn' => '8801526589635',
+        'api_key' => 'test_api_key',
+        'transaction_type' => 'T',
+        'message_type' => '1',
+    ]);
+
+    $result = $driver->send(new SmsRequest(
+        to: '8801720102673',
+        body: 'Test',
+        from: '22222',
+    ));
+
+    expect($result->successful)->toBeTrue();
+
+    Http::assertSent(function ($request) {
+        $body = $request->data();
+
+        return ($body['cli'] ?? '') === '8801526589635';
+    });
+});
+
 /*
 |--------------------------------------------------------------------------
 | Bulk SMS tests

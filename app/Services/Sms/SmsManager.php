@@ -81,7 +81,7 @@ class SmsManager extends Manager
     protected function createInfozillionDriver(): SmsGateway
     {
         if (empty($this->gateway?->credentials['base_url'])) {
-            throw new InvalidArgumentException('Infozillion requires credentials: base_url, username, password, bill_msisdn, api_key.');
+            throw new InvalidArgumentException('Infozillion requires credentials: base_url, username, password, api_key.');
         }
 
         return new InfozillionDriver(

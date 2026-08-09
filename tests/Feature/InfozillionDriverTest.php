@@ -206,7 +206,7 @@ test('send includes secondary credentials when provided', function () {
     });
 });
 
-test('send uses bill_msisdn as cli sender id', function () {
+test('send uses the credential billing MSISDN while retaining the sender as CLI', function () {
     Http::fake([
         '*/a2p-sms/api/v1/send-sms' => Http::response([
             'serverTxnId' => 'cli-test-txn',
@@ -237,7 +237,8 @@ test('send uses bill_msisdn as cli sender id', function () {
     Http::assertSent(function ($request) {
         $body = $request->data();
 
-        return ($body['cli'] ?? '') === '8801526589635';
+        return ($body['billMsisdn'] ?? '') === '8801526589635'
+            && ($body['cli'] ?? '') === '22222';
     });
 });
 

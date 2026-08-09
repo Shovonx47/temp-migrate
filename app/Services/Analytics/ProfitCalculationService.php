@@ -229,10 +229,10 @@ class ProfitCalculationService
     private function computeDailyTrend(Carbon $from, Carbon $to): array
     {
         $results = [];
-        $days = $from->diffInDays($to) + 1;
+        $date = $from->copy()->startOfDay();
+        $lastDate = $to->copy()->startOfDay();
 
-        for ($i = $days - 1; $i >= 0; $i--) {
-            $date = $to->copy()->subDays($i);
+        while ($date->lte($lastDate)) {
             $result = $this->computeForPeriod(
                 $date->copy()->startOfDay(),
                 $date->copy()->endOfDay()
@@ -244,6 +244,8 @@ class ProfitCalculationService
                 'cost' => $result['cost'],
                 'profit' => $result['profit'],
             ];
+
+            $date->addDay();
         }
 
         return $results;

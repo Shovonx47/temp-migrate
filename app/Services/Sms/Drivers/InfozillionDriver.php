@@ -213,7 +213,7 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
         $payload = [
             'username' => $this->credentials['username'] ?? '',
             'password' => $this->credentials['password'] ?? '',
-            'billMsisdn' => $senderId,
+            'billMsisdn' => $this->credentials['bill_msisdn'] ?? '',
             'apiKey' => $this->credentials['api_key'] ?? '',
             'cli' => $senderId,
             'msisdnList' => array_map(fn (string $msisdn) => ltrim($msisdn, '+'), $recipients),

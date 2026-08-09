@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Widgets;
 
+use App\Enums\DepositPaymentMethod;
 use App\Filament\Concerns\HasDateFilter;
 use App\Models\Deposit;
 use Filament\Widgets\ChartWidget;
@@ -39,7 +40,9 @@ class DepositMethodChart extends ChartWidget
                     'backgroundColor' => ['#10b981', '#0ea5e9', '#f59e0b'],
                 ],
             ],
-            'labels' => $data->pluck('payment_method')->map(fn ($m) => strtoupper($m))->toArray(),
+            'labels' => $data->pluck('payment_method')->map(
+                fn (?DepositPaymentMethod $method): string => $method?->name ?? 'Unknown',
+            )->toArray(),
         ];
     }
 

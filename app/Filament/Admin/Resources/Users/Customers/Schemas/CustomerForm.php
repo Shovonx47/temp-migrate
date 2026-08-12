@@ -3,10 +3,12 @@
 namespace App\Filament\Admin\Resources\Users\Customers\Schemas;
 
 use App\Enums\UserStatus;
-use Filament\Forms\Components\Repeater;
+use App\Filament\Admin\Pages\Billing\UserAssignmentPage;
+use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -68,45 +70,25 @@ class CustomerForm
                             ->inline(false),
                     ])
                     ->columns(2),
-                Section::make('Operator rate overrides')
-                    ->description('Override the system-default operator rates for this customer. Leave a price blank to fall back to the operator default.')
+                Section::make('Tariff Plan')
+                    ->description('The tariff plan controls what this customer is charged per SMS part, per operator.')
                     ->schema([
-                        Repeater::make('operatorRates')
-                            ->relationship()
-                            ->hiddenLabel()
-                            ->table([
-                                Repeater\TableColumn::make('Operator'),
-                                Repeater\TableColumn::make('Masking Price'),
-                                Repeater\TableColumn::make('Non-masking Price'),
-                            ])
-                            ->schema([
-                                Select::make('operator_id')
-                                    ->label('Operator')
-                                    ->relationship('operator', 'name')
-                                    ->required()
-                                    ->searchable()
-                                    ->preload()
-                                    ->distinct(),
-                                TextInput::make('masking_price')
-                                    ->label('Masking (per part)')
-                                    ->prefixIcon(Heroicon::Banknotes)
-                                    ->prefix('৳')
-                                    ->numeric()
-                                    ->step('0.0001')
-                                    ->minValue(0)
-                                    ->nullable(),
-                                TextInput::make('non_masking_price')
-                                    ->label('Non-masking (per part)')
-                                    ->prefixIcon(Heroicon::Banknotes)
-                                    ->prefix('৳')
-                                    ->numeric()
-                                    ->step('0.0001')
-                                    ->minValue(0)
-                                    ->nullable(),
-                            ])
-                            ->addActionLabel('Add operator override')
-                            ->collapsible()
-                            ->columnSpanFull(),
+                        TextEntry::make('activeTariffAssignment.tariffPlan.name')
+                            ->label('Current Plan')
+                            ->placeholder('No plan assigned — billing falls back to operator system defaults.')
+                            ->helperText(fn ($record): string => $record?->id
+                                ? 'To change or assign a plan, use the Billing → User-wise Assignment page.'
+                                : 'Save this customer first, then assign a tariff plan from the Billing section.')
+                            ->suffixAction(
+                                Action::make('go_to_assignment')
+                                    ->label('Manage Assignment')
+                                    ->icon(Heroicon::OutlinedArrowTopRightOnSquare)
+                                    ->url(fn ($record) => $record?->id
+                                        ? UserAssignmentPage::getUrl()
+                                        : null)
+                                    ->openUrlInNewTab()
+                                    ->visible(fn ($record): bool => (bool) $record?->id)
+                            ),
                     ]),
             ]);
     }

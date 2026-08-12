@@ -4,7 +4,6 @@ namespace App\Filament\Admin\Resources\Users\Customers\Schemas;
 
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\ImageEntry;
-use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
@@ -51,26 +50,23 @@ class CustomerInfolist
                                     ->boolean(),
                             ]),
                     ]),
-                Section::make('Operator rate overrides')
+                Section::make('Tariff Plan')
+                    ->description('The tariff plan currently assigned to this customer.')
                     ->schema([
-                        RepeatableEntry::make('operatorRates')
-                            ->hiddenLabel()
-                            ->placeholder('Using system defaults for every operator.')
+                        Grid::make(3)
                             ->schema([
-                                TextEntry::make('operator.name')
-                                    ->label('Operator'),
-                                TextEntry::make('masking_price')
-                                    ->label('Masking')
-                                    ->prefix('৳')
-                                    ->numeric(decimalPlaces: 4)
-                                    ->placeholder('default'),
-                                TextEntry::make('non_masking_price')
-                                    ->label('Non-masking')
-                                    ->prefix('৳')
-                                    ->numeric(decimalPlaces: 4)
-                                    ->placeholder('default'),
-                            ])
-                            ->columns(3),
+                                TextEntry::make('activeTariffAssignment.tariffPlan.name')
+                                    ->label('Plan Name')
+                                    ->placeholder('No plan assigned — using operator defaults.'),
+                                TextEntry::make('activeTariffAssignment.tariffPlan.type')
+                                    ->label('Plan Type')
+                                    ->badge()
+                                    ->placeholder('—'),
+                                TextEntry::make('activeTariffAssignment.effective_from')
+                                    ->label('Effective From')
+                                    ->date()
+                                    ->placeholder('—'),
+                            ]),
                     ]),
                 Section::make()
                     ->heading('KYC Information')

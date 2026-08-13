@@ -24,9 +24,11 @@ class DepositResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
 
-    protected static string|UnitEnum|null $navigationGroup = SupermanNavigationGroup::Finance;
+    protected static string|UnitEnum|null $navigationGroup = SupermanNavigationGroup::Billing;
 
     protected static ?string $navigationLabel = 'Deposits';
+
+    protected static ?int $navigationSort = 4;
 
     public static function form(Schema $schema): Schema
     {

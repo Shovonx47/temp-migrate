@@ -18,7 +18,7 @@ class UsageCdrPage extends Page
 
     protected static ?string $title = 'Usage & Call Detail Records';
 
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 8;
 
     protected string $view = 'filament.admin.billing.placeholder';
 }

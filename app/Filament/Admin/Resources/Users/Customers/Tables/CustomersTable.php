@@ -25,11 +25,18 @@ class CustomersTable
     {
         return $table
             ->modifyQueryUsing(function ($query) {
-                $query->where('type', 'customer');
+                $query->where('type', 'customer')
+                    ->with(['activeTariffAssignment.tariffPlan']);
             })
             ->columns([
                 TextColumn::make('name')
                     ->label('Name')
+                    ->searchable(),
+                TextColumn::make('activeTariffAssignment.tariffPlan.name')
+                    ->label('Current Plan')
+                    ->placeholder('No plan assigned')
+                    ->badge()
+                    ->color('info')
                     ->searchable(),
                 TextColumn::make('email')
                     ->label('Email')

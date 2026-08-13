@@ -105,10 +105,11 @@ return [
                     'label' => 'API Type',
                     'type' => 'select',
                     'options' => [
-                        'mno' => 'MNO',
                         'iptsp' => 'IPTSP',
+                        'mno' => 'MNO',
                     ],
-                    'helper' => 'MNO: uses /a2p-sms/ endpoints (GP, RB, TT, BL). IPTSP: uses /a2p-sms-iptsp/ endpoints (ADN, MN, BN, etc.).',
+                    'default' => 'iptsp',
+                    'helper' => 'IPTSP: uses /a2p-sms-iptsp/ endpoints (ADN, Mirnet, Bracnet, etc.). MNO: uses /a2p-sms/ endpoints (GP, RB, TT, BL).',
                     'required' => true,
                 ],
                 'username' => [

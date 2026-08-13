@@ -111,8 +111,10 @@ class GatewayForm
                 $fields[] = Select::make("$section.$key")
                     ->label($options['label'] ?? ucfirst($key))
                     ->multiple()
-                    ->options(function (Get $get): array {
-                        $apiType = $get('credentials.api_type') ?? $get('api_type');
+                    ->options(function (Get $get) use ($section): array {
+                        $apiType = $get("$section.api_type")
+                            ?? $get('api_type')
+                            ?? $get('credentials.api_type');
 
                         return self::getCarrierOptionsForApiType($apiType);
                     })
@@ -123,16 +125,24 @@ class GatewayForm
             }
 
             if ($type === 'select') {
-                $fields[] = Select::make("$section.$key")
+                $field = Select::make("$section.$key")
                     ->label($options['label'] ?? ucfirst($key))
                     ->options($options['options'] ?? [])
                     ->live()
-                    ->afterStateUpdated(function (Set $set, $state) use ($key) {
+                    ->afterStateUpdated(function (Set $set) use ($section, $key) {
                         if ($key === 'api_type') {
+                            $set('enabled_carriers', []);
+                            $set("$section.enabled_carriers", []);
                             $set('credentials.enabled_carriers', []);
                         }
                     })
                     ->required($options['required'] ?? false);
+
+                if (isset($options['default'])) {
+                    $field->default($options['default']);
+                }
+
+                $fields[] = $field;
 
                 continue;
             }

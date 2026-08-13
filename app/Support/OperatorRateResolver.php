@@ -4,25 +4,27 @@ namespace App\Support;
 
 use App\Exceptions\OperatorRateNotConfiguredException;
 use App\Models\Operator;
+use App\Models\TariffRate;
 use App\Models\User;
 
 /**
  * Resolves the per-SMS rate for a given (user, phone, masking) tuple.
  *
- * Lookup cascades:
- *   1. user_operator_rates override for the matched operator + sender type
- *   2. operators.masking_price / non_masking_price (system default)
- *   3. Throws OperatorRateNotConfiguredException — admin must fill it in.
+ * Lookup cascade (in order):
+ *   1. Customer's active TariffPlanAssignment → TariffPlan → tariff_rates row for operator
+ *   2. user_operator_rates override (legacy fallback — kept during migration window)
+ *   3. operators.masking_price / non_masking_price (system default)
+ *   4. Throws OperatorRateNotConfiguredException — admin must configure pricing.
  *
  * Build one instance per batch via {@see forUser()} so the operator catalog
- * and the user's overrides are loaded once and reused for every message.
+ * and the user's rates are loaded once and reused for every message.
  */
 readonly class OperatorRateResolver
 {
     /**
      * @param  array<int, Operator>  $operators  keyed by operator id
      * @param  array<string, int>  $codeIndex  "{countryCode}:{opCode}" => operator id
-     * @param  array<int, array{masking_price: ?float, non_masking_price: ?float}>  $overrides  operator id => overrides
+     * @param  array<int, array{masking_price: ?float, non_masking_price: ?float}>  $overrides  operator id => rates
      */
     public function __construct(
         private array $operators,
@@ -32,7 +34,10 @@ readonly class OperatorRateResolver
 
     /**
      * Build a resolver pre-loaded with the operator catalog and the given user's
-     * overrides. Use this at the start of a batch so per-row lookups are O(1).
+     * effective rates. Resolves through the tariff plan system first, then falls
+     * back to legacy user_operator_rates, then to operator system defaults.
+     *
+     * Use this at the start of a batch so per-row lookups are O(1).
      */
     public static function forUser(User $user): self
     {
@@ -54,8 +59,34 @@ readonly class OperatorRateResolver
             }
         }
 
-        $overrides = $user
-            ->operatorRates()
+        // 1. Try to resolve rates from the user's active tariff plan assignment.
+        $overrides = self::resolveFromTariffPlan($user)
+            // 2. Fall back to the legacy user_operator_rates table.
+            ?? self::resolveFromLegacyOverrides($user);
+
+        return new self($operators, $codeIndex, $overrides ?? []);
+    }
+
+    /**
+     * Load rates from the user's active tariff plan assignment.
+     *
+     * @return array<int, array{masking_price: ?float, non_masking_price: ?float}>|null
+     *                                                                                  Returns null when no active assignment exists (triggers legacy fallback).
+     */
+    private static function resolveFromTariffPlan(User $user): ?array
+    {
+        // Eager-load assignment → plan in one query
+        $assignment = $user->activeTariffAssignment()->with('tariffPlan')->first();
+
+        if (! $assignment || ! $assignment->tariffPlan) {
+            return null;
+        }
+
+        $plan = $assignment->tariffPlan;
+
+        // Load all rate rows for this plan, keyed by operator_id
+        $rates = TariffRate::query()
+            ->where('tariff_plan_id', $plan->id)
             ->get(['operator_id', 'masking_price', 'non_masking_price'])
             ->keyBy('operator_id')
             ->map(fn ($r): array => [
@@ -64,7 +95,32 @@ readonly class OperatorRateResolver
             ])
             ->all();
 
-        return new self($operators, $codeIndex, $overrides);
+        return $rates;
+    }
+
+    /**
+     * Load rates from the legacy user_operator_rates table (backward compat).
+     *
+     * @return array<int, array{masking_price: ?float, non_masking_price: ?float}>|null
+     *                                                                                  Returns null when no legacy overrides exist.
+     */
+    private static function resolveFromLegacyOverrides(User $user): ?array
+    {
+        $rows = $user
+            ->operatorRates()
+            ->get(['operator_id', 'masking_price', 'non_masking_price']);
+
+        if ($rows->isEmpty()) {
+            return null;
+        }
+
+        return $rows
+            ->keyBy('operator_id')
+            ->map(fn ($r): array => [
+                'masking_price' => $r->masking_price,
+                'non_masking_price' => $r->non_masking_price,
+            ])
+            ->all();
     }
 
     /**

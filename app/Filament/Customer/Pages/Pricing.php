@@ -4,6 +4,7 @@ namespace App\Filament\Customer\Pages;
 
 use App\Enums\CustomerNavigationGroup;
 use App\Models\Operator;
+use App\Support\OperatorRateResolver;
 use Filament\Pages\Page;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
@@ -21,16 +22,20 @@ class Pricing extends Page implements HasTable
 
     public function table(Table $table): Table
     {
+        $user = auth()->user();
+
+        /**
+         * Resolve effective rates for the customer via the shared billing engine.
+         * This now cascades: Active TariffPlan → Legacy user_operator_rates → Operator default.
+         * The customer sees exactly what they are billed.
+         */
+        $resolver = OperatorRateResolver::forUser($user);
+
         return $table
             ->query(
                 Operator::query()
-                    ->leftJoin('user_operator_rates', function ($join) {
-                        $join->on('operators.id', '=', 'user_operator_rates.operator_id')
-                            ->where('user_operator_rates.user_id', auth()->id());
-                    })
-                    ->select('operators.*')
-                    ->selectRaw('COALESCE(user_operator_rates.masking_price, operators.masking_price) as effective_masking_price')
-                    ->selectRaw('COALESCE(user_operator_rates.non_masking_price, operators.non_masking_price) as effective_non_masking_price')
+                    ->active()
+                    ->with('country')
             )
             ->columns([
                 TextColumn::make('country.name')
@@ -40,12 +45,20 @@ class Pricing extends Page implements HasTable
                 TextColumn::make('codes')
                     ->label('Codes')
                     ->badge(),
-                TextColumn::make('effective_masking_price')
+                TextColumn::make('masking_rate')
                     ->label('Masking')
-                    ->money('BDT'),
-                TextColumn::make('effective_non_masking_price')
+                    ->state(function (Operator $record) use ($resolver): string {
+                        $rate = $resolver->ratesForUser(true)[$record->id] ?? null;
+
+                        return $rate !== null ? '৳ '.number_format($rate, 4) : '—';
+                    }),
+                TextColumn::make('non_masking_rate')
                     ->label('Non Masking')
-                    ->money('BDT'),
+                    ->state(function (Operator $record) use ($resolver): string {
+                        $rate = $resolver->ratesForUser(false)[$record->id] ?? null;
+
+                        return $rate !== null ? '৳ '.number_format($rate, 4) : '—';
+                    }),
             ])
             ->paginated(false);
     }

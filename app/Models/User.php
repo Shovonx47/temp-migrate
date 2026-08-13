@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -66,6 +67,22 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     public function operatorRates(): HasMany
     {
         return $this->hasMany(UserOperatorRate::class);
+    }
+
+    public function tariffPlanAssignments(): HasMany
+    {
+        return $this->hasMany(TariffPlanAssignment::class);
+    }
+
+    /**
+     * The currently active tariff plan assignment for this user.
+     * Use this to resolve billing rates through the tariff plan system.
+     */
+    public function activeTariffAssignment(): HasOne
+    {
+        return $this->hasOne(TariffPlanAssignment::class)
+            ->where('status', 'active')
+            ->latest('effective_from');
     }
 
     public function canAccessPanel(Panel $panel): bool

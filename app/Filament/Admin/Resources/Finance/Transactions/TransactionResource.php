@@ -22,9 +22,11 @@ class TransactionResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedReceiptPercent;
 
-    protected static string|UnitEnum|null $navigationGroup = SupermanNavigationGroup::Finance;
+    protected static string|UnitEnum|null $navigationGroup = SupermanNavigationGroup::Billing;
 
     protected static ?string $navigationLabel = 'Transactions';
+
+    protected static ?int $navigationSort = 5;
 
     public static function form(Schema $schema): Schema
     {

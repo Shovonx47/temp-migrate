@@ -2,16 +2,14 @@
 
 namespace App\Filament\Admin\Resources\Users\Customers\Schemas;
 
+use App\Enums\TariffPlanStatus;
 use App\Enums\UserStatus;
-use App\Filament\Admin\Pages\Billing\UserAssignmentPage;
-use Filament\Actions\Action;
+use App\Models\TariffPlan;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Hash;
 use Ysfkaya\FilamentPhoneInput\Forms\PhoneInput;
 
@@ -73,22 +71,17 @@ class CustomerForm
                 Section::make('Tariff Plan')
                     ->description('The tariff plan controls what this customer is charged per SMS part, per operator.')
                     ->schema([
-                        TextEntry::make('activeTariffAssignment.tariffPlan.name')
+                        Select::make('tariff_plan_id')
                             ->label('Current Plan')
-                            ->placeholder('No plan assigned — billing falls back to operator system defaults.')
-                            ->helperText(fn ($record): string => $record?->id
-                                ? 'To change or assign a plan, use the Billing → User-wise Assignment page.'
-                                : 'Save this customer first, then assign a tariff plan from the Billing section.')
-                            ->suffixAction(
-                                Action::make('go_to_assignment')
-                                    ->label('Manage Assignment')
-                                    ->icon(Heroicon::OutlinedArrowTopRightOnSquare)
-                                    ->url(fn ($record) => $record?->id
-                                        ? UserAssignmentPage::getUrl()
-                                        : null)
-                                    ->openUrlInNewTab()
-                                    ->visible(fn ($record): bool => (bool) $record?->id)
-                            ),
+                            ->placeholder('— Select a tariff plan —')
+                            ->options(fn () => TariffPlan::query()
+                                ->where('status', TariffPlanStatus::Active->value)
+                                ->pluck('name', 'id'))
+                            ->searchable()
+                            ->preload()
+                            ->nullable()
+                            ->dehydrated(false)
+                            ->helperText('Selecting a tariff plan will activate it as this customer\'s current plan upon saving.'),
                     ]),
             ]);
     }

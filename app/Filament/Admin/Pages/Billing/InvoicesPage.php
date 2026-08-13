@@ -18,7 +18,7 @@ class InvoicesPage extends Page
 
     protected static ?string $title = 'Invoices';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 6;
 
     protected string $view = 'filament.admin.billing.placeholder';
 }

@@ -7,6 +7,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Collection;
 
@@ -110,7 +111,11 @@ class GatewayForm
                 $fields[] = Select::make("$section.$key")
                     ->label($options['label'] ?? ucfirst($key))
                     ->multiple()
-                    ->options(fn (Get $get) => self::getCarrierOptions($get("{$section}.api_type") ?? 'mno'))
+                    ->options(function (Get $get): array {
+                        $apiType = $get('credentials.api_type') ?? $get('api_type');
+
+                        return self::getCarrierOptionsForApiType($apiType);
+                    })
                     ->live()
                     ->required($options['required'] ?? false);
 
@@ -121,6 +126,12 @@ class GatewayForm
                 $fields[] = Select::make("$section.$key")
                     ->label($options['label'] ?? ucfirst($key))
                     ->options($options['options'] ?? [])
+                    ->live()
+                    ->afterStateUpdated(function (Set $set, $state) use ($key) {
+                        if ($key === 'api_type') {
+                            $set('credentials.enabled_carriers', []);
+                        }
+                    })
                     ->required($options['required'] ?? false);
 
                 continue;
@@ -141,28 +152,51 @@ class GatewayForm
         return $fields;
     }
 
-    private static function getCarrierOptions(string $apiType): array
+    public static function getCarrierOptionsForApiType(?string $apiType): array
     {
-        return match ($apiType) {
-            'iptsp' => [
-                'ADN' => 'ADN',
-                'MN' => 'Mirnet',
-                'BN' => 'Bracnet',
-                'AIT' => 'AmberIT',
-                'RT' => 'RanksITT',
-                'PRM' => 'Premium',
-                'FN' => 'FusionNet',
-                'BR' => 'Brilliant',
-                'MTN' => 'Metronet',
-                'RCO' => 'RaceOnline',
-            ],
-            default => [
-                'GP' => 'GrameenPhone',
-                'RB' => 'Robi',
-                'TT' => 'Teletalk',
-                'BL' => 'Banglalink',
-            ],
-        };
+        $type = strtolower(trim((string) $apiType));
+
+        if ($type === 'mno') {
+            return self::getMnoCarrierOptions();
+        }
+
+        return self::getIptspCarrierOptions();
+    }
+
+    public static function getIptspCarrierOptions(): array
+    {
+        return [
+            'ADN' => 'ADN',
+            'MN' => 'Mirnet',
+            'BN' => 'Bracnet',
+            'AIT' => 'AmberIT',
+            'RT' => 'RanksITT',
+            'PRM' => 'Premium',
+            'FN' => 'FusionNet',
+            'BR' => 'Brilliant',
+            'MTN' => 'Metronet',
+            'RCO' => 'RaceOnline',
+            'BPL' => 'BanglaPhone',
+            'ICN' => 'Icon',
+            'WEB' => 'Weblink',
+            'BDC' => 'BDCOM',
+            'RD' => 'RedData',
+            'L3' => 'Link3',
+            'BTCL' => 'BTCL',
+            'AGNI' => 'AGNI',
+            'ICC' => 'ICC',
+            'RG' => 'RoyalGreen',
+        ];
+    }
+
+    public static function getMnoCarrierOptions(): array
+    {
+        return [
+            'GP' => 'Grameenphone',
+            'BL' => 'Banglalink',
+            'RB' => 'Robi',
+            'TT' => 'Teletalk',
+        ];
     }
 
     public static function getDriverOptions(): Collection

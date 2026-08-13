@@ -135,7 +135,9 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
 
     public function getDashboardData(): DashboardData
     {
-        $mnoCodes = $this->credentials['api_type'] === 'iptsp'
+        $type = strtolower(trim((string) ($this->credentials['api_type'] ?? 'mno')));
+
+        $carrierCodes = $type === 'iptsp'
             ? [
                 'ADN' => 'ADN',
                 'MN' => 'Mirnet',
@@ -147,6 +149,16 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
                 'BR' => 'Brilliant',
                 'MTN' => 'Metronet',
                 'RCO' => 'RaceOnline',
+                'BPL' => 'BanglaPhone',
+                'ICN' => 'Icon',
+                'WEB' => 'Weblink',
+                'BDC' => 'BDCOM',
+                'RD' => 'RedData',
+                'L3' => 'Link3',
+                'BTCL' => 'BTCL',
+                'AGNI' => 'AGNI',
+                'ICC' => 'ICC',
+                'RG' => 'RoyalGreen',
             ]
             : [
                 'GP' => 'GrameenPhone',
@@ -158,7 +170,7 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
         $enabledCarriers = $this->credentials['enabled_carriers'] ?? [];
 
         if (! empty($enabledCarriers) && is_array($enabledCarriers)) {
-            $mnoCodes = array_filter($mnoCodes, fn ($name, $code) => in_array($code, $enabledCarriers), ARRAY_FILTER_USE_BOTH);
+            $carrierCodes = array_filter($carrierCodes, fn ($name, $code) => in_array($code, $enabledCarriers), ARRAY_FILTER_USE_BOTH);
         }
 
         $wallet = $this->fetchBalance('check-current-balance', [
@@ -173,7 +185,7 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
             icon: 'heroicon-o-banknotes',
         )];
 
-        foreach ($mnoCodes as $code => $name) {
+        foreach ($carrierCodes as $code => $name) {
             $balance = $this->fetchBalance('check-credit-balance', [
                 'username' => $this->credentials['username'] ?? '',
                 'password' => $this->credentials['password'] ?? '',

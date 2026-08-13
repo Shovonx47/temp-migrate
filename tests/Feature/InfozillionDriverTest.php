@@ -606,7 +606,7 @@ test('getDashboardData checks IPTSP balances when api_type is iptsp', function (
 
     $dashboard = $driver->getDashboardData();
 
-    expect($dashboard->cards)->toHaveCount(11)
+    expect($dashboard->cards)->toHaveCount(21)
         ->and($dashboard->cards[0]->label)->toBe('Wallet Balance')
         ->and($dashboard->cards[1]->label)->toBe('ADN Balance')
         ->and($dashboard->cards[2]->label)->toBe('Mirnet Balance')

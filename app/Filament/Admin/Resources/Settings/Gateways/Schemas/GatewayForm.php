@@ -33,6 +33,16 @@ class GatewayForm
                     ->default(self::getDriverOptions()->keys()->first())
                     ->required()
                     ->live(onBlur: true)
+                    ->afterStateHydrated(function (Set $set, ?string $state, string $operation) {
+                        if ($operation === 'create' && filled($state)) {
+                            self::seedDriverState($set, $state);
+                        }
+                    })
+                    ->afterStateUpdated(function (Set $set, ?string $state, string $operation) {
+                        if ($operation === 'create' && filled($state)) {
+                            self::seedDriverState($set, $state);
+                        }
+                    })
                     ->dehydrated(fn (string $operation): bool => $operation === 'create')
                     ->disabledOn('edit'),
                 TextInput::make('requests_per_minute')
@@ -213,5 +223,39 @@ class GatewayForm
     {
         return collect(config('sms.drivers'))
             ->mapWithKeys(fn ($value, $key) => [$key => $value['title']]);
+    }
+
+    /**
+     * Pre-seed the credentials and config arrays with all expected keys
+     * for the selected driver, so Livewire's server-side $data contains
+     * the property paths before Alpine's entangle bindings fire.
+     */
+    private static function seedDriverState(Set $set, string $driver): void
+    {
+        $driverConfig = config("sms.drivers.$driver");
+
+        if (blank($driverConfig)) {
+            return;
+        }
+
+        foreach (['credentials', 'config'] as $section) {
+            $sectionConfig = data_get($driverConfig, $section, []);
+
+            foreach ($sectionConfig as $key => $options) {
+                $type = $options['type'] ?? 'text';
+
+                if ($type === 'hidden') {
+                    continue;
+                }
+
+                $default = match ($type) {
+                    'multi_select' => [],
+                    'select' => $options['default'] ?? null,
+                    default => $options['default'] ?? null,
+                };
+
+                $set("$section.$key", $default);
+            }
+        }
     }
 }

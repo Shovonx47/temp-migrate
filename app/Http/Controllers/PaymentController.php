@@ -59,17 +59,18 @@ class PaymentController extends Controller
             ->color($notification['color'])
             ->send();
 
-        return redirect(DepositResource::getUrl('view', [
-            'record' => $deposit,
-        ], panel: $this->resolvePanelForUser($deposit->user)));
-    }
-
-    private function resolvePanelForUser(\App\Models\User $user): string
-    {
-        return match (true) {
-            $user->type->isSuperman() => 'superman',
-            $user->type->isSp() => 'sp',
-            default => 'customer',
+        $redirectUrl = match (true) {
+            $deposit->user->type->isSp() => \App\Filament\Sp\Resources\Billing\Deposits\DepositResource::getUrl('view', [
+                'record' => $deposit,
+            ], panel: 'sp'),
+            $deposit->user->type->isSuperman() => \App\Filament\Admin\Resources\Finance\Deposits\DepositResource::getUrl('view', [
+                'record' => $deposit,
+            ], panel: 'superman'),
+            default => DepositResource::getUrl('view', [
+                'record' => $deposit,
+            ], panel: 'customer'),
         };
+
+        return redirect($redirectUrl);
     }
 }

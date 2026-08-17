@@ -14,6 +14,7 @@ readonly class CompleteDeposit
 {
     public function __construct(
         private CreditBalance $creditBalance,
+        private DebitBalance $debitBalance,
     ) {}
 
     /**
@@ -49,19 +50,41 @@ readonly class CompleteDeposit
                 'meta' => $response->raw,
             ]);
 
+            $user = $deposit->user;
+
+            if ($user->type->isCustomer() && $user->sp_id) {
+                $sp = $user->sp;
+                if ($sp) {
+                    $this->debitBalance->handle(
+                        user: $sp,
+                        amount: $deposit->amount,
+                        transactionable: $deposit,
+                        description: "Customer top-up: {$user->name} (#{$deposit->id})"
+                    );
+                }
+            }
+
             $this->creditBalance->handle(
-                user: $deposit->user,
+                user: $user,
                 amount: $deposit->amount,
                 transactionable: $deposit,
                 description: "Deposit of {$deposit->amount} via {$deposit->payment_method->value}"
             );
 
-            DB::afterCommit(function () use ($deposit) {
+            DB::afterCommit(function () use ($deposit, $user) {
                 Notification::make()
                     ->icon(Heroicon::OutlinedCurrencyBangladeshi)
                     ->title('Deposit Completed')
                     ->body("Your deposit of {$deposit->amount} has been completed.")
-                    ->sendToDatabase($deposit->user);
+                    ->sendToDatabase($user);
+
+                if ($user->type->isCustomer() && $user->sp_id && $user->sp) {
+                    Notification::make()
+                        ->icon(Heroicon::OutlinedCurrencyBangladeshi)
+                        ->title('Customer Top-up')
+                        ->body("Customer {$user->name} topped up {$deposit->amount} BDT. Deducted from your balance.")
+                        ->sendToDatabase($user->sp);
+                }
             });
 
             return true;

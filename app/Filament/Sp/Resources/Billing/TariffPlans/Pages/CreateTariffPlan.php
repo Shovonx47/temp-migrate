@@ -11,8 +11,9 @@ class CreateTariffPlan extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $data['sp_id'] = auth()->id();
-        $data['created_by'] = auth()->id();
+        $user = auth()->user();
+        $data['sp_id'] = ($user?->type?->isSp() && $user?->sp_id) ? $user->sp_id : $user?->id;
+        $data['created_by'] = $user?->id;
 
         return $data;
     }

@@ -81,7 +81,9 @@ class SpResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->scopes(['sps']);
+        return parent::getEloquentQuery()
+            ->scopes(['sps'])
+            ->whereNull('sp_id');
     }
 
     public static function getRecordRouteBindingEloquentQuery(): Builder

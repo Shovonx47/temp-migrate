@@ -14,7 +14,13 @@ class DepositPolicy
 
     public function view(User $user, Deposit $deposit): bool
     {
-        return $deposit->user_id === $user->id;
+        if ($user->type->isSuperman()) {
+            return true;
+        }
+
+        $ownerId = ($user->type->isSp() && $user->sp_id) ? $user->sp_id : $user->id;
+
+        return $deposit->user_id === $ownerId;
     }
 
     public function create(User $user): bool

@@ -10,6 +10,7 @@ use App\Support\Facades\Payment;
 use Exception;
 use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\DB;
@@ -37,8 +38,22 @@ class DepositAction
                     ->maxValue(100_000),
             ])
             ->action(function (array $data) {
-                $response = DB::transaction(function () use ($data): PaymentResponse {
-                    $user = auth()->user();
+                $user = auth()->user();
+
+                if ($user && $user->type->isCustomer() && $user->sp_id) {
+                    $sp = $user->sp;
+                    if (! $sp || $sp->balance < $data['amount']) {
+                        Notification::make()
+                            ->title('Top Up Unavailable')
+                            ->body('Your reseller does not have sufficient balance for this top-up. Please contact your reseller.')
+                            ->danger()
+                            ->send();
+
+                        return;
+                    }
+                }
+
+                $response = DB::transaction(function () use ($data, $user): PaymentResponse {
                     $gateway = 'piprapay';
 
                     $deposit = $user->deposits()->create([

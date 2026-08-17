@@ -13,8 +13,9 @@ class CreateEmployee extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        $user = Filament::auth()->user();
         $data['type'] = UserType::Sp;
-        $data['sp_id'] = Filament::auth()->id();
+        $data['sp_id'] = ($user?->type?->isSp() && $user?->sp_id) ? $user->sp_id : $user?->id;
         $data['balance'] = 0;
 
         return $data;

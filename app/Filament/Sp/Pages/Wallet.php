@@ -39,7 +39,7 @@ class Wallet extends Page implements HasTable
                 ->label('Top Up')
                 ->icon(Heroicon::OutlinedPlusCircle)
                 ->color('success')
-                ->url(fn (): string => DepositResource::getUrl('index')),
+                ->url(fn (): string => DepositResource::getUrl('index', panel: 'sp')),
             DistributeBalanceAction::make(),
         ];
     }

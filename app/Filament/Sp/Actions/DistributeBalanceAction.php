@@ -28,12 +28,17 @@ class DistributeBalanceAction
                 Select::make('customer_id')
                     ->label('Customer')
                     ->placeholder('Select a customer')
-                    ->options(fn (): array => auth()->user()
-                        ?->spCustomers()
-                        ->where('status', UserStatus::Approved->value)
-                        ->orderBy('name')
-                        ->pluck('name', 'id')
-                        ->all() ?? [])
+                    ->options(function (): array {
+                        $user = auth()->user();
+                        $sp = ($user?->type?->isSp() && $user?->sp_id) ? User::find($user->sp_id) : $user;
+
+                        return $sp
+                            ?->spCustomers()
+                            ->where('status', UserStatus::Approved->value)
+                            ->orderBy('name')
+                            ->pluck('name', 'id')
+                            ->all() ?? [];
+                    })
                     ->searchable()
                     ->preload()
                     ->required(),
@@ -51,8 +56,9 @@ class DistributeBalanceAction
                     ->nullable(),
             ])
             ->action(function (array $data): void {
-                /** @var User $sp */
-                $sp = auth()->user();
+                /** @var User $actingUser */
+                $actingUser = auth()->user();
+                $sp = ($actingUser->type->isSp() && $actingUser->sp_id) ? User::findOrFail($actingUser->sp_id) : $actingUser;
                 $customer = User::query()->findOrFail($data['customer_id']);
 
                 try {
@@ -61,7 +67,7 @@ class DistributeBalanceAction
                         $customer,
                         (float) $data['amount'],
                         $data['note'] ?? null,
-                        $sp,
+                        $actingUser,
                     );
 
                     Notification::make()

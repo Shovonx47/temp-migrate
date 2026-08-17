@@ -37,34 +37,36 @@ class ScopedBySp implements Scope
         }
 
         // An S P employee is an S P-type user whose sp_id points at the
-        // owning reseller. For scoping purposes, treat employees exactly
-        // like their owning S P, so both operate within the same scope.
-        $scopingUser = $user->type === UserType::Sp && $user->sp_id
-            ? User::find($user->sp_id)
-            : $user;
-
-        if (! $scopingUser) {
-            return;
-        }
+        // owning reseller. For scoping purposes, treat employees under
+        // the owning S P's ID without re-querying the User model.
+        $scopingId = ($user->type === UserType::Sp && $user->sp_id)
+            ? $user->sp_id
+            : $user->id;
 
         $table = $model->getTable();
 
         if ($model instanceof User) {
-            // An S P may see themselves and their own customers only.
-            // An employee may only see themselves plus the owning S P's
-            // customers — never the S P or peer employees.
-            $builder->where(function (Builder $query) use ($table, $user, $scopingUser): void {
-                $query->where($table.'.id', $user->id)
-                    ->orWhere(function (Builder $inner) use ($table, $scopingUser): void {
+            // An S P may see themselves, their own customers, and their own employees.
+            // An employee may only see themselves plus the owning S P's customers.
+            $builder->where(function (Builder $query) use ($table, $user, $scopingId): void {
+                $query->where($table.'.id', $user->id);
+
+                if (! $user->sp_id) {
+                    // Parent S P: see all users owned by this S P (customers and employees)
+                    $query->orWhere($table.'.sp_id', $user->id);
+                } else {
+                    // S P Employee: see only the parent S P's customers
+                    $query->orWhere(function (Builder $inner) use ($table, $scopingId): void {
                         $inner->where($table.'.type', UserType::Customer->value)
-                            ->where($table.'.sp_id', $scopingUser->id);
+                            ->where($table.'.sp_id', $scopingId);
                     });
+                }
             });
 
             return;
         }
 
-        $builder->where($table.'.sp_id', $scopingUser->id);
+        $builder->where($table.'.sp_id', $scopingId);
     }
 
     private function resolveActingUser(): ?User

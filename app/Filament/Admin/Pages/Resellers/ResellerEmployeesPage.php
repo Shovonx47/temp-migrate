@@ -34,7 +34,7 @@ class ResellerEmployeesPage extends Page implements HasTable
 
     protected static ?string $slug = 'sps/employees';
 
-    protected string $view = 'filament.admin.blank';
+    protected string $view = 'filament.admin.table';
 
     public function table(Table $table): Table
     {

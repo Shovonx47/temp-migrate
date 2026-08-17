@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 // owner's user type, so the callback authenticates on all guards.
 Route::match(['post', 'get'], 'payments/{gateway}/callback/{deposit}', PaymentController::class)
     ->name('payments.callback')
-    ->middleware(['auth:customer', 'auth:sp', 'auth:superman'])
+    ->middleware(['auth:customer,sp,superman'])
     ->whereIn('gateway', ['piprapay']);
 
 Route::match(['post', 'get'], 'webhooks/payment/{gateway}', PaymentWebhookController::class)

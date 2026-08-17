@@ -43,7 +43,10 @@ class UserPolicy
             return true;
         }
 
-        return $this->spOwnsCustomer($user, $model);
+        // Only parent S P can delete their own customers or employees
+        return $user->type === UserType::Sp
+            && ! $user->sp_id
+            && $model->sp_id === $user->id;
     }
 
     public function restore(User $user, User $model): bool
@@ -58,8 +61,16 @@ class UserPolicy
 
     private function spOwnsCustomer(User $actor, User $model): bool
     {
-        return $actor->type === UserType::Sp
-            && $model->type === UserType::Customer
-            && $model->sp_id === $actor->id;
+        if ($actor->type !== UserType::Sp) {
+            return false;
+        }
+
+        // Parent S P owns their customers and employees
+        if (! $actor->sp_id) {
+            return $model->sp_id === $actor->id;
+        }
+
+        // S P Employee can access the parent S P's customers
+        return $model->type === UserType::Customer && $model->sp_id === $actor->sp_id;
     }
 }

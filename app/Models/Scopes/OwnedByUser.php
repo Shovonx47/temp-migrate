@@ -16,8 +16,11 @@ class OwnedByUser implements Scope
 
         $user = auth()->user();
 
-        if ($user->type->isCustomer() || $user->type->isSp()) {
+        if ($user->type->isCustomer()) {
             $builder->where($model->getTable().'.user_id', $user->id);
+        } elseif ($user->type->isSp()) {
+            $ownerId = $user->sp_id ?: $user->id;
+            $builder->where($model->getTable().'.user_id', $ownerId);
         }
     }
 }

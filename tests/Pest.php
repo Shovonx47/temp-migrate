@@ -51,6 +51,8 @@ function something()
     // ..
 }
 
+require_once __DIR__.'/Helpers/LivewireHelper.php';
+
 /**
  * Seed the default Bangladesh country + operator catalog with prices. Shared by
  * any test that exercises the billing pipeline (message batches, campaigns).

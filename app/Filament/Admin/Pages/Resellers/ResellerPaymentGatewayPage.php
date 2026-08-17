@@ -4,12 +4,13 @@ namespace App\Filament\Admin\Pages\Resellers;
 
 use App\Enums\SupermanNavigationGroup;
 use App\Enums\UserType;
+use App\Filament\Admin\Resources\Finance\Deposits\DepositResource;
 use App\Models\Deposit;
 use BackedEnum;
+use Filament\Actions\ActionGroup;
+use Filament\Actions\ViewAction;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Actions\ActionGroup;
-use Filament\Tables\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
@@ -33,7 +34,7 @@ class ResellerPaymentGatewayPage extends Page implements HasTable
 
     protected static ?string $slug = 'sps/payment-gateway';
 
-    protected string $view = 'filament.admin.blank';
+    protected string $view = 'filament.admin.table';
 
     public function table(Table $table): Table
     {
@@ -84,7 +85,7 @@ class ResellerPaymentGatewayPage extends Page implements HasTable
             ->recordActions([
                 ActionGroup::make([
                     ViewAction::make()
-                        ->url(fn (Deposit $record): string => \App\Filament\Admin\Resources\Finance\Deposits\DepositResource::getUrl('view', [
+                        ->url(fn (Deposit $record): string => DepositResource::getUrl('view', [
                             'record' => $record,
                         ])),
                 ]),

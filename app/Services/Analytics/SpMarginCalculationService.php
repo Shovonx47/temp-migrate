@@ -18,6 +18,7 @@ class SpMarginCalculationService
      */
     public function calculateForSp(User $sp, ?Carbon $from = null, ?Carbon $to = null): array
     {
+        $sp = ($sp->type->isSp() && $sp->sp_id) ? (User::find($sp->sp_id) ?? $sp) : $sp;
         $from = $from ?? today();
         $to = $to ?? now();
 
@@ -49,7 +50,7 @@ class SpMarginCalculationService
                 'messages' => 0,
             ];
 
-            $sps = User::query()->sps()->get();
+            $sps = User::query()->sps()->whereNull('sp_id')->get();
 
             foreach ($sps as $sp) {
                 $period = $this->computeForSp($sp, $from, $to);
@@ -85,7 +86,7 @@ class SpMarginCalculationService
         return Cache::remember($cacheKey, 300, function () use ($from, $to) {
             $rows = [];
 
-            foreach (User::query()->sps()->orderBy('name')->get() as $sp) {
+            foreach (User::query()->sps()->whereNull('sp_id')->orderBy('name')->get() as $sp) {
                 $period = $this->computeForSp($sp, $from, $to);
 
                 if ($period['messages'] === 0) {

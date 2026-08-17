@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Widgets;
 
 use App\Filament\Concerns\HasDateFilter;
+use App\Models\User;
 use App\Services\Analytics\SpMarginCalculationService;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
@@ -20,7 +21,13 @@ class SpMarginStatsWidget extends BaseWidget
     {
         $service = app(SpMarginCalculationService::class);
         [$from, $to] = HasDateFilter::resolveDateRange($this->pageFilters);
-        $period = $service->calculateForPeriod($from, $to);
+        $selectedSpId = $this->pageFilters['sp_id'] ?? null;
+
+        if ($selectedSpId && ($sp = User::withoutGlobalScopes()->find($selectedSpId))) {
+            $period = $service->calculateForSp($sp, $from, $to);
+        } else {
+            $period = $service->calculateForPeriod($from, $to);
+        }
 
         return [
             Stat::make('Retail Revenue', number_format($period['revenue'], 2).' BDT')
@@ -42,3 +49,4 @@ class SpMarginStatsWidget extends BaseWidget
         ];
     }
 }
+

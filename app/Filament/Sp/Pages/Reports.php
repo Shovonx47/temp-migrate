@@ -4,6 +4,11 @@ namespace App\Filament\Sp\Pages;
 
 use App\Enums\SpNavigationGroup;
 use App\Filament\Concerns\HasDateFilter;
+use App\Filament\Sp\Widgets\SpCustomerPerformanceTableWidget;
+use App\Filament\Sp\Widgets\SpDeliveryStatsWidget;
+use App\Filament\Sp\Widgets\SpFinancialOverviewWidget;
+use App\Filament\Sp\Widgets\SpMessageTrendChart;
+use App\Filament\Sp\Widgets\SpOperatorTrafficChart;
 use App\Filament\Sp\Widgets\SpOwnMarginStatsWidget;
 use BackedEnum;
 use Filament\Pages\Dashboard as BasePage;
@@ -30,11 +35,17 @@ class Reports extends BasePage
     {
         return [
             SpOwnMarginStatsWidget::class,
+            SpDeliveryStatsWidget::class,
+            SpFinancialOverviewWidget::class,
+            SpMessageTrendChart::class,
+            SpOperatorTrafficChart::class,
+            SpCustomerPerformanceTableWidget::class,
         ];
     }
 
     public function getColumns(): int|array
     {
-        return 1;
+        return 2;
     }
 }
+

@@ -9,6 +9,7 @@ use App\Filament\Admin\Resources\Users\Sps\Pages\ListSps;
 use App\Filament\Admin\Resources\Users\Sps\Pages\ViewSp;
 use App\Filament\Admin\Resources\Users\Sps\RelationManagers\CustomersRelationManager;
 use App\Filament\Admin\Resources\Users\Sps\RelationManagers\DistributionsRelationManager;
+use App\Filament\Admin\Resources\Users\Sps\RelationManagers\EmployeesRelationManager;
 use App\Filament\Admin\Resources\Users\Sps\RelationManagers\SendersRelationManager;
 use App\Filament\Admin\Resources\Users\Sps\Schemas\SpForm;
 use App\Filament\Admin\Resources\Users\Sps\Schemas\SpInfolist;
@@ -62,6 +63,7 @@ class SpResource extends Resource
     {
         return [
             CustomersRelationManager::class,
+            EmployeesRelationManager::class,
             DistributionsRelationManager::class,
             SendersRelationManager::class,
         ];

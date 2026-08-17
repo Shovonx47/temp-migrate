@@ -4,8 +4,10 @@ namespace App\Filament\Sp\Pages;
 
 use App\Enums\SpNavigationGroup;
 use App\Filament\Sp\Actions\DistributeBalanceAction;
+use App\Filament\Sp\Resources\Billing\Deposits\DepositResource;
 use App\Models\SpDistribution;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -33,6 +35,11 @@ class Wallet extends Page implements HasTable
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('topUp')
+                ->label('Top Up')
+                ->icon(Heroicon::OutlinedPlusCircle)
+                ->color('success')
+                ->url(fn (): string => DepositResource::getUrl('index')),
             DistributeBalanceAction::make(),
         ];
     }

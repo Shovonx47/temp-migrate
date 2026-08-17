@@ -6,9 +6,12 @@ use App\Http\Controllers\SmsWebhookController;
 use App\Models\Batch;
 use Illuminate\Support\Facades\Storage;
 
+// The payment gateway return URL is reached by any tenant (Customer, S P,
+// or Superman). The controller resolves the correct panel by the deposit
+// owner's user type, so the callback authenticates on all guards.
 Route::match(['post', 'get'], 'payments/{gateway}/callback/{deposit}', PaymentController::class)
     ->name('payments.callback')
-    ->middleware(['auth:customer'])
+    ->middleware(['auth:customer', 'auth:sp', 'auth:superman'])
     ->whereIn('gateway', ['piprapay']);
 
 Route::match(['post', 'get'], 'webhooks/payment/{gateway}', PaymentWebhookController::class)

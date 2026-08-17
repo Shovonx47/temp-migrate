@@ -109,6 +109,11 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         return $this->hasMany(self::class, 'sp_id')->where('type', UserType::Customer);
     }
 
+    public function spEmployees(): HasMany
+    {
+        return $this->hasMany(self::class, 'sp_id')->where('type', UserType::Sp);
+    }
+
     public function spDistributions(): HasMany
     {
         return $this->hasMany(SpDistribution::class, 'sp_id');

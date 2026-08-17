@@ -13,6 +13,7 @@ enum SpNavigationGroup: string implements HasIcon, HasLabel
     case Customers = 'customers';
     case Billing = 'billing';
     case Messaging = 'messaging';
+    case Employees = 'employees';
     case Reports = 'reports';
 
     public function getLabel(): string|Htmlable|null
@@ -21,6 +22,7 @@ enum SpNavigationGroup: string implements HasIcon, HasLabel
             self::Customers => 'Customers',
             self::Billing => 'Billing',
             self::Messaging => 'Messaging',
+            self::Employees => 'Employees',
             self::Reports => 'Reports',
         };
     }
@@ -31,6 +33,7 @@ enum SpNavigationGroup: string implements HasIcon, HasLabel
             self::Customers => Heroicon::OutlinedUsers,
             self::Billing => Heroicon::OutlinedBanknotes,
             self::Messaging => Heroicon::OutlinedChatBubbleLeftRight,
+            self::Employees => Heroicon::OutlinedUserGroup,
             self::Reports => Heroicon::OutlinedChartBar,
         };
     }

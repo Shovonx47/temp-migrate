@@ -69,6 +69,16 @@ class UserFactory extends Factory
         ]);
     }
 
+    public function employeeOf(User $sp): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => 'sp',
+            'sp_id' => $sp->id,
+            'status' => 'approved',
+            'balance' => 0,
+        ]);
+    }
+
     public function customerOf(User $sp): static
     {
         return $this->state(fn (array $attributes) => [

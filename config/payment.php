@@ -11,7 +11,7 @@ return [
     |
     */
 
-    'default' => env('PAYMENT_DRIVER', 'plogiprapay'),
+    'default' => env('PAYMENT_DRIVER', 'piprapay'),
 
     /*
     |--------------------------------------------------------------------------

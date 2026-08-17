@@ -36,22 +36,35 @@ class ScopedBySp implements Scope
             return;
         }
 
+        // An S P employee is an S P-type user whose sp_id points at the
+        // owning reseller. For scoping purposes, treat employees exactly
+        // like their owning S P, so both operate within the same scope.
+        $scopingUser = $user->type === UserType::Sp && $user->sp_id
+            ? User::find($user->sp_id)
+            : $user;
+
+        if (! $scopingUser) {
+            return;
+        }
+
         $table = $model->getTable();
 
         if ($model instanceof User) {
-            // S P may see themselves and their own customers only.
-            $builder->where(function (Builder $query) use ($table, $user): void {
+            // An S P may see themselves and their own customers only.
+            // An employee may only see themselves plus the owning S P's
+            // customers — never the S P or peer employees.
+            $builder->where(function (Builder $query) use ($table, $user, $scopingUser): void {
                 $query->where($table.'.id', $user->id)
-                    ->orWhere(function (Builder $inner) use ($table, $user): void {
+                    ->orWhere(function (Builder $inner) use ($table, $scopingUser): void {
                         $inner->where($table.'.type', UserType::Customer->value)
-                            ->where($table.'.sp_id', $user->id);
+                            ->where($table.'.sp_id', $scopingUser->id);
                     });
             });
 
             return;
         }
 
-        $builder->where($table.'.sp_id', $user->id);
+        $builder->where($table.'.sp_id', $scopingUser->id);
     }
 
     private function resolveActingUser(): ?User

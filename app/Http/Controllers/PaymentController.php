@@ -13,12 +13,17 @@ use Illuminate\Http\Request;
 class PaymentController extends Controller
 {
     /**
+     * Payment gateway return URL handler (works for any panel).
+     *
      * @throws Exception
      */
     public function __invoke(Request $request, string $gateway, Deposit $deposit)
     {
         abort_if($deposit->payment_method->value !== $gateway, 404);
-        abort_if($deposit->user_id !== auth()->id(), 404);
+
+        $user = $request->user();
+
+        abort_if(! $user || $deposit->user_id !== $user->id, 404);
 
         $notification = match ($deposit->status) {
             DepositStatus::Pending => [
@@ -56,6 +61,15 @@ class PaymentController extends Controller
 
         return redirect(DepositResource::getUrl('view', [
             'record' => $deposit,
-        ], panel: 'customer'));
+        ], panel: $this->resolvePanelForUser($deposit->user)));
+    }
+
+    private function resolvePanelForUser(\App\Models\User $user): string
+    {
+        return match (true) {
+            $user->type->isSuperman() => 'superman',
+            $user->type->isSp() => 'sp',
+            default => 'customer',
+        };
     }
 }

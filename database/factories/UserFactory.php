@@ -28,6 +28,7 @@ class UserFactory extends Factory
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'type' => 'customer',
+            'sp_id' => null,
             'status' => fake()->randomElement(['approved', 'pending', 'rejected']),
 
             'balance' => 10000,
@@ -41,17 +42,55 @@ class UserFactory extends Factory
 
     public function configure(): static
     {
-        return $this->sequence(fn ($sequence) => [
-            'phone' => '+8801'
+        return $this->afterMaking(function (User $user): void {
+            if (filled($user->phone)) {
+                return;
+            }
+
+            $user->phone = '+8801'
                 .fake()->randomElement([3, 4, 5, 6, 7, 8, 9])
-                .str_pad($sequence->index, 8, '0', STR_PAD_LEFT),
-        ]);
+                .fake()->unique()->numerify('########');
+        });
     }
 
     public function unverified(): static
     {
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
+        ]);
+    }
+
+    public function sp(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => 'sp',
+            'status' => 'approved',
+            'sp_id' => null,
+        ]);
+    }
+
+    public function customerOf(User $sp): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => 'customer',
+            'sp_id' => $sp->id,
+            'status' => 'approved',
+        ]);
+    }
+
+    public function approved(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => 'approved',
+        ]);
+    }
+
+    public function superman(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => 'superman',
+            'status' => 'approved',
+            'sp_id' => null,
         ]);
     }
 }

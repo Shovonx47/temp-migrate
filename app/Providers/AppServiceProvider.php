@@ -11,6 +11,7 @@ use App\Models\Campaign;
 use App\Models\Deposit;
 use App\Models\Gateway;
 use App\Models\Message;
+use App\Models\SpDistribution;
 use App\Models\User;
 use App\Services\Payment\PaymentManager;
 use App\Services\Sms\SmsManager;
@@ -52,6 +53,7 @@ class AppServiceProvider extends ServiceProvider
             'campaign' => Campaign::class,
             'message' => Message::class,
             'message_batch' => Batch::class,
+            'sp_distribution' => SpDistribution::class,
         ]);
     }
 
@@ -67,13 +69,14 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('sms', function (object $job) {
             /** @var ?Gateway $gateway */
             $gateway = match (true) {
+                method_exists($job, 'getGateway') => $job->getGateway(),
                 $job instanceof SendBatchBulkSmsJob,
                 $job instanceof SendBatchSingleSmsJob => $job->batch->sender?->gateway,
                 default => null,
             };
 
             return $gateway
-                ? Limit::perSecond($gateway->requests_per_minute / 60)
+                ? Limit::perSecond(max(1, (int) $gateway->requests_per_second))
                     ->by('sms-gateway:'.$gateway->id)
                 : Limit::none();
         });

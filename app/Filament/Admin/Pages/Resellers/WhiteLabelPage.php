@@ -23,4 +23,9 @@ class WhiteLabelPage extends Page
     protected static ?string $slug = 'resellers/white-label';
 
     protected string $view = 'filament.admin.blank';
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
 }

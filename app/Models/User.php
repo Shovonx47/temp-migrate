@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\UserStatus;
 use App\Enums\UserType;
+use App\Models\Scopes\ScopedBySp;
 use Database\Factories\UserFactory;
 use Filament\Auth\MultiFactor\App\Concerns\InteractsWithAppAuthentication;
 use Filament\Auth\MultiFactor\App\Concerns\InteractsWithAppAuthenticationRecovery;
@@ -14,8 +15,10 @@ use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -25,8 +28,9 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Propaganistas\LaravelPhone\Casts\E164PhoneNumberCast;
 
-#[Fillable(['name', 'email', 'phone', 'type', 'status', 'api_access', 'sms_auto_approved', 'balance', 'password', 'front_nid', 'back_nid'])]
+#[Fillable(['name', 'email', 'phone', 'type', 'sp_id', 'status', 'api_access', 'sms_auto_approved', 'balance', 'password', 'front_nid', 'back_nid'])]
 #[Hidden(['type', 'password', 'remember_token', 'front_nid', 'back_nid'])]
+#[ScopedBy(ScopedBySp::class)]
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 {
     /** @use HasFactory<UserFactory> */
@@ -90,7 +94,29 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         return match ($panel->getId()) {
             'superman' => $this->type === UserType::Superman,
             'customer' => $this->type === UserType::Customer,
+            'sp' => $this->type === UserType::Sp,
+            default => false,
         };
+    }
+
+    public function sp(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'sp_id');
+    }
+
+    public function spCustomers(): HasMany
+    {
+        return $this->hasMany(self::class, 'sp_id')->where('type', UserType::Customer);
+    }
+
+    public function spDistributions(): HasMany
+    {
+        return $this->hasMany(SpDistribution::class, 'sp_id');
+    }
+
+    public function receivedDistributions(): HasMany
+    {
+        return $this->hasMany(SpDistribution::class, 'customer_id');
     }
 
     public function senders(): BelongsToMany
@@ -142,6 +168,12 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     protected function customers(Builder $query): Builder
     {
         return $query->where('type', UserType::Customer);
+    }
+
+    #[Scope]
+    protected function sps(Builder $query): Builder
+    {
+        return $query->where('type', UserType::Sp);
     }
 
     #[Scope]

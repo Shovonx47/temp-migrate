@@ -22,8 +22,8 @@ class GatewayInfolist
                                     ->weight('bold'),
                                 TextEntry::make('driver')
                                     ->badge(),
-                                TextEntry::make('requests_per_minute')
-                                    ->label('RPM')
+                                TextEntry::make('requests_per_second')
+                                    ->label('RPS')
                                     ->columnSpanFull(),
                                 IconEntry::make('is_enabled')
                                     ->label('Enabled')

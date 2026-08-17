@@ -31,7 +31,7 @@ class SenderController extends Controller
             ->get(['senders.sender_id', 'senders.type'])
             ->map(fn ($sender): array => [
                 'sender_id' => $sender->sender_id,
-                'type' => $sender->type,
+                'type' => $sender->type?->maskingCategory(),
             ])
             ->values();
 

@@ -47,7 +47,19 @@ class MessagesTable
                             ->query(fn ($query) => $query->where('status', MessageStatus::Delivered))
                     ),
                 TextColumn::make('cost')
-                    ->numeric()
+                    ->label('Charged')
+                    ->prefix('৳')
+                    ->numeric(decimalPlaces: 4)
+                    ->sortable(),
+                TextColumn::make('operator_cost')
+                    ->label('Operator Cost')
+                    ->prefix('৳')
+                    ->numeric(decimalPlaces: 4)
+                    ->sortable(),
+                TextColumn::make('gateway_cost')
+                    ->label('Gateway Cost')
+                    ->prefix('৳')
+                    ->numeric(decimalPlaces: 4)
                     ->sortable(),
                 TextColumn::make('created_at')
                     ->dateTime()

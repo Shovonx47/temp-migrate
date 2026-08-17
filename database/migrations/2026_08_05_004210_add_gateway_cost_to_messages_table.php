@@ -25,4 +25,4 @@ class AddGatewayCostToMessagesTable extends Migration
             $table->dropColumn('gateway_cost');
         });
     }
-};
+}

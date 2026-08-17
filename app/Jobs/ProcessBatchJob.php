@@ -52,11 +52,16 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
 
     private ?GatewayCostResolver $gatewayCostResolver = null;
 
+    private ?int $gatewayId = null;
+
     private bool $isMaskingSender = false;
 
     private bool $usesBulkSending = false;
 
     private ?string $gatewayMnoCode = null;
+
+    /** @var array<string, ?Sender> */
+    private array $senderCache = [];
 
     /**
      * @param  array<string, mixed>  $config
@@ -171,13 +176,29 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
                     continue;
                 }
 
+                $senderInfo = $this->resolveSenderForRow($recipient, $batch);
+                if ($senderInfo === null) {
+                    $rawSender = $this->extractRawSender($recipient['raw'] ?? []);
+                    $this->recordFailure(
+                        $phoneRaw,
+                        "Sender CLI '{$rawSender}' is not registered or not enabled for this account",
+                        $failedCount,
+                        $processedSinceFlush,
+                    );
+                    $this->maybeFlush($batch, $rows, $successCount, $failedCount, $processedSinceFlush, $latestCursor);
+
+                    continue;
+                }
+
                 $body = $this->resolveBody($recipient);
                 $metrics = MessageMetrics::for($body);
                 $rows[] = [
                     'user_id' => $batch->user_id,
                     'campaign_id' => null,
                     'batch_id' => $batch->id,
-                    'sender_id' => $batch->sender_id,
+                    'sender_id' => $senderInfo['sender_id'],
+                    'gateway_id' => $senderInfo['gateway_id'],
+                    '_is_masking' => $senderInfo['is_masking'],
                     'to' => $formattedNumber,
                     'body' => $body,
                     'status' => 'pending',
@@ -326,7 +347,9 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
 
         if ($messageIds !== []) {
             if ($this->usesBulkSending) {
-                SendBatchBulkSmsJob::dispatch($batch, $messageIds)->onQueue('sms-sending');
+                foreach (array_chunk($messageIds, 999) as $chunkIds) {
+                    SendBatchBulkSmsJob::dispatch($batch, $chunkIds)->onQueue('sms-sending');
+                }
             } else {
                 foreach ($messageIds as $id) {
                     SendBatchSingleSmsJob::dispatch($batch, $id)->onQueue('sms-sending');
@@ -364,13 +387,19 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
         $totalCost = 0.0;
 
         foreach ($rows as &$row) {
-            $rate = $resolver->resolve((string) $row['to'], $this->isMaskingSender);
+            $isMasking = $row['_is_masking'] ?? $this->isMaskingSender;
+            unset($row['_is_masking']);
+
+            $rate = $resolver->resolve((string) $row['to'], $isMasking);
             $row['rate'] = $rate;
             $row['cost'] = round($rate * (int) $row['parts'], 4);
             $totalCost = round($totalCost + $row['cost'], 4);
 
-            $gatewayRate = $this->gatewayCostResolver?->resolve((string) $row['to'], $this->isMaskingSender) ?? 0.0;
+            $gatewayRate = $this->gatewayCostResolver?->resolveGatewayCost((string) $row['to'], $isMasking) ?? 0.0;
             $row['gateway_cost'] = round($gatewayRate * (int) $row['parts'], 4);
+
+            $operatorRate = $this->gatewayCostResolver?->resolveOperatorCost((string) $row['to'], $isMasking) ?? 0.0;
+            $row['operator_cost'] = round($operatorRate * (int) $row['parts'], 4);
         }
         unset($row);
 
@@ -583,13 +612,32 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
                 continue;
             }
 
+            $phone = $phoneCol ? (string) ($row[$phoneCol] ?? '') : '';
+            if ($phone === '') {
+                foreach (['phone', 'msisdn', 'mobile', 'recipient', 'destination_msisdn', 'number', 'to', 'phone_number'] as $key) {
+                    if (! empty($row[$key])) {
+                        $phone = (string) $row[$key];
+                        break;
+                    }
+                }
+                if ($phone === '' && ! empty($row)) {
+                    foreach ($row as $val) {
+                        $valClean = preg_replace('/[\s-]/', '', (string) $val) ?? '';
+                        if (preg_match('/^(?:\+?88)?0?1[3-9]\d{8}$/', $valClean)) {
+                            $phone = $valClean;
+                            break;
+                        }
+                    }
+                }
+            }
+
             $values = array_map(function ($colName) use ($row) {
                 return $colName ? ($row[$colName] ?? '') : '';
             }, $variableCols);
 
             yield [
                 'cursor' => $rowIndex,
-                'phone' => $phoneCol ? (string) ($row[$phoneCol] ?? '') : '',
+                'phone' => $phone,
                 'values' => $values,
                 'raw' => $row,
             ];
@@ -783,6 +831,7 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
         $this->isMaskingSender = $sender->type->isMasking();
         $this->rateResolver = OperatorRateResolver::forUser($user);
         $this->usesBulkSending = ! $batch->hasBodyVariables() && ($sender->gateway?->supports_bulk ?? false);
+        $this->gatewayId = $sender->gateway_id;
 
         if ($sender->gateway !== null) {
             $this->gatewayCostResolver = GatewayCostResolver::forGateway($sender->gateway);
@@ -792,5 +841,68 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
         if ($gateway !== null && data_get($gateway->credentials, 'api_type') === 'mno') {
             $this->gatewayMnoCode = MnoCarrier::fromBillMsisdn((string) data_get($gateway->credentials, 'bill_msisdn', ''));
         }
+    }
+
+    /**
+     * @return array{sender_id: int|null, gateway_id: int|null, is_masking: bool}|null
+     */
+    private function resolveSenderForRow(array $recipient, Batch $batch): ?array
+    {
+        $raw = $recipient['raw'] ?? [];
+        $cli = $this->extractRawSender($raw);
+
+        if ($cli === null || $cli === '') {
+            return [
+                'sender_id' => $batch->sender_id,
+                'gateway_id' => $this->gatewayId,
+                'is_masking' => $this->isMaskingSender,
+            ];
+        }
+
+        if (array_key_exists($cli, $this->senderCache)) {
+            $cached = $this->senderCache[$cli];
+            if ($cached === null) {
+                return null;
+            }
+
+            return [
+                'sender_id' => $cached->id,
+                'gateway_id' => $cached->gateway_id,
+                'is_masking' => $cached->type?->isMasking() ?? true,
+            ];
+        }
+
+        $sender = Sender::with('gateway')
+            ->where('sender_id', $cli)
+            ->where('is_enabled', true)
+            ->where(function ($q) use ($batch) {
+                $q->whereHas('users', fn ($uq) => $uq->where('users.id', $batch->user_id))
+                    ->orWhereNull('gateway_id')
+                    ->orWhereHas('gateway', fn ($gq) => $gq->where('is_enabled', true));
+            })
+            ->first();
+
+        $this->senderCache[$cli] = $sender;
+
+        if (! $sender) {
+            return null;
+        }
+
+        return [
+            'sender_id' => $sender->id,
+            'gateway_id' => $sender->gateway_id,
+            'is_masking' => $sender->type?->isMasking() ?? true,
+        ];
+    }
+
+    private function extractRawSender(array $raw): ?string
+    {
+        foreach (['cli', 'sender', 'sender_id', 'masking', 'sender_name', 'sender id', 'cli name', 'senderid'] as $k) {
+            if (! empty($raw[$k])) {
+                return trim((string) $raw[$k]);
+            }
+        }
+
+        return null;
     }
 }

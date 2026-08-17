@@ -23,4 +23,9 @@ class PendingResellerApprovalPage extends Page
     protected static ?string $slug = 'approvals/resellers';
 
     protected string $view = 'filament.admin.blank';
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
 }

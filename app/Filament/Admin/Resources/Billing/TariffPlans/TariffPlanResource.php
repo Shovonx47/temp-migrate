@@ -17,6 +17,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class TariffPlanResource extends Resource
@@ -67,5 +68,10 @@ class TariffPlanResource extends Resource
             'view' => ViewTariffPlan::route('/{record}'),
             'edit' => EditTariffPlan::route('/{record}/edit'),
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->whereNull('sp_id');
     }
 }

@@ -23,4 +23,9 @@ class CustomDomainPage extends Page
     protected static ?string $slug = 'resellers/custom-domain';
 
     protected string $view = 'filament.admin.blank';
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
 }

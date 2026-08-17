@@ -30,6 +30,7 @@ class Message extends Model implements Transactionable
             'source' => MessageSource::class,
             'cost' => 'float',
             'gateway_cost' => 'float',
+            'operator_cost' => 'float',
             'sent_at' => 'datetime',
             'failed_at' => 'datetime',
             'delivered_at' => 'datetime',

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\TariffPlanAssignmentStatus;
+use App\Models\Scopes\ScopedBySp;
 use Illuminate\Database\Eloquent\Attributes\Guarded;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -27,7 +28,8 @@ class TariffPlanAssignment extends Model
 
     public function tariffPlan(): BelongsTo
     {
-        return $this->belongsTo(TariffPlan::class);
+        return $this->belongsTo(TariffPlan::class)
+            ->withoutGlobalScopes([ScopedBySp::class]);
     }
 
     public function assignedBy(): BelongsTo

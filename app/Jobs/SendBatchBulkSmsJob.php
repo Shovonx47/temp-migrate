@@ -7,6 +7,7 @@ use App\Contracts\SupportsBulkSms;
 use App\Contracts\SupportsDeliveryStatus;
 use App\Enums\MessageStatus;
 use App\Models\Batch;
+use App\Models\Gateway;
 use App\Models\Message;
 use App\Models\User;
 use App\Services\Sms\Data\BulkSmsRequest;
@@ -24,7 +25,7 @@ use Illuminate\Support\Facades\DB;
  * Sends a chunk of pending messages as a single bulk API request.
  *
  * One job dispatch = one gateway API call. Rate limiting is enforced via the
- * 'sms' RateLimiter keyed by gateway ID (requests_per_minute on the Gateway model).
+ * 'sms' RateLimiter keyed by gateway ID (requests_per_second on the Gateway model).
  *
  * Use this job when:
  *   - The batch body has no {variable} placeholders, AND
@@ -57,6 +58,18 @@ class SendBatchBulkSmsJob implements ShouldQueue
         return now()->addHour();
     }
 
+    public function getGateway(): ?Gateway
+    {
+        if ($this->messageIds !== []) {
+            $firstMessage = Message::with('gateway')->find($this->messageIds[0]);
+            if ($firstMessage?->gateway) {
+                return $firstMessage->gateway;
+            }
+        }
+
+        return $this->batch->sender?->gateway;
+    }
+
     public function handle(): void
     {
         $batch = $this->batch->fresh(['sender.gateway']);
@@ -65,7 +78,7 @@ class SendBatchBulkSmsJob implements ShouldQueue
             return;
         }
 
-        $gateway = $batch->sender?->gateway;
+        $gateway = $this->getGateway();
 
         if (! $gateway) {
             return;
@@ -76,8 +89,6 @@ class SendBatchBulkSmsJob implements ShouldQueue
         if (! $driver instanceof SupportsBulkSms) {
             return;
         }
-
-        $from = $batch->sender?->sender_id;
 
         // Atomic idempotency guard: claim all pending messages in this chunk
         // by flipping status from Pending → Sending in a single UPDATE.
@@ -100,11 +111,13 @@ class SendBatchBulkSmsJob implements ShouldQueue
             ? Message::whereIn('id', $ids)->where('status', MessageStatus::Sending->value)
             : Message::where('batch_id', $batch->id)->where('status', MessageStatus::Sending->value);
 
-        $messages = $query->select(['id', 'to', 'cost', 'is_unicode'])->orderBy('id')->get();
+        $messages = $query->with(['sender.gateway', 'gateway'])->select(['id', 'to', 'cost', 'is_unicode', 'sender_id', 'gateway_id'])->orderBy('id')->get();
 
         if ($messages->isEmpty()) {
             return;
         }
+
+        $from = $messages->first()->sender?->sender_id ?? $batch->sender?->sender_id;
 
         $recipients = $messages->map(fn (Message $m): string => (string) $m->to)->all();
 

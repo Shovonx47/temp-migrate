@@ -727,7 +727,7 @@ test('SendBatchBulkSmsJob is dispatched per flush when gateway supports bulk and
         'driver' => GatewayDriver::Log,
         'is_enabled' => true,
         'supports_bulk' => true,
-        'requests_per_minute' => 60,
+        'requests_per_second' => 10,
         'config' => [],
     ]);
     $sender = Sender::factory()->create([

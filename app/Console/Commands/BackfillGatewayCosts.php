@@ -49,7 +49,10 @@ class BackfillGatewayCosts extends Command
         }
 
         $total = Message::withoutGlobalScopes()
-            ->where('gateway_cost', 0)
+            ->where(function ($q) {
+                $q->where('gateway_cost', 0)
+                    ->orWhere('operator_cost', 0);
+            })
             ->whereNotNull('gateway_id')
             ->count();
 
@@ -67,10 +70,13 @@ class BackfillGatewayCosts extends Command
         $updated = 0;
 
         Message::withoutGlobalScopes()
-            ->where('gateway_cost', 0)
+            ->where(function ($q) {
+                $q->where('gateway_cost', 0)
+                    ->orWhere('operator_cost', 0);
+            })
             ->whereNotNull('gateway_id')
             ->select(['id', 'to', 'gateway_id', 'parts'])
-            ->chunk(500, function ($messages) use ($codeIndex, $gatewayRates, &$updated, $bar) {
+            ->chunk(500, function ($messages) use ($operators, $codeIndex, $gatewayRates, &$updated, $bar) {
                 $updates = [];
 
                 foreach ($messages as $message) {
@@ -96,32 +102,33 @@ class BackfillGatewayCosts extends Command
                         continue;
                     }
 
+                    $operator = $operators[$operatorId] ?? null;
                     $rates = $gatewayRates[$message->gateway_id][$operatorId] ?? null;
-                    if ($rates === null) {
-                        $bar->advance();
 
-                        continue;
-                    }
+                    $opRate = $operator?->non_masking_price ?? $operator?->masking_price ?? 0;
+                    $gwRate = $rates ? ($rates['non_masking_price'] ?? $rates['masking_price'] ?? 0) : 0;
 
-                    // Assume non-masking for backfill since we don't have sender type in this query
-                    $rate = $rates['non_masking_price'] ?? $rates['masking_price'] ?? 0;
-                    if ($rate > 0) {
-                        $updates[$message->id] = round($rate * (int) $message->parts, 4);
-                        $updated++;
-                    }
+                    $opCost = round((float) $opRate * (int) $message->parts, 4);
+                    $gwCost = round((float) $gwRate * (int) $message->parts, 4);
+
+                    $updates[$message->id] = [
+                        'operator_cost' => $opCost,
+                        'gateway_cost' => $gwCost,
+                    ];
+                    $updated++;
 
                     $bar->advance();
                 }
 
                 // Batch update
-                foreach ($updates as $id => $cost) {
-                    DB::table('messages')->where('id', $id)->update(['gateway_cost' => $cost]);
+                foreach ($updates as $id => $payload) {
+                    DB::table('messages')->where('id', $id)->update($payload);
                 }
             });
 
         $bar->finish();
         $this->newLine();
-        $this->info("Backfilled gateway_cost for {$updated} messages.");
+        $this->info("Backfilled operator_cost & gateway_cost for {$updated} messages.");
 
         return self::SUCCESS;
     }

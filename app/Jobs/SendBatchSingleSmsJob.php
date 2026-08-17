@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Actions\Billing\CreditBalance;
 use App\Enums\MessageStatus;
 use App\Models\Batch;
+use App\Models\Gateway;
 use App\Models\Message;
 use App\Models\User;
 use App\Services\Sms\Data\SmsRequest;
@@ -20,7 +21,7 @@ use Illuminate\Support\Facades\DB;
  * Sends a single pending message via an individual API request.
  *
  * One job dispatch = one gateway API call. Rate limiting is enforced via the
- * 'sms' RateLimiter keyed by gateway ID (requests_per_minute on the Gateway model).
+ * 'sms' RateLimiter keyed by gateway ID (requests_per_second on the Gateway model).
  *
  * Use this job when:
  *   - The batch body has {variable} placeholders, OR
@@ -53,17 +54,18 @@ class SendBatchSingleSmsJob implements ShouldQueue
         return now()->addHour();
     }
 
+    public function getGateway(): ?Gateway
+    {
+        $message = Message::with('gateway')->find($this->messageId);
+
+        return $message?->gateway ?? $this->batch->sender?->gateway;
+    }
+
     public function handle(): void
     {
         $batch = $this->batch->fresh(['sender.gateway']);
 
         if (! $batch) {
-            return;
-        }
-
-        $gateway = $batch->sender?->gateway;
-
-        if (! $gateway) {
             return;
         }
 
@@ -83,12 +85,21 @@ class SendBatchSingleSmsJob implements ShouldQueue
         }
 
         $message = Message::where('id', $this->messageId)
-            ->select(['id', 'to', 'body', 'cost', 'user_id', 'is_unicode'])
+            ->with(['sender.gateway', 'gateway'])
+            ->select(['id', 'to', 'body', 'cost', 'user_id', 'is_unicode', 'sender_id', 'gateway_id'])
             ->first();
 
         if (! $message) {
             return;
         }
+
+        $gateway = $message->gateway ?? $message->sender?->gateway ?? $batch->sender?->gateway;
+
+        if (! $gateway) {
+            return;
+        }
+
+        $from = $message->sender?->sender_id ?? $batch->sender?->sender_id;
 
         $driver = Sms::usingGateway($gateway)->driver($gateway->driver->value);
         $now = Carbon::now();
@@ -97,7 +108,7 @@ class SendBatchSingleSmsJob implements ShouldQueue
             $response = $driver->send(new SmsRequest(
                 to: (string) $message->to,
                 body: $message->body,
-                from: $batch->sender?->sender_id,
+                from: $from,
                 isUnicode: (bool) $message->is_unicode,
             ));
 

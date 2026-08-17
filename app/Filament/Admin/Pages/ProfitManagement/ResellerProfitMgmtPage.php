@@ -23,4 +23,9 @@ class ResellerProfitMgmtPage extends Page
     protected static ?string $slug = 'profit/reseller';
 
     protected string $view = 'filament.admin.blank';
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
 }

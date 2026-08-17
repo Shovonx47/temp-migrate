@@ -30,14 +30,26 @@ class OperatorRatesRelationManager extends RelationManager
                 TextColumn::make('operator.country.name')
                     ->label('Country')
                     ->sortable(),
-                TextColumn::make('masking_price')
-                    ->label('Masking Price')
+                TextColumn::make('operator.non_masking_price')
+                    ->label('Operator Base Rate')
+                    ->prefix('৳')
                     ->numeric(decimalPlaces: 4)
-                    ->sortable(),
+                    ->placeholder('—'),
                 TextColumn::make('non_masking_price')
-                    ->label('Non-Masking Price')
+                    ->label('InfoZillion Rate')
+                    ->prefix('৳')
                     ->numeric(decimalPlaces: 4)
-                    ->sortable(),
+                    ->placeholder('—'),
+                TextColumn::make('operator_spent')
+                    ->label('Operator Spent')
+                    ->state(fn ($record): string => number_format((float) $record->operator_spent, 2).' ৳')
+                    ->badge()
+                    ->color('warning'),
+                TextColumn::make('gateway_spent')
+                    ->label('InfoZillion Spent')
+                    ->state(fn ($record): string => number_format((float) $record->gateway_spent, 2).' ৳')
+                    ->badge()
+                    ->color('info'),
             ])
             ->headerActions([
                 CreateAction::make(),

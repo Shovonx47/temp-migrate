@@ -26,8 +26,8 @@ class GatewaysTable
                     ->sortable(),
                 TextColumn::make('driver')
                     ->badge(),
-                TextColumn::make('requests_per_minute')
-                    ->label('RPM')
+                TextColumn::make('requests_per_second')
+                    ->label('RPS')
                     ->sortable(),
                 ToggleColumn::make('is_enabled'),
                 IconColumn::make('supports_bulk')
@@ -35,9 +35,22 @@ class GatewaysTable
                 TextColumn::make('gatewayOperatorRates_count')
                     ->counts('gatewayOperatorRates')
                     ->label('Rates'),
-                TextColumn::make('created_at'),
-                TextColumn::make('created_at'),
-                TextColumn::make('updated_at'),
+                TextColumn::make('operator_cost_spent')
+                    ->label('Operator Cost')
+                    ->state(fn ($record): string => number_format((float) ($record->messages()->where('status', '!=', 'failed')->sum('operator_cost') ?? 0), 2).' ৳')
+                    ->badge()
+                    ->color('warning'),
+                TextColumn::make('gateway_cost_spent')
+                    ->label('InfoZillion Cost')
+                    ->state(fn ($record): string => number_format((float) ($record->messages()->where('status', '!=', 'failed')->sum('gateway_cost') ?? 0), 2).' ৳')
+                    ->badge()
+                    ->color('info'),
+                TextColumn::make('created_at')
+                    ->dateTime()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('updated_at')
+                    ->dateTime()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 TrashedFilter::make(),

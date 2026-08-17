@@ -69,6 +69,14 @@ readonly class GatewayCostResolver
      */
     public function resolve(string $e164Phone, bool $isMasking): float
     {
+        return $this->resolveGatewayCost($e164Phone, $isMasking);
+    }
+
+    /**
+     * Resolve the gateway/InfoZillion cost per SMS part for a phone + masking flag.
+     */
+    public function resolveGatewayCost(string $e164Phone, bool $isMasking): float
+    {
         $operator = $this->matchOperator($e164Phone);
 
         if ($operator === null) {
@@ -78,6 +86,24 @@ readonly class GatewayCostResolver
         $field = $isMasking ? 'masking_price' : 'non_masking_price';
 
         $rate = $this->rates[$operator->id][$field] ?? null;
+
+        return $rate !== null ? (float) $rate : 0.0;
+    }
+
+    /**
+     * Resolve the operator base buying cost per SMS part for a phone + masking flag.
+     */
+    public function resolveOperatorCost(string $e164Phone, bool $isMasking): float
+    {
+        $operator = $this->matchOperator($e164Phone);
+
+        if ($operator === null) {
+            return 0.0;
+        }
+
+        $field = $isMasking ? 'masking_price' : 'non_masking_price';
+
+        $rate = $operator->{$field} ?? null;
 
         return $rate !== null ? (float) $rate : 0.0;
     }

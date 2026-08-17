@@ -13,10 +13,14 @@ enum UserType: string implements HasColor, HasIcon, HasLabel
 {
     case Superman = 'superman';
     case Customer = 'customer';
+    case Sp = 'sp';
 
     public function getLabel(): string|Htmlable|null
     {
-        return $this->name;
+        return match ($this) {
+            self::Sp => 'S P',
+            default => $this->name,
+        };
     }
 
     public function getColor(): string|array|null
@@ -24,6 +28,7 @@ enum UserType: string implements HasColor, HasIcon, HasLabel
         return match ($this) {
             self::Superman => 'danger',
             self::Customer => 'primary',
+            self::Sp => 'warning',
         };
     }
 
@@ -32,6 +37,7 @@ enum UserType: string implements HasColor, HasIcon, HasLabel
         return match ($this) {
             self::Superman => Heroicon::OutlinedShieldCheck,
             self::Customer => Heroicon::OutlinedUser,
+            self::Sp => Heroicon::OutlinedBuildingOffice2,
         };
     }
 
@@ -43,5 +49,10 @@ enum UserType: string implements HasColor, HasIcon, HasLabel
     public function isCustomer(): bool
     {
         return $this === self::Customer;
+    }
+
+    public function isSp(): bool
+    {
+        return $this === self::Sp;
     }
 }

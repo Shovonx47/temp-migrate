@@ -15,11 +15,13 @@ enum TransactionableType: string implements HasColor, HasIcon, HasLabel
     case Campaign = 'campaign';
     case Message = 'message';
     case MessageBatch = 'message_batch';
+    case SpDistribution = 'sp_distribution';
 
     public function getLabel(): string|Htmlable|null
     {
         return match ($this) {
             self::MessageBatch => 'Message Batch',
+            self::SpDistribution => 'S P Distribution',
             default => $this->name,
         };
     }
@@ -31,6 +33,7 @@ enum TransactionableType: string implements HasColor, HasIcon, HasLabel
             self::Campaign => 'primary',
             self::Message => 'info',
             self::MessageBatch => 'info',
+            self::SpDistribution => 'warning',
         };
     }
 
@@ -41,6 +44,7 @@ enum TransactionableType: string implements HasColor, HasIcon, HasLabel
             self::Campaign => Heroicon::OutlinedMegaphone,
             self::Message => Heroicon::OutlinedEnvelope,
             self::MessageBatch => Heroicon::OutlinedEnvelope,
+            self::SpDistribution => Heroicon::OutlinedArrowsRightLeft,
         };
     }
 }

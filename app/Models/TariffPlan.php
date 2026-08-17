@@ -4,14 +4,17 @@ namespace App\Models;
 
 use App\Enums\TariffPlanStatus;
 use App\Enums\TariffPlanType;
+use App\Models\Scopes\ScopedBySp;
 use Illuminate\Database\Eloquent\Attributes\Guarded;
 use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Guarded(['id'])]
+#[ScopedBy(ScopedBySp::class)]
 class TariffPlan extends Model
 {
     protected function casts(): array
@@ -40,6 +43,16 @@ class TariffPlan extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function sp(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'sp_id');
+    }
+
+    public function isPlatformOwned(): bool
+    {
+        return $this->sp_id === null;
     }
 
     /** Count of customers currently on this plan. */

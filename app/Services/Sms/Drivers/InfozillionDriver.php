@@ -222,6 +222,16 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
 
     private function buildSendPayload(array $recipients, string $body, string $senderId, bool $isUnicode): array
     {
+        $recipientCount = count($recipients);
+        $configuredType = $this->credentials['transaction_type'] ?? 'T';
+        $transactionType = $recipientCount > 1 ? 'P' : $configuredType;
+
+        $messageType = $isUnicode
+            ? '3'
+            : ($this->credentials['message_type'] ?? '1');
+
+        $isLongSms = (bool) ($this->credentials['is_long_sms'] ?? (mb_strlen($body) > 160));
+
         $payload = [
             'username' => $this->credentials['username'] ?? '',
             'password' => $this->credentials['password'] ?? '',
@@ -229,14 +239,17 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
             'apiKey' => $this->credentials['api_key'] ?? '',
             'cli' => $senderId,
             'msisdnList' => array_map(fn (string $msisdn) => ltrim($msisdn, '+'), $recipients),
-            'transactionType' => $this->credentials['transaction_type'] ?? 'T',
-            'messageType' => $isUnicode ? '3' : ($this->credentials['message_type'] ?? '1'),
-            'isLongSMS' => (bool) ($this->credentials['is_long_sms'] ?? false),
+            'transactionType' => $transactionType,
+            'messageType' => (string) $messageType,
+            'isLongSMS' => $isLongSms,
             'message' => $body,
         ];
 
-        if (! empty($this->credentials['campaign_id'])) {
-            $payload['campaignId'] = $this->credentials['campaign_id'];
+        $campaignId = $this->credentials['campaign_id'] ?? null;
+        if ($transactionType === 'P') {
+            $payload['campaignId'] = ! empty($campaignId) ? $campaignId : 'camp-'.date('YmdHis');
+        } elseif (! empty($campaignId)) {
+            $payload['campaignId'] = $campaignId;
         }
 
         if (! empty($this->credentials['username_secondary'])) {
@@ -250,6 +263,26 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
 
     private function mapDeliveryStatus(array $data): DeliveryStatusResponse
     {
+        // Check for DND filtered numbers
+        $dndList = $data['dndMsisdn'] ?? [];
+        if (! empty($dndList) && is_array($dndList)) {
+            return new DeliveryStatusResponse(
+                outcome: DeliveryOutcome::Failed,
+                errorMessage: 'Recipient filtered due to DND enlistment: '.implode(', ', $dndList),
+                raw: $data,
+            );
+        }
+
+        // Check for Invalid MSISDNs filtered by MNPSP
+        $invalidList = $data['invalidMsisdn'] ?? [];
+        if (! empty($invalidList) && is_array($invalidList)) {
+            return new DeliveryStatusResponse(
+                outcome: DeliveryOutcome::Failed,
+                errorMessage: 'Invalid MSISDN prefix or format: '.implode(', ', $invalidList),
+                raw: $data,
+            );
+        }
+
         $deliveryStatuses = $data['deliveryStatus'] ?? [];
 
         if (empty($deliveryStatuses)) {
@@ -259,6 +292,7 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
                 return new DeliveryStatusResponse(
                     outcome: DeliveryOutcome::Failed,
                     rawStatus: (string) $a2pStatus,
+                    errorMessage: (string) ($data['serverResponseMessage'] ?? $a2pStatus),
                     raw: $data,
                 );
             }
@@ -283,6 +317,7 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
             'undelivered', 'failed' => new DeliveryStatusResponse(
                 outcome: DeliveryOutcome::Failed,
                 rawStatus: $firstStatus,
+                errorMessage: 'SMS delivery status: '.$firstStatus,
                 raw: $data,
             ),
             default => new DeliveryStatusResponse(

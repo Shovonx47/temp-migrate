@@ -36,7 +36,7 @@ function makeSingleSendableBatch(
         'driver' => GatewayDriver::Log,
         'is_enabled' => true,
         'supports_bulk' => false,
-        'requests_per_minute' => 60,
+        'requests_per_second' => 10,
         'config' => [],
     ]);
 

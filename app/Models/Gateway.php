@@ -26,7 +26,7 @@ class Gateway extends Model
             'driver' => GatewayDriver::class,
             'credentials' => 'encrypted:array',
             'config' => 'array',
-            'requests_per_minute' => 'integer',
+            'requests_per_second' => 'integer',
             'supports_bulk' => 'boolean',
         ];
     }
@@ -39,6 +39,11 @@ class Gateway extends Model
     public function gatewayOperatorRates(): HasMany
     {
         return $this->hasMany(GatewayOperatorRate::class);
+    }
+
+    public function messages(): HasMany
+    {
+        return $this->hasMany(Message::class, 'gateway_id');
     }
 
     #[Scope]

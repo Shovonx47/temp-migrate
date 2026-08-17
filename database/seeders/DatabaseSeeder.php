@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             OperatorSeeder::class,
             GatewaySeeder::class,
             UserSeeder::class,
+            SpSeeder::class,
             //            DemoSeeder::class,
         ]);
     }

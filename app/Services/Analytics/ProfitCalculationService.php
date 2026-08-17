@@ -84,17 +84,21 @@ class ProfitCalculationService
             ->where('created_at', '>=', $from)
             ->where('created_at', '<=', $to)
             ->where('status', '!=', 'failed')
-            ->selectRaw('COUNT(*) as count, COALESCE(SUM(cost), 0) as revenue, COALESCE(SUM(gateway_cost), 0) as cost')
+            ->selectRaw('COUNT(*) as count, COALESCE(SUM(cost), 0) as revenue, COALESCE(SUM(operator_cost), 0) as operator_cost, COALESCE(SUM(gateway_cost), 0) as gateway_cost')
             ->first();
 
         $revenue = (float) ($result->revenue ?? 0);
-        $cost = (float) ($result->cost ?? 0);
-        $profit = $revenue - $cost;
+        $operatorCost = (float) ($result->operator_cost ?? 0);
+        $gatewayCost = (float) ($result->gateway_cost ?? 0);
+        $totalCost = $operatorCost + $gatewayCost;
+        $profit = $revenue - $totalCost;
         $margin = $revenue > 0 ? ($profit / $revenue) * 100 : 0;
 
         return [
             'revenue' => round($revenue, 2),
-            'cost' => round($cost, 2),
+            'cost' => round($totalCost, 2),
+            'operator_cost' => round($operatorCost, 2),
+            'gateway_cost' => round($gatewayCost, 2),
             'profit' => round($profit, 2),
             'margin' => round($margin, 1),
             'messages' => (int) ($result->count ?? 0),
@@ -104,7 +108,7 @@ class ProfitCalculationService
     /**
      * Get profit breakdown by operator for a date range.
      *
-     * @return array<int, array{operator: string, messages: int, revenue: float, cost: float, profit: float}>
+     * @return array<int, array{operator: string, messages: int, revenue: float, operator_cost: float, gateway_cost: float, cost: float, profit: float}>
      */
     public function getOperatorBreakdown(?Carbon $from = null, ?Carbon $to = null): array
     {
@@ -127,6 +131,7 @@ class ProfitCalculationService
             ->select([
                 'messages.to as phone',
                 'messages.cost',
+                'messages.operator_cost',
                 'messages.gateway_cost',
             ])
             ->get();
@@ -143,19 +148,28 @@ class ProfitCalculationService
                     'operator' => $operatorName,
                     'messages' => 0,
                     'revenue' => 0.0,
+                    'operator_cost' => 0.0,
+                    'gateway_cost' => 0.0,
                     'cost' => 0.0,
                     'profit' => 0.0,
                 ];
             }
 
+            $opCost = (float) ($message->operator_cost ?? 0);
+            $gwCost = (float) ($message->gateway_cost ?? 0);
+
             $breakdown[$operatorId]['messages']++;
             $breakdown[$operatorId]['revenue'] += (float) $message->cost;
-            $breakdown[$operatorId]['cost'] += (float) $message->gateway_cost;
+            $breakdown[$operatorId]['operator_cost'] += $opCost;
+            $breakdown[$operatorId]['gateway_cost'] += $gwCost;
+            $breakdown[$operatorId]['cost'] += ($opCost + $gwCost);
         }
 
         foreach ($breakdown as &$item) {
             $item['profit'] = round($item['revenue'] - $item['cost'], 2);
             $item['revenue'] = round($item['revenue'], 2);
+            $item['operator_cost'] = round($item['operator_cost'], 2);
+            $item['gateway_cost'] = round($item['gateway_cost'], 2);
             $item['cost'] = round($item['cost'], 2);
         }
 
@@ -167,7 +181,7 @@ class ProfitCalculationService
     /**
      * Get profit breakdown by gateway for a date range.
      *
-     * @return array<int, array{gateway: string, messages: int, revenue: float, cost: float, profit: float, margin: float}>
+     * @return array<int, array{gateway: string, messages: int, revenue: float, operator_cost: float, gateway_cost: float, cost: float, profit: float, margin: float}>
      */
     public function getGatewayBreakdown(?Carbon $from = null, ?Carbon $to = null): array
     {
@@ -188,21 +202,25 @@ class ProfitCalculationService
             ->where('messages.created_at', '>=', $from)
             ->where('messages.created_at', '<=', $to)
             ->where('messages.status', '!=', 'failed')
-            ->selectRaw('gateways.name as gateway, COUNT(*) as messages, COALESCE(SUM(messages.cost), 0) as revenue, COALESCE(SUM(messages.gateway_cost), 0) as cost')
+            ->selectRaw('gateways.name as gateway, COUNT(*) as messages, COALESCE(SUM(messages.cost), 0) as revenue, COALESCE(SUM(messages.operator_cost), 0) as operator_cost, COALESCE(SUM(messages.gateway_cost), 0) as gateway_cost')
             ->groupBy('gateways.name')
             ->orderByDesc('messages')
             ->get();
 
         return $results->map(function ($row) {
             $revenue = (float) $row->revenue;
-            $cost = (float) $row->cost;
-            $profit = $revenue - $cost;
+            $operatorCost = (float) $row->operator_cost;
+            $gatewayCost = (float) $row->gateway_cost;
+            $totalCost = $operatorCost + $gatewayCost;
+            $profit = $revenue - $totalCost;
 
             return [
                 'gateway' => $row->gateway,
                 'messages' => (int) $row->messages,
                 'revenue' => round($revenue, 2),
-                'cost' => round($cost, 2),
+                'operator_cost' => round($operatorCost, 2),
+                'gateway_cost' => round($gatewayCost, 2),
+                'cost' => round($totalCost, 2),
                 'profit' => round($profit, 2),
                 'margin' => $revenue > 0 ? round(($profit / $revenue) * 100, 1) : 0,
             ];

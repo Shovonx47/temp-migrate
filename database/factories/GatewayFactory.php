@@ -18,7 +18,7 @@ class GatewayFactory extends Factory
             'driver' => fake()->randomElement(GatewayDriver::cases()),
             'credentials' => null,
             'config' => null,
-            'requests_per_minute' => 60,
+            'requests_per_second' => 10,
             'is_enabled' => false,
             'supports_bulk' => false,
         ];

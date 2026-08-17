@@ -23,4 +23,9 @@ class ResellerWebhooksPage extends Page
     protected static ?string $slug = 'webhooks/reseller';
 
     protected string $view = 'filament.admin.blank';
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
 }

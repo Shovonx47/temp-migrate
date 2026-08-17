@@ -23,4 +23,9 @@ class ResellerWalletPage extends Page
     protected static ?string $slug = 'resellers/wallet';
 
     protected string $view = 'filament.admin.blank';
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
 }

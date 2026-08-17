@@ -23,4 +23,9 @@ class ResellerReportsMgmtPage extends Page
     protected static ?string $slug = 'reports/reseller';
 
     protected string $view = 'filament.admin.blank';
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
 }

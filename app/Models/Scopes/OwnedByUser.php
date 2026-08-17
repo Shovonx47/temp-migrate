@@ -10,8 +10,14 @@ class OwnedByUser implements Scope
 {
     public function apply(Builder $builder, Model $model): void
     {
-        if (auth()->check() && auth()->user()->type->isCustomer()) {
-            $builder->where('user_id', auth()->id());
+        if (! auth()->check()) {
+            return;
+        }
+
+        $user = auth()->user();
+
+        if ($user->type->isCustomer() || $user->type->isSp()) {
+            $builder->where($model->getTable().'.user_id', $user->id);
         }
     }
 }

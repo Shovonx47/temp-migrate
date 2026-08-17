@@ -23,4 +23,9 @@ class ResellerKycPage extends Page
     protected static ?string $slug = 'resellers/kyc';
 
     protected string $view = 'filament.admin.blank';
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
 }

@@ -48,9 +48,12 @@ class OperatorCostBreakdownWidget extends TableWidget
                 TextColumn::make('revenue')
                     ->label('Revenue')
                     ->state(fn ($record) => number_format(collect($breakdown)->firstWhere('operator', $record->name)['revenue'] ?? 0, 2).' BDT'),
-                TextColumn::make('cost')
+                TextColumn::make('operator_cost')
+                    ->label('Operator Cost')
+                    ->state(fn ($record) => number_format(collect($breakdown)->firstWhere('operator', $record->name)['operator_cost'] ?? 0, 2).' BDT'),
+                TextColumn::make('gateway_cost')
                     ->label('Gateway Cost')
-                    ->state(fn ($record) => number_format(collect($breakdown)->firstWhere('operator', $record->name)['cost'] ?? 0, 2).' BDT'),
+                    ->state(fn ($record) => number_format(collect($breakdown)->firstWhere('operator', $record->name)['gateway_cost'] ?? 0, 2).' BDT'),
                 TextColumn::make('profit')
                     ->label('Profit')
                     ->state(fn ($record) => number_format(collect($breakdown)->firstWhere('operator', $record->name)['profit'] ?? 0, 2).' BDT'),

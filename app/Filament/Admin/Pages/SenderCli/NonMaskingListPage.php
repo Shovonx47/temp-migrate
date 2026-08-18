@@ -22,5 +22,5 @@ class NonMaskingListPage extends Page
 
     protected static ?string $slug = 'sender-cli/non-masking';
 
-    protected string $view = 'filament.admin.blank';
+    protected string $view = 'filament.admin.sender-cli.non-masking-list';
 }

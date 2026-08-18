@@ -8,6 +8,7 @@ use App\Enums\DeliveryOutcome;
 use App\Enums\MessageStatus;
 use App\Models\Message;
 use App\Models\User;
+use App\Services\Logging\SmsLogger;
 use App\Services\Sms\Data\DeliveryStatusResponse;
 use App\Support\Facades\Sms;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -95,6 +96,14 @@ class PollMessageDeliveryJob implements ShouldQueue
 
     private function handleDelivered($message, DeliveryStatusResponse $dlr, Carbon $now): void
     {
+        SmsLogger::info('dlr_delivered', [
+            'message_id' => $message->id,
+            'user_id' => $message->user_id,
+            'phone' => (string) $message->to,
+            'gateway_message_id' => $message->gateway_message_id,
+            'status' => 'delivered',
+        ]);
+
         $message->update([
             'status' => MessageStatus::Delivered->value,
             'delivered_at' => $dlr->deliveredAt ?? $now,
@@ -109,6 +118,15 @@ class PollMessageDeliveryJob implements ShouldQueue
      */
     private function handleDeliveryFailed(Message $message, DeliveryStatusResponse $dlr, Carbon $now): void
     {
+        SmsLogger::error('dlr_failed', [
+            'message_id' => $message->id,
+            'user_id' => $message->user_id,
+            'phone' => (string) $message->to,
+            'gateway_message_id' => $message->gateway_message_id,
+            'status' => 'failed',
+            'error_message' => $dlr->errorMessage ?? $dlr->rawStatus,
+        ]);
+
         DB::transaction(function () use ($message, $dlr, $now): void {
             $message->update([
                 'status' => MessageStatus::Failed->value,

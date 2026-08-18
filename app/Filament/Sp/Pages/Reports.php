@@ -48,4 +48,3 @@ class Reports extends BasePage
         return 2;
     }
 }
-

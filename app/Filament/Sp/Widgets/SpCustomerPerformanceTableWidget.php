@@ -2,6 +2,7 @@
 
 namespace App\Filament\Sp\Widgets;
 
+use App\Enums\UserType;
 use App\Filament\Concerns\HasDateFilter;
 use App\Filament\Sp\Resources\Customers\CustomerResource;
 use App\Models\User;
@@ -33,7 +34,7 @@ class SpCustomerPerformanceTableWidget extends BaseWidget
             ->query(
                 User::query()
                     ->where('sp_id', $sp->id)
-                    ->where('type', \App\Enums\UserType::Customer)
+                    ->where('type', UserType::Customer)
                     ->withSum(
                         ['messages' => fn ($q) => $q->where('created_at', '>=', $from)->where('created_at', '<=', $to)->where('status', '!=', 'failed')],
                         'cost'

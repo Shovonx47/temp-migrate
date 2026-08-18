@@ -22,5 +22,5 @@ class MaskingListPage extends Page
 
     protected static ?string $slug = 'sender-cli/masking';
 
-    protected string $view = 'filament.admin.blank';
+    protected string $view = 'filament.admin.sender-cli.masking-list';
 }

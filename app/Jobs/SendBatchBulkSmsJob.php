@@ -10,6 +10,7 @@ use App\Models\Batch;
 use App\Models\Gateway;
 use App\Models\Message;
 use App\Models\User;
+use App\Services\Logging\SmsLogger;
 use App\Services\Sms\Data\BulkSmsRequest;
 use App\Services\Sms\Data\BulkSmsResponse;
 use App\Support\Facades\Sms;
@@ -127,6 +128,30 @@ class SendBatchBulkSmsJob implements ShouldQueue
             from: $from,
             isUnicode: (bool) $messages->first()->is_unicode,
         ));
+
+        if ($response->successful) {
+            SmsLogger::info('bulk_sms_sent', [
+                'user_id' => $batch->user_id,
+                'gateway_id' => $gateway->id,
+                'gateway_name' => $gateway->name ?? $gateway->driver->value,
+                'status' => 'sent',
+                'parts' => count($recipients),
+                'gateway_message_id' => $response->gatewayBatchId,
+                'job_id' => $this->job?->getJobId(),
+                'queue' => $this->queue,
+            ]);
+        } else {
+            SmsLogger::error('bulk_sms_failed', [
+                'user_id' => $batch->user_id,
+                'gateway_id' => $gateway->id,
+                'gateway_name' => $gateway->name ?? $gateway->driver->value,
+                'status' => 'failed',
+                'parts' => count($recipients),
+                'error_message' => $response->errorMessage,
+                'job_id' => $this->job?->getJobId(),
+                'queue' => $this->queue,
+            ]);
+        }
 
         $this->applyBulkResponse($messages, $response);
 

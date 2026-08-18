@@ -16,11 +16,11 @@ class SystemApiLogsPage extends Page
 
     protected static ?string $navigationLabel = 'API Logs';
 
-    protected static ?string $title = 'System API Logs';
+    protected static ?string $title = 'API Logs';
 
     protected static ?int $navigationSort = 0;
 
     protected static ?string $slug = 'system-logs/api';
 
-    protected string $view = 'filament.admin.blank';
+    protected string $view = 'filament.admin.system-logs.api-logs';
 }

@@ -110,4 +110,3 @@ class ResellerReportsPage extends BasePage
         return 2;
     }
 }
-

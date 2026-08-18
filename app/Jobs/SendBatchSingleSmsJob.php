@@ -8,6 +8,7 @@ use App\Models\Batch;
 use App\Models\Gateway;
 use App\Models\Message;
 use App\Models\User;
+use App\Services\Logging\SmsLogger;
 use App\Services\Sms\Data\SmsRequest;
 use App\Support\Facades\Sms;
 use Carbon\CarbonInterface;
@@ -113,6 +114,18 @@ class SendBatchSingleSmsJob implements ShouldQueue
             ));
 
             if ($response->successful) {
+                SmsLogger::info('sms_sent', [
+                    'message_id' => $message->id,
+                    'user_id' => $message->user_id,
+                    'gateway_id' => $gateway->id,
+                    'phone' => (string) $message->to,
+                    'gateway_name' => $gateway->name ?? $gateway->driver->value,
+                    'gateway_message_id' => $response->gatewayMessageId,
+                    'status' => 'sent',
+                    'job_id' => $this->job?->getJobId(),
+                    'queue' => $this->queue,
+                ]);
+
                 $message->update([
                     'status' => MessageStatus::Sent->value,
                     'sent_at' => $now,
@@ -125,9 +138,33 @@ class SendBatchSingleSmsJob implements ShouldQueue
                     'updated_at' => $now,
                 ]);
             } else {
+                SmsLogger::error('sms_send_failed', [
+                    'message_id' => $message->id,
+                    'user_id' => $message->user_id,
+                    'gateway_id' => $gateway->id,
+                    'phone' => (string) $message->to,
+                    'gateway_name' => $gateway->name ?? $gateway->driver->value,
+                    'status' => 'failed',
+                    'error_message' => $response->errorMessage,
+                    'job_id' => $this->job?->getJobId(),
+                    'queue' => $this->queue,
+                ]);
+
                 $this->failAndRefund($message, $now, $response->errorMessage);
             }
         } catch (\Throwable $e) {
+            SmsLogger::error('sms_send_exception', [
+                'message_id' => $message->id,
+                'user_id' => $message->user_id,
+                'gateway_id' => $gateway->id,
+                'phone' => (string) $message->to,
+                'gateway_name' => $gateway->name ?? $gateway->driver->value,
+                'status' => 'failed',
+                'error_message' => $e->getMessage(),
+                'job_id' => $this->job?->getJobId(),
+                'queue' => $this->queue,
+            ]);
+
             $this->failAndRefund($message, $now, $e->getMessage());
         }
     }

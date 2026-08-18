@@ -66,6 +66,11 @@ class Sender extends Model
         return $this->hasMany(Campaign::class, 'sender_id');
     }
 
+    public function messages(): HasMany
+    {
+        return $this->hasMany(Message::class, 'sender_id');
+    }
+
     public function isUsable(): bool
     {
         return $this->is_enabled

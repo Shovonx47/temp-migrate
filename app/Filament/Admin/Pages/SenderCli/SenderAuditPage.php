@@ -22,5 +22,5 @@ class SenderAuditPage extends Page
 
     protected static ?string $slug = 'sender-cli/audit';
 
-    protected string $view = 'filament.admin.blank';
+    protected string $view = 'filament.admin.sender-cli.sender-audit';
 }

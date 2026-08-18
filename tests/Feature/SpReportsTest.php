@@ -1,7 +1,6 @@
 <?php
 
 use App\Enums\DepositStatus;
-use App\Enums\MessageStatus;
 use App\Enums\UserType;
 use App\Filament\Admin\Pages\Resellers\ResellerReportsPage;
 use App\Filament\Admin\Widgets\SpAdminFinancialOverviewWidget;
@@ -17,7 +16,6 @@ use App\Filament\Sp\Widgets\SpMessageTrendChart;
 use App\Filament\Sp\Widgets\SpOperatorTrafficChart;
 use App\Filament\Sp\Widgets\SpOwnMarginStatsWidget;
 use App\Models\Deposit;
-use App\Models\Message;
 use App\Models\SpDistribution;
 use App\Models\User;
 use Filament\Facades\Filament;
@@ -178,5 +176,3 @@ test('superman can filter reseller reports by specific sp', function () {
         ->assertCanSeeTableRecords([$sp1])
         ->assertCanNotSeeTableRecords([$sp2]);
 });
-
-

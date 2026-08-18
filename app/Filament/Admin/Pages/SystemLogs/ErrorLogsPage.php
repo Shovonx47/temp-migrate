@@ -22,5 +22,5 @@ class ErrorLogsPage extends Page
 
     protected static ?string $slug = 'system-logs/errors';
 
-    protected string $view = 'filament.admin.blank';
+    protected string $view = 'filament.admin.system-logs.error-logs';
 }

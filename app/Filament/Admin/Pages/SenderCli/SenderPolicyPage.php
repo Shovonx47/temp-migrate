@@ -22,5 +22,5 @@ class SenderPolicyPage extends Page
 
     protected static ?string $slug = 'sender-cli/policy';
 
-    protected string $view = 'filament.admin.blank';
+    protected string $view = 'filament.admin.sender-cli.sender-policy';
 }

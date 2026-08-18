@@ -7,6 +7,7 @@ use App\Contracts\SupportsBulkSms;
 use App\Contracts\SupportsDashboard;
 use App\Contracts\SupportsDeliveryStatus;
 use App\Enums\DeliveryOutcome;
+use App\Services\Logging\SmsLogger;
 use App\Services\Sms\Data\BulkSmsRequest;
 use App\Services\Sms\Data\BulkSmsResponse;
 use App\Services\Sms\Data\DashboardData;
@@ -26,26 +27,58 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
 
     public function send(SmsRequest $request): SmsResponse
     {
+        $payload = $this->buildSendPayload(
+            recipients: [$request->to],
+            body: $request->body,
+            senderId: $request->from ?? '',
+            isUnicode: $request->isUnicode,
+        );
+
+        SmsLogger::info('api_request', [
+            'gateway_name' => 'Infozillion',
+            'phone' => $request->to,
+            'status' => 'sending',
+            'request_payload' => $payload,
+        ]);
+
+        $startMs = hrtime(true);
+
         try {
             $response = $this->client()->post(
                 $this->resolveEndpoint('send-sms'),
-                $this->buildSendPayload(
-                    recipients: [$request->to],
-                    body: $request->body,
-                    senderId: $request->from ?? '',
-                    isUnicode: $request->isUnicode,
-                ),
+                $payload,
             );
 
+            $durationMs = (int) ((hrtime(true) - $startMs) / 1_000_000);
             $data = $response->json() ?? [];
 
             if ($response->failed() || ((string) ($data['serverResponseCode'] ?? '')) !== self::A2P_SUCCESS_CODE) {
+                $errorMsg = $data['serverResponseMessage'] ?? 'Unknown error';
+
+                SmsLogger::error('api_response_failed', [
+                    'gateway_name' => 'Infozillion',
+                    'phone' => $request->to,
+                    'status' => 'failed',
+                    'error_message' => $errorMsg,
+                    'response_payload' => $data,
+                    'duration_ms' => $durationMs,
+                ]);
+
                 return new SmsResponse(
                     successful: false,
-                    errorMessage: $data['serverResponseMessage'] ?? 'Unknown error',
+                    errorMessage: $errorMsg,
                     raw: $data,
                 );
             }
+
+            SmsLogger::info('api_response_success', [
+                'gateway_name' => 'Infozillion',
+                'phone' => $request->to,
+                'status' => 'sent',
+                'gateway_message_id' => $data['serverTxnId'] ?? null,
+                'response_payload' => $data,
+                'duration_ms' => $durationMs,
+            ]);
 
             return new SmsResponse(
                 successful: true,
@@ -53,6 +86,16 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
                 raw: $data,
             );
         } catch (ConnectionException $e) {
+            $durationMs = (int) ((hrtime(true) - $startMs) / 1_000_000);
+
+            SmsLogger::error('api_connection_failed', [
+                'gateway_name' => 'Infozillion',
+                'phone' => $request->to,
+                'status' => 'failed',
+                'error_message' => 'Connection failed: '.$e->getMessage(),
+                'duration_ms' => $durationMs,
+            ]);
+
             return new SmsResponse(
                 successful: false,
                 errorMessage: 'Connection failed: '.$e->getMessage(),
@@ -62,26 +105,60 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
 
     public function sendBulk(BulkSmsRequest $request): BulkSmsResponse
     {
+        $payload = $this->buildSendPayload(
+            recipients: $request->recipients,
+            body: $request->body,
+            senderId: $request->from ?? '',
+            isUnicode: $request->isUnicode,
+        );
+
+        $recipientCount = count($request->recipients);
+
+        SmsLogger::info('api_bulk_request', [
+            'gateway_name' => 'Infozillion',
+            'status' => 'sending',
+            'parts' => $recipientCount,
+            'request_payload' => $payload,
+        ]);
+
+        $startMs = hrtime(true);
+
         try {
             $response = $this->client()->post(
                 $this->resolveEndpoint('send-sms'),
-                $this->buildSendPayload(
-                    recipients: $request->recipients,
-                    body: $request->body,
-                    senderId: $request->from ?? '',
-                    isUnicode: $request->isUnicode,
-                ),
+                $payload,
             );
 
+            $durationMs = (int) ((hrtime(true) - $startMs) / 1_000_000);
             $data = $response->json() ?? [];
 
             if ($response->failed() || ((string) ($data['serverResponseCode'] ?? '')) !== self::A2P_SUCCESS_CODE) {
+                $errorMsg = $data['serverResponseMessage'] ?? 'Unknown error';
+
+                SmsLogger::error('api_bulk_response_failed', [
+                    'gateway_name' => 'Infozillion',
+                    'status' => 'failed',
+                    'parts' => $recipientCount,
+                    'error_message' => $errorMsg,
+                    'response_payload' => $data,
+                    'duration_ms' => $durationMs,
+                ]);
+
                 return new BulkSmsResponse(
                     successful: false,
-                    errorMessage: $data['serverResponseMessage'] ?? 'Unknown error',
+                    errorMessage: $errorMsg,
                     raw: $data,
                 );
             }
+
+            SmsLogger::info('api_bulk_response_success', [
+                'gateway_name' => 'Infozillion',
+                'status' => 'sent',
+                'parts' => $recipientCount,
+                'gateway_message_id' => $data['serverTxnId'] ?? null,
+                'response_payload' => $data,
+                'duration_ms' => $durationMs,
+            ]);
 
             return new BulkSmsResponse(
                 successful: true,
@@ -89,6 +166,16 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
                 raw: $data,
             );
         } catch (ConnectionException $e) {
+            $durationMs = (int) ((hrtime(true) - $startMs) / 1_000_000);
+
+            SmsLogger::error('api_bulk_connection_failed', [
+                'gateway_name' => 'Infozillion',
+                'status' => 'failed',
+                'parts' => $recipientCount,
+                'error_message' => 'Connection failed: '.$e->getMessage(),
+                'duration_ms' => $durationMs,
+            ]);
+
             return new BulkSmsResponse(
                 successful: false,
                 errorMessage: 'Connection failed: '.$e->getMessage(),
@@ -98,34 +185,82 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
 
     public function fetchDeliveryStatus(string $gatewayMessageId, ?string $recipient = null): DeliveryStatusResponse
     {
+        $dlrPayload = [
+            'username' => $this->credentials['username'] ?? '',
+            'password' => $this->credentials['password'] ?? '',
+            'billMsisdn' => $this->credentials['bill_msisdn'] ?? '',
+            'usernameSecondary' => $this->credentials['username_secondary'] ?? '',
+            'passwordSecondary' => $this->credentials['password_secondary'] ?? '',
+            'billMsisdnSecondary' => $this->credentials['bill_msisdn_secondary'] ?? '',
+            'apiKey' => $this->credentials['api_key'] ?? '',
+            'msisdnList' => $recipient !== null ? [ltrim($recipient, '+')] : [],
+            'serverReference' => $gatewayMessageId,
+        ];
+
+        SmsLogger::debug('dlr_check_request', [
+            'gateway_name' => 'Infozillion',
+            'phone' => $recipient,
+            'gateway_message_id' => $gatewayMessageId,
+            'status' => 'polling',
+        ]);
+
+        $startMs = hrtime(true);
+
         try {
             $response = $this->client()->post(
                 $this->resolveEndpoint('check-delivery-report'),
-                [
-                    'username' => $this->credentials['username'] ?? '',
-                    'password' => $this->credentials['password'] ?? '',
-                    'billMsisdn' => $this->credentials['bill_msisdn'] ?? '',
-                    'usernameSecondary' => $this->credentials['username_secondary'] ?? '',
-                    'passwordSecondary' => $this->credentials['password_secondary'] ?? '',
-                    'billMsisdnSecondary' => $this->credentials['bill_msisdn_secondary'] ?? '',
-                    'apiKey' => $this->credentials['api_key'] ?? '',
-                    'msisdnList' => $recipient !== null ? [ltrim($recipient, '+')] : [],
-                    'serverReference' => $gatewayMessageId,
-                ],
+                $dlrPayload,
             );
 
+            $durationMs = (int) ((hrtime(true) - $startMs) / 1_000_000);
             $data = $response->json() ?? [];
 
             if ($response->failed() || ((string) ($data['serverResponseCode'] ?? '')) !== self::A2P_SUCCESS_CODE) {
+                $errorMsg = $data['serverResponseMessage'] ?? 'Delivery check failed';
+
+                SmsLogger::warning('dlr_check_failed', [
+                    'gateway_name' => 'Infozillion',
+                    'phone' => $recipient,
+                    'gateway_message_id' => $gatewayMessageId,
+                    'status' => 'failed',
+                    'error_message' => $errorMsg,
+                    'response_payload' => $data,
+                    'duration_ms' => $durationMs,
+                ]);
+
                 return new DeliveryStatusResponse(
                     outcome: DeliveryOutcome::InTransit,
-                    errorMessage: $data['serverResponseMessage'] ?? 'Delivery check failed',
+                    errorMessage: $errorMsg,
                     raw: $data,
                 );
             }
 
-            return $this->mapDeliveryStatus($data);
+            $result = $this->mapDeliveryStatus($data);
+
+            $logMethod = $result->outcome === DeliveryOutcome::Failed ? 'warning' : 'info';
+            SmsLogger::{$logMethod}('dlr_check_result', [
+                'gateway_name' => 'Infozillion',
+                'phone' => $recipient,
+                'gateway_message_id' => $gatewayMessageId,
+                'status' => strtolower($result->outcome->name),
+                'error_message' => $result->errorMessage,
+                'response_payload' => $data,
+                'duration_ms' => $durationMs,
+            ]);
+
+            return $result;
         } catch (ConnectionException $e) {
+            $durationMs = (int) ((hrtime(true) - $startMs) / 1_000_000);
+
+            SmsLogger::error('dlr_connection_failed', [
+                'gateway_name' => 'Infozillion',
+                'phone' => $recipient,
+                'gateway_message_id' => $gatewayMessageId,
+                'status' => 'failed',
+                'error_message' => 'Connection failed: '.$e->getMessage(),
+                'duration_ms' => $durationMs,
+            ]);
+
             return new DeliveryStatusResponse(
                 outcome: DeliveryOutcome::InTransit,
                 errorMessage: 'Connection failed: '.$e->getMessage(),
@@ -206,16 +341,40 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
 
     private function fetchBalance(string $endpoint, array $payload): ?string
     {
+        $startMs = hrtime(true);
+
         try {
             $response = $this->client()->post($this->resolveEndpoint($endpoint), $payload);
+            $durationMs = (int) ((hrtime(true) - $startMs) / 1_000_000);
             $data = $response->json() ?? [];
 
             if ($response->failed() || ((string) ($data['serverResponseCode'] ?? '')) !== self::A2P_SUCCESS_CODE) {
+                SmsLogger::warning('balance_check_failed', [
+                    'gateway_name' => 'Infozillion',
+                    'error_message' => $data['serverResponseMessage'] ?? 'Balance check failed',
+                    'response_payload' => $data,
+                    'duration_ms' => $durationMs,
+                ]);
+
                 return null;
             }
 
+            SmsLogger::debug('balance_check_ok', [
+                'gateway_name' => 'Infozillion',
+                'response_payload' => ['balance' => $data['availableBalance'] ?? null],
+                'duration_ms' => $durationMs,
+            ]);
+
             return $data['availableBalance'] ?? null;
-        } catch (ConnectionException) {
+        } catch (ConnectionException $e) {
+            $durationMs = (int) ((hrtime(true) - $startMs) / 1_000_000);
+
+            SmsLogger::error('balance_connection_failed', [
+                'gateway_name' => 'Infozillion',
+                'error_message' => 'Connection failed: '.$e->getMessage(),
+                'duration_ms' => $durationMs,
+            ]);
+
             return null;
         }
     }

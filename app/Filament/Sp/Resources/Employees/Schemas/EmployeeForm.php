@@ -4,6 +4,8 @@ namespace App\Filament\Sp\Resources\Employees\Schemas;
 
 use App\Enums\UserStatus;
 use App\Enums\UserType;
+use App\Models\User;
+use Filament\Forms\ComponentContainer;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
@@ -58,7 +60,7 @@ class EmployeeForm
     /**
      * Persist the fixed S P panel attributes after the form has saved.
      */
-    public static function persistAttributes(\Filament\Forms\ComponentContainer $container, \App\Models\User $employee): void
+    public static function persistAttributes(ComponentContainer $container, User $employee): void
     {
         $employee->update([
             'type' => UserType::Sp,

@@ -4,6 +4,7 @@ namespace App\Filament\Sp\Resources\Billing\Deposits\Actions;
 
 use App\Enums\DepositPaymentMethod;
 use App\Enums\DepositStatus;
+use App\Models\User;
 use App\Services\Payment\Data\PaymentRequest;
 use App\Services\Payment\Data\PaymentResponse;
 use App\Support\Facades\Payment;
@@ -38,7 +39,7 @@ class DepositAction
             ])
             ->action(function (array $data) {
                 $response = DB::transaction(function () use ($data): PaymentResponse {
-                    /** @var \App\Models\User $user */
+                    /** @var User $user */
                     $user = auth()->user();
 
                     $gateway = 'piprapay';

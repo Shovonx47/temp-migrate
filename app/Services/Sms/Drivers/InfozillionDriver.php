@@ -288,7 +288,7 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
                 'ICN' => 'Icon',
                 'WEB' => 'Weblink',
                 'BDC' => 'BDCOM',
-                'RD' => 'RedData',
+                'RDT' => 'RedData',
                 'L3' => 'Link3',
                 'BTCL' => 'BTCL',
                 'AGNI' => 'AGNI',

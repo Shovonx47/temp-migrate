@@ -201,7 +201,7 @@ class GatewayForm
             'ICN' => 'Icon',
             'WEB' => 'Weblink',
             'BDC' => 'BDCOM',
-            'RD' => 'RedData',
+            'RDT' => 'RedData',
             'L3' => 'Link3',
             'BTCL' => 'BTCL',
             'AGNI' => 'AGNI',

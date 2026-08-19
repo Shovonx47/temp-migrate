@@ -20,7 +20,7 @@ test('getCarrierOptionsForApiType returns exact 20 IPTSP carrier options when ap
         'ICN' => 'Icon',
         'WEB' => 'Weblink',
         'BDC' => 'BDCOM',
-        'RD' => 'RedData',
+        'RDT' => 'RedData',
         'L3' => 'Link3',
         'BTCL' => 'BTCL',
         'AGNI' => 'AGNI',

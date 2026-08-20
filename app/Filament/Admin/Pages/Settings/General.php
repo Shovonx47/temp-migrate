@@ -22,7 +22,7 @@ class General extends SettingsPage
 
     protected static string|UnitEnum|null $navigationGroup = SupermanNavigationGroup::Settings;
 
-    protected static ?string $navigationLabel = 'General';
+    protected static ?string $navigationLabel = 'Company Info';
 
     protected static ?string $slug = 'settings/general';
 

@@ -30,6 +30,7 @@ class BillingStatsWidget extends BaseWidget
         $spent = $user->messages()
             ->where('created_at', '>=', $from)
             ->where('created_at', '<=', $to)
+            ->where('status', '!=', 'failed')
             ->sum('cost');
 
         $pendingDeposits = $user->deposits()

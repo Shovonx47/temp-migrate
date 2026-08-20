@@ -26,6 +26,7 @@ class SpendingTrendChart extends ChartWidget
         $data = auth()->user()->messages()
             ->where('created_at', '>=', $from)
             ->where('created_at', '<=', $to)
+            ->where('status', '!=', 'failed')
             ->toBase()
             ->selectRaw('DATE(created_at) as date, SUM(cost) as total')
             ->groupBy('date')

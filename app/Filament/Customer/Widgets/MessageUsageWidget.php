@@ -18,7 +18,7 @@ class MessageUsageWidget extends BaseWidget
             ->selectRaw('COUNT(*) as total')
             ->selectRaw("COALESCE(SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END), 0) as delivered")
             ->selectRaw("COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) as failed")
-            ->selectRaw('COALESCE(SUM(cost), 0) as total_cost')
+            ->selectRaw("COALESCE(SUM(CASE WHEN status != 'failed' THEN cost ELSE 0 END), 0) as total_cost")
             ->first();
 
         $total = (int) $stats->total;

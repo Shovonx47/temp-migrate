@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Settings\Gateways\Tables;
 
+use App\Services\Analytics\GatewayMetricsService;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -10,7 +11,6 @@ use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 
@@ -18,41 +18,271 @@ class GatewaysTable
 {
     public static function configure(Table $table): Table
     {
+        $metricsService = app(GatewayMetricsService::class);
+
         return $table
             ->columns([
                 TextColumn::make('name')
+                    ->label('Gateway')
                     ->searchable()
-                    ->sortable(),
-                TextColumn::make('driver')
-                    ->badge(),
+                    ->sortable()
+                    ->weight('bold')
+                    ->wrap(false),
+
+                TextColumn::make('is_enabled')
+                    ->label('Status')
+                    ->badge()
+                    ->state(fn ($record): string => $record->is_enabled ? 'ACTIVE' : 'INACTIVE')
+                    ->color(fn ($record): string => $record->is_enabled ? 'success' : 'danger')
+                    ->wrap(false),
+
                 TextColumn::make('requests_per_second')
                     ->label('RPS')
-                    ->sortable(),
-                ToggleColumn::make('is_enabled'),
+                    ->sortable()
+                    ->alignCenter()
+                    ->wrap(false),
+
+                TextColumn::make('cost_mode')
+                    ->label('Cost Mode')
+                    ->state(fn ($record): string => ucfirst($record->cost_mode?->value ?? 'manual'))
+                    ->badge()
+                    ->color('gray')
+                    ->wrap(false),
+
                 TextColumn::make('dlr_support')
-                    ->label('DLR')
+                    ->label('DLR Support')
                     ->badge()
-                    ->formatStateUsing(fn (bool $state): string => $state ? 'Supported' : 'N/A')
-                    ->color(fn (bool $state): string => $state ? 'success' : 'gray'),
-                TextColumn::make('gatewayOperatorRates_count')
-                    ->counts('gatewayOperatorRates')
-                    ->label('Rates'),
-                TextColumn::make('operator_cost_spent')
+                    ->formatStateUsing(fn (bool $state): string => $state ? 'YES' : 'NO')
+                    ->color(fn (bool $state): string => $state ? 'success' : 'gray')
+                    ->alignCenter()
+                    ->wrap(false),
+
+                TextColumn::make('masking_sent')
+                    ->label('Masking Sent')
+                    ->state(fn ($record): string => number_format((int) ($metricsService->getMetrics($record)['masking_sent'] ?? 0)))
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('non_masking_sent')
+                    ->label('Non-Masking Sent')
+                    ->state(fn ($record): string => number_format((int) ($metricsService->getMetrics($record)['non_masking_sent'] ?? 0)))
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('total_sent')
+                    ->label('Total Sent')
+                    ->state(fn ($record): string => number_format((int) ($metricsService->getMetrics($record)['total_sent'] ?? 0)))
+                    ->weight('bold')
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('masking_delivered')
+                    ->label('Masking Delivered')
+                    ->state(function ($record) use ($metricsService): string {
+                        $val = $metricsService->getMetrics($record)['masking_delivered'];
+
+                        return $val !== null ? number_format((int) $val) : 'N/A';
+                    })
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('non_masking_delivered')
+                    ->label('Non-Masking Delivered')
+                    ->state(function ($record) use ($metricsService): string {
+                        $val = $metricsService->getMetrics($record)['non_masking_delivered'];
+
+                        return $val !== null ? number_format((int) $val) : 'N/A';
+                    })
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('total_delivered')
+                    ->label('Total Delivered')
+                    ->state(function ($record) use ($metricsService): string {
+                        $val = $metricsService->getMetrics($record)['total_delivered'];
+
+                        return $val !== null ? number_format((int) $val) : 'N/A';
+                    })
+                    ->weight('bold')
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('dlr_pending')
+                    ->label('DLR Pending')
+                    ->state(function ($record) use ($metricsService): string {
+                        $val = $metricsService->getMetrics($record)['dlr_pending'];
+
+                        return $val !== null ? number_format((int) $val) : 'N/A';
+                    })
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('dlr_pending_pct')
+                    ->label('DLR Pending %')
+                    ->state(function ($record) use ($metricsService): string {
+                        $val = $metricsService->getMetrics($record)['dlr_pending_pct'];
+
+                        return $val !== null ? number_format((float) $val, 2).'%' : 'N/A';
+                    })
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('send_failed')
+                    ->label('Send Failed')
+                    ->state(fn ($record): string => number_format((int) ($metricsService->getMetrics($record)['send_failed'] ?? 0)))
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('send_failed_pct')
+                    ->label('Send Failed %')
+                    ->state(fn ($record): string => number_format((float) ($metricsService->getMetrics($record)['send_failed_pct'] ?? 0), 2).'%')
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('dlr_failed')
+                    ->label('DLR Failed')
+                    ->state(function ($record) use ($metricsService): string {
+                        $val = $metricsService->getMetrics($record)['dlr_failed'];
+
+                        return $val !== null ? number_format((int) $val) : 'N/A';
+                    })
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('dlr_failed_pct')
+                    ->label('DLR Failed %')
+                    ->state(function ($record) use ($metricsService): string {
+                        $val = $metricsService->getMetrics($record)['dlr_failed_pct'];
+
+                        return $val !== null ? number_format((float) $val, 2).'%' : 'N/A';
+                    })
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('processing')
+                    ->label('Processing')
+                    ->state(fn ($record): string => number_format((int) ($metricsService->getMetrics($record)['processing'] ?? 0)))
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('processing_pct')
+                    ->label('Processing %')
+                    ->state(fn ($record): string => number_format((float) ($metricsService->getMetrics($record)['processing_pct'] ?? 0), 2).'%')
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('masking_delivery_pct')
+                    ->label('Masking Delivery %')
+                    ->state(function ($record) use ($metricsService): string {
+                        $val = $metricsService->getMetrics($record)['masking_delivery_pct'];
+
+                        return $val !== null ? number_format((float) $val, 2).'%' : 'N/A';
+                    })
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('non_masking_delivery_pct')
+                    ->label('Non-Masking Delivery %')
+                    ->state(function ($record) use ($metricsService): string {
+                        $val = $metricsService->getMetrics($record)['non_masking_delivery_pct'];
+
+                        return $val !== null ? number_format((float) $val, 2).'%' : 'N/A';
+                    })
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('masking_cost')
+                    ->label('Masking Cost')
+                    ->state(fn ($record): string => '৳'.number_format((float) ($metricsService->getMetrics($record)['masking_cost'] ?? 0), 4))
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('non_masking_cost')
+                    ->label('Non-Masking Cost')
+                    ->state(fn ($record): string => '৳'.number_format((float) ($metricsService->getMetrics($record)['non_masking_cost'] ?? 0), 4))
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('operator_cost')
                     ->label('Operator Cost')
-                    ->state(fn ($record): string => number_format((float) ($record->messages()->where('status', '!=', 'failed')->sum('operator_cost') ?? 0), 2).' ৳')
+                    ->state(fn ($record): string => '৳'.number_format((float) ($metricsService->getMetrics($record)['operator_cost'] ?? 0), 2))
                     ->badge()
-                    ->color('warning'),
-                TextColumn::make('gateway_cost_spent')
-                    ->label('Dipping Cost')
-                    ->state(fn ($record): string => number_format((float) ($record->messages()->where('status', '!=', 'failed')->sum('primary_dipping_cost') ?? 0), 2).' ৳')
+                    ->color('warning')
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('dipping_charge')
+                    ->label('Dipping Charge')
+                    ->state(fn ($record): string => '৳'.number_format((float) ($metricsService->getMetrics($record)['dipping_charge'] ?? 0), 2))
                     ->badge()
-                    ->color('info'),
-                TextColumn::make('created_at')
-                    ->dateTime()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->color('info')
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('third_party_dipping_cost')
+                    ->label('Third-Party Dipping Cost')
+                    ->state(fn ($record): string => '৳'.number_format((float) ($metricsService->getMetrics($record)['third_party_dipping_cost'] ?? 0), 2))
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('total_cost')
+                    ->label('Total Cost')
+                    ->state(fn ($record): string => '৳'.number_format((float) ($metricsService->getMetrics($record)['total_cost'] ?? 0), 2))
+                    ->badge()
+                    ->color('danger')
+                    ->weight('bold')
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('provider_balance')
+                    ->label('Provider Balance')
+                    ->state(function ($record) use ($metricsService): string {
+                        $val = $metricsService->getMetrics($record)['provider_balance'];
+
+                        return $val !== null ? (is_numeric($val) ? '৳'.number_format((float) $val, 2) : (string) $val) : 'N/A';
+                    })
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('dipping_balance')
+                    ->label('Dipping Balance')
+                    ->state(function ($record) use ($metricsService): string {
+                        $val = $metricsService->getMetrics($record)['dipping_balance'];
+
+                        return $val !== null ? (is_numeric($val) ? '৳'.number_format((float) $val, 2) : (string) $val) : 'N/A';
+                    })
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('revenue')
+                    ->label('Revenue')
+                    ->state(fn ($record): string => '৳'.number_format((float) ($metricsService->getMetrics($record)['revenue'] ?? 0), 2))
+                    ->badge()
+                    ->color('success')
+                    ->weight('bold')
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('profit')
+                    ->label('Profit')
+                    ->state(fn ($record): string => '৳'.number_format((float) ($metricsService->getMetrics($record)['profit'] ?? 0), 2))
+                    ->badge()
+                    ->color(fn ($record): string => ($metricsService->getMetrics($record)['profit'] ?? 0) >= 0 ? 'success' : 'danger')
+                    ->weight('bold')
+                    ->alignEnd()
+                    ->wrap(false),
+
+                TextColumn::make('verification')
+                    ->label('Verification')
+                    ->badge()
+                    ->state(fn ($record): string => $metricsService->getMetrics($record)['verification'])
+                    ->color(fn ($record): string => $metricsService->getMetrics($record)['verification_color'])
+                    ->wrap(false),
+
+                TextColumn::make('driver')
+                    ->label('Driver')
+                    ->badge()
+                    ->wrap(false),
             ])
             ->filters([
                 TrashedFilter::make(),

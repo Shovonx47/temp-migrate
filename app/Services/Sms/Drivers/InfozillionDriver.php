@@ -391,12 +391,19 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
 
         $isLongSms = (bool) ($this->credentials['is_long_sms'] ?? (mb_strlen($body) > 160));
 
+        // Infozillion authenticates every request against `billMsisdn`.
+        // The `cli` field must equal `billMsisdn`; sending the user-supplied
+        // sender ID as `cli` causes the gateway to reject the request.
+        // The user-visible sender name is controlled by the gateway's own
+        // registered CLI configuration, not this field.
+        $billMsisdn = $this->credentials['bill_msisdn'] ?? '';
+
         $payload = [
             'username' => $this->credentials['username'] ?? '',
             'password' => $this->credentials['password'] ?? '',
-            'billMsisdn' => $this->credentials['bill_msisdn'] ?? '',
+            'billMsisdn' => $billMsisdn,
             'apiKey' => $this->credentials['api_key'] ?? '',
-            'cli' => $senderId,
+            'cli' => $billMsisdn,
             'msisdnList' => array_map(fn (string $msisdn) => ltrim($msisdn, '+'), $recipients),
             'transactionType' => $transactionType,
             'messageType' => (string) $messageType,

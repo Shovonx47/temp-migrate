@@ -46,6 +46,13 @@ class MessagesTable
                             ->label('Delivered')
                             ->query(fn ($query) => $query->where('status', MessageStatus::Delivered))
                     ),
+                TextColumn::make('failed_reason')
+                    ->label('Failure Reason')
+                    ->limit(60)
+                    ->tooltip(fn ($record) => $record->failed_reason)
+                    ->color('danger')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('cost')
                     ->label('Charged')
                     ->prefix('৳')
@@ -56,7 +63,7 @@ class MessagesTable
                     ->prefix('৳')
                     ->numeric(decimalPlaces: 4)
                     ->sortable(),
-                TextColumn::make('gateway_cost')
+                TextColumn::make('primary_dipping_cost')
                     ->label('Gateway Cost')
                     ->prefix('৳')
                     ->numeric(decimalPlaces: 4)

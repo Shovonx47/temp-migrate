@@ -29,7 +29,11 @@ class Message extends Model implements Transactionable
             'status' => MessageStatus::class,
             'source' => MessageSource::class,
             'cost' => 'float',
-            'gateway_cost' => 'float',
+            'primary_dipping_cost' => 'float',
+            'primary_dipping_rate' => 'float',
+            'third_party_dipping_cost' => 'float',
+            'third_party_dipping_rate' => 'float',
+            'was_third_party_dipped' => 'boolean',
             'operator_cost' => 'float',
             'sent_at' => 'datetime',
             'failed_at' => 'datetime',
@@ -62,5 +66,15 @@ class Message extends Model implements Transactionable
     public function gateway(): BelongsTo
     {
         return $this->belongsTo(Gateway::class);
+    }
+
+    public function tariffRate(): BelongsTo
+    {
+        return $this->belongsTo(TariffRate::class);
+    }
+
+    public function dippingCharge(): BelongsTo
+    {
+        return $this->belongsTo(GatewayDippingCharge::class);
     }
 }

@@ -670,6 +670,24 @@ test('insufficient balance notifies the user with a top-up message', function ()
         ->and($notification->data['title'] ?? null)->toContain('insufficient balance');
 });
 
+test('dispatches send jobs synchronously when syncSending is enabled', function () {
+    $batch = makeMessageBatch();
+
+    (new ProcessBatchJob(
+        $batch,
+        'manual',
+        ['recipients' => [
+            ['phone' => '01711000001', 'values' => []],
+        ]],
+        body: 'Synchronous test',
+        bodyVariables: [],
+        syncSending: true,
+    ))->handle(app(RecipientFileParser::class));
+
+    Bus::assertDispatchedSync(SendBatchSingleSmsJob::class);
+    expect($batch->fresh()->status)->toBe(BatchStatus::Completed);
+});
+
 test('missing upload file is treated as zero recipients, not a fatal error', function () {
     $batch = makeMessageBatch();
 

@@ -8,6 +8,8 @@ use App\Enums\CampaignStatus;
 use App\Enums\MessageStatus;
 use App\Models\Campaign;
 use App\Models\Message;
+use App\Services\Billing\DippingChargeResolver;
+use App\Support\GatewayCostResolver;
 use App\Support\OperatorRateResolver;
 use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
@@ -29,7 +31,7 @@ class ProcessCampaignJob implements ShouldQueue
 
     public function handle(): void
     {
-        $campaign = $this->campaign->fresh(['user', 'sender']);
+        $campaign = $this->campaign->fresh(['user', 'sender.gateway']);
 
         if (! $campaign || $campaign->status !== CampaignStatus::Processing) {
             return;
@@ -53,6 +55,10 @@ class ProcessCampaignJob implements ShouldQueue
 
             return;
         }
+
+        $gateway = $sender->gateway;
+        $gatewayCostResolver = $gateway !== null ? GatewayCostResolver::forGateway($gateway) : null;
+        $dippingChargeResolver = $gateway !== null ? DippingChargeResolver::forGateway($gateway) : null;
 
         $pendingRecipients = DB::table('campaign_contact')
             ->where('campaign_id', $campaign->id)
@@ -111,16 +117,45 @@ class ProcessCampaignJob implements ShouldQueue
             $rate = $item['rate'];
 
             try {
-                DB::transaction(function () use ($campaign, $user, $sender, $recipient, $rate, $debitAction, &$totalSent) {
+                DB::transaction(function () use (
+                    $campaign,
+                    $user,
+                    $sender,
+                    $recipient,
+                    $rate,
+                    $isMasking,
+                    $gatewayCostResolver,
+                    $dippingChargeResolver,
+                    $debitAction,
+                    &$totalSent,
+                ) {
+                    $operatorRate = $gatewayCostResolver?->resolveOperatorCost((string) $recipient->phone, $isMasking) ?? 0.0;
+                    $operatorCost = round($operatorRate, 4);
+
+                    $dipping = $dippingChargeResolver?->resolve(
+                        (string) $recipient->phone,
+                        $isMasking,
+                        $operatorCost,
+                        1,
+                    ) ?? ['charge' => null, 'rate' => 0.0, 'cost' => 0.0];
+
                     $message = Message::create([
                         'user_id' => $user->id,
                         'sender_id' => $sender->id,
+                        'gateway_id' => $sender->gateway_id,
                         'campaign_id' => $campaign->id,
                         'to' => $recipient->phone,
                         'body' => $campaign->body,
                         'parts' => 1,
                         'rate' => $rate,
                         'cost' => $rate,
+                        'operator_cost' => $operatorCost,
+                        'primary_dipping_cost' => $dipping['cost'],
+                        'primary_dipping_rate' => $dipping['rate'],
+                        'dipping_charge_id' => $dipping['charge']?->id,
+                        'was_third_party_dipped' => false,
+                        'third_party_dipping_cost' => null,
+                        'third_party_dipping_rate' => null,
                         'status' => MessageStatus::Sent,
                         'sent_at' => now(),
                     ]);

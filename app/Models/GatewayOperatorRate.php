@@ -66,6 +66,6 @@ class GatewayOperatorRate extends Model
                     $q->orWhere('to', 'like', $prefix.'%');
                 }
             })
-            ->sum('gateway_cost');
+            ->sum('primary_dipping_cost');
     }
 }

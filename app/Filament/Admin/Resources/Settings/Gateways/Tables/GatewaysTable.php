@@ -9,7 +9,6 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\TrashedFilter;
@@ -30,8 +29,11 @@ class GatewaysTable
                     ->label('RPS')
                     ->sortable(),
                 ToggleColumn::make('is_enabled'),
-                IconColumn::make('supports_bulk')
-                    ->boolean(),
+                TextColumn::make('dlr_support')
+                    ->label('DLR')
+                    ->badge()
+                    ->formatStateUsing(fn (bool $state): string => $state ? 'Supported' : 'N/A')
+                    ->color(fn (bool $state): string => $state ? 'success' : 'gray'),
                 TextColumn::make('gatewayOperatorRates_count')
                     ->counts('gatewayOperatorRates')
                     ->label('Rates'),
@@ -41,8 +43,8 @@ class GatewaysTable
                     ->badge()
                     ->color('warning'),
                 TextColumn::make('gateway_cost_spent')
-                    ->label('InfoZillion Cost')
-                    ->state(fn ($record): string => number_format((float) ($record->messages()->where('status', '!=', 'failed')->sum('gateway_cost') ?? 0), 2).' ৳')
+                    ->label('Dipping Cost')
+                    ->state(fn ($record): string => number_format((float) ($record->messages()->where('status', '!=', 'failed')->sum('primary_dipping_cost') ?? 0), 2).' ৳')
                     ->badge()
                     ->color('info'),
                 TextColumn::make('created_at')

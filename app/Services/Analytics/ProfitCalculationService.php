@@ -3,6 +3,7 @@
 namespace App\Services\Analytics;
 
 use App\Models\Operator;
+use App\Services\Billing\GatewayProfitCalculationService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -84,13 +85,13 @@ class ProfitCalculationService
             ->where('created_at', '>=', $from)
             ->where('created_at', '<=', $to)
             ->where('status', '!=', 'failed')
-            ->selectRaw('COUNT(*) as count, COALESCE(SUM(cost), 0) as revenue, COALESCE(SUM(operator_cost), 0) as operator_cost, COALESCE(SUM(gateway_cost), 0) as gateway_cost')
+            ->selectRaw('COUNT(*) as count, COALESCE(SUM(cost), 0) as revenue, COALESCE(SUM(operator_cost), 0) as operator_cost, COALESCE(SUM(primary_dipping_cost), 0) as primary_dipping_cost')
             ->first();
 
         $revenue = (float) ($result->revenue ?? 0);
         $operatorCost = (float) ($result->operator_cost ?? 0);
-        $gatewayCost = (float) ($result->gateway_cost ?? 0);
-        $totalCost = $operatorCost + $gatewayCost;
+        $primaryDippingCost = (float) ($result->primary_dipping_cost ?? 0);
+        $totalCost = $operatorCost + $primaryDippingCost;
         $profit = $revenue - $totalCost;
         $margin = $revenue > 0 ? ($profit / $revenue) * 100 : 0;
 
@@ -98,7 +99,8 @@ class ProfitCalculationService
             'revenue' => round($revenue, 2),
             'cost' => round($totalCost, 2),
             'operator_cost' => round($operatorCost, 2),
-            'gateway_cost' => round($gatewayCost, 2),
+            'primary_dipping_cost' => round($primaryDippingCost, 2),
+            'gateway_cost' => round($primaryDippingCost, 2),
             'profit' => round($profit, 2),
             'margin' => round($margin, 1),
             'messages' => (int) ($result->count ?? 0),
@@ -132,7 +134,7 @@ class ProfitCalculationService
                 'messages.to as phone',
                 'messages.cost',
                 'messages.operator_cost',
-                'messages.gateway_cost',
+                'messages.primary_dipping_cost',
             ])
             ->get();
 
@@ -149,6 +151,7 @@ class ProfitCalculationService
                     'messages' => 0,
                     'revenue' => 0.0,
                     'operator_cost' => 0.0,
+                    'primary_dipping_cost' => 0.0,
                     'gateway_cost' => 0.0,
                     'cost' => 0.0,
                     'profit' => 0.0,
@@ -156,19 +159,21 @@ class ProfitCalculationService
             }
 
             $opCost = (float) ($message->operator_cost ?? 0);
-            $gwCost = (float) ($message->gateway_cost ?? 0);
+            $dipCost = (float) ($message->primary_dipping_cost ?? 0);
 
             $breakdown[$operatorId]['messages']++;
             $breakdown[$operatorId]['revenue'] += (float) $message->cost;
             $breakdown[$operatorId]['operator_cost'] += $opCost;
-            $breakdown[$operatorId]['gateway_cost'] += $gwCost;
-            $breakdown[$operatorId]['cost'] += ($opCost + $gwCost);
+            $breakdown[$operatorId]['primary_dipping_cost'] += $dipCost;
+            $breakdown[$operatorId]['gateway_cost'] += $dipCost;
+            $breakdown[$operatorId]['cost'] += ($opCost + $dipCost);
         }
 
         foreach ($breakdown as &$item) {
             $item['profit'] = round($item['revenue'] - $item['cost'], 2);
             $item['revenue'] = round($item['revenue'], 2);
             $item['operator_cost'] = round($item['operator_cost'], 2);
+            $item['primary_dipping_cost'] = round($item['primary_dipping_cost'], 2);
             $item['gateway_cost'] = round($item['gateway_cost'], 2);
             $item['cost'] = round($item['cost'], 2);
         }
@@ -197,34 +202,37 @@ class ProfitCalculationService
 
     private function computeGatewayBreakdown(Carbon $from, Carbon $to): array
     {
-        $results = DB::table('messages')
-            ->join('gateways', 'messages.gateway_id', '=', 'gateways.id')
-            ->where('messages.created_at', '>=', $from)
-            ->where('messages.created_at', '<=', $to)
-            ->where('messages.status', '!=', 'failed')
-            ->selectRaw('gateways.name as gateway, COUNT(*) as messages, COALESCE(SUM(messages.cost), 0) as revenue, COALESCE(SUM(messages.operator_cost), 0) as operator_cost, COALESCE(SUM(messages.gateway_cost), 0) as gateway_cost')
-            ->groupBy('gateways.name')
-            ->orderByDesc('messages')
-            ->get();
+        $gatewayIds = DB::table('messages')
+            ->where('created_at', '>=', $from)
+            ->where('created_at', '<=', $to)
+            ->where('status', '!=', 'failed')
+            ->whereNotNull('gateway_id')
+            ->distinct()
+            ->pluck('gateway_id');
 
-        return $results->map(function ($row) {
-            $revenue = (float) $row->revenue;
-            $operatorCost = (float) $row->operator_cost;
-            $gatewayCost = (float) $row->gateway_cost;
-            $totalCost = $operatorCost + $gatewayCost;
-            $profit = $revenue - $totalCost;
+        $gateways = Gateway::whereIn('id', $gatewayIds)->get();
+        $profitService = app(GatewayProfitCalculationService::class);
+
+        return $gateways->map(function (Gateway $gateway) use ($profitService, $from, $to) {
+            $result = $profitService->calculateForGateway($gateway, $from, $to);
 
             return [
-                'gateway' => $row->gateway,
-                'messages' => (int) $row->messages,
-                'revenue' => round($revenue, 2),
-                'operator_cost' => round($operatorCost, 2),
-                'gateway_cost' => round($gatewayCost, 2),
-                'cost' => round($totalCost, 2),
-                'profit' => round($profit, 2),
-                'margin' => $revenue > 0 ? round(($profit / $revenue) * 100, 1) : 0,
+                'gateway_id' => (int) $gateway->id,
+                'gateway' => $gateway->name,
+                'messages' => $result->revenue->messageCount,
+                'revenue' => round($result->revenue->total, 2),
+                'operator_cost' => round($result->cost->operatorCost, 2),
+                'primary_dipping_cost' => round($result->cost->primaryDippingCost, 2),
+                'third_party_dipping_cost' => $result->cost->thirdPartyDippingCost !== null ? round($result->cost->thirdPartyDippingCost, 2) : null,
+                'gateway_cost' => round($result->cost->primaryDippingCost, 2),
+                'cost' => round($result->cost->totalCost, 2),
+                'profit' => $result->profit !== null ? round($result->profit, 2) : null,
+                'margin' => $result->margin,
+                'status' => $result->status->value,
+                'incomplete_reason' => $result->incompleteReason,
+                'dlr_metrics' => $result->cost->dlrMetrics,
             ];
-        })->toArray();
+        })->sortByDesc('messages')->values()->toArray();
     }
 
     /**

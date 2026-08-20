@@ -11,7 +11,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
 #[Signature('backfill:gateway-costs')]
-#[Description('Backfill gateway_cost on existing messages based on gateway operator rates')]
+#[Description('Backfill primary_dipping_cost on existing messages based on gateway dipping charges')]
 class BackfillGatewayCosts extends Command
 {
     public function handle(): int
@@ -50,7 +50,7 @@ class BackfillGatewayCosts extends Command
 
         $total = Message::withoutGlobalScopes()
             ->where(function ($q) {
-                $q->where('gateway_cost', 0)
+                $q->where('primary_dipping_cost', 0)
                     ->orWhere('operator_cost', 0);
             })
             ->whereNotNull('gateway_id')
@@ -71,7 +71,7 @@ class BackfillGatewayCosts extends Command
 
         Message::withoutGlobalScopes()
             ->where(function ($q) {
-                $q->where('gateway_cost', 0)
+                $q->where('primary_dipping_cost', 0)
                     ->orWhere('operator_cost', 0);
             })
             ->whereNotNull('gateway_id')
@@ -113,7 +113,7 @@ class BackfillGatewayCosts extends Command
 
                     $updates[$message->id] = [
                         'operator_cost' => $opCost,
-                        'gateway_cost' => $gwCost,
+                        'primary_dipping_cost' => $gwCost,
                     ];
                     $updated++;
 
@@ -128,7 +128,7 @@ class BackfillGatewayCosts extends Command
 
         $bar->finish();
         $this->newLine();
-        $this->info("Backfilled operator_cost & gateway_cost for {$updated} messages.");
+        $this->info("Backfilled operator_cost & primary_dipping_cost for {$updated} messages.");
 
         return self::SUCCESS;
     }

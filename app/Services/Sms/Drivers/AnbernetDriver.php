@@ -29,17 +29,27 @@ final readonly class AnbernetDriver implements SmsGateway, SupportsBulkSms, Supp
                 senderId: $request->from ?? '',
             ));
 
-            $data = $response->json() ?? [];
+            $data = $this->unwrapResponseData($response->json());
+            $status = strtolower((string) ($data['status'] ?? $data['Status'] ?? ''));
+            $hasMessageIds = ! empty($data['messageids']) || ! empty($data['message_ids']) || ! empty($data['messageid']);
+            $isSuccessful = $response->successful() && ($status === 'success' || ($status === '' && $hasMessageIds));
 
-            if ($response->failed() || ($data['status'] ?? '') !== 'success') {
+            if (! $isSuccessful) {
                 return new SmsResponse(
                     successful: false,
-                    errorMessage: $data['message'] ?? $this->extractErrorMessage($data),
+                    errorMessage: $this->extractErrorMessage($data),
                     raw: $data,
                 );
             }
 
-            $messageId = (string) ($data['messageids'][0]['messageid'] ?? '');
+            $messageId = (string) (
+                $data['messageids'][0]['messageid']
+                ?? $data['messageids'][0]['messageId']
+                ?? $data['messageids'][0]['id']
+                ?? $data['messageid']
+                ?? $data['messageId']
+                ?? ''
+            );
 
             return new SmsResponse(
                 successful: true,
@@ -63,24 +73,31 @@ final readonly class AnbernetDriver implements SmsGateway, SupportsBulkSms, Supp
                 senderId: $request->from ?? '',
             ));
 
-            $data = $response->json() ?? [];
+            $data = $this->unwrapResponseData($response->json());
+            $status = strtolower((string) ($data['status'] ?? $data['Status'] ?? ''));
+            $hasMessageIds = ! empty($data['messageids']) || ! empty($data['message_ids']);
+            $isSuccessful = $response->successful() && ($status === 'success' || ($status === '' && $hasMessageIds));
 
-            if ($response->failed() || ($data['status'] ?? '') !== 'success') {
+            if (! $isSuccessful) {
                 return new BulkSmsResponse(
                     successful: false,
-                    errorMessage: $data['message'] ?? $this->extractErrorMessage($data),
+                    errorMessage: $this->extractErrorMessage($data),
                     raw: $data,
                 );
             }
 
             // Anbernet returns per-recipient message IDs as [{receiver, messageid}, ...].
             // Build a phone→ID map and resolve in the same order as recipients.
-            $byReceiver = collect($data['messageids'] ?? [])->keyBy(
-                fn (array $item): string => (string) ($item['receiver'] ?? ''),
+            $rawMessageIds = $data['messageids'] ?? $data['message_ids'] ?? [];
+            $byReceiver = collect($rawMessageIds)->keyBy(
+                fn (array $item): string => ltrim((string) ($item['receiver'] ?? $item['to'] ?? $item['mobile'] ?? ''), '+'),
             );
 
             $perRecipientIds = array_map(
-                fn (string $phone): ?string => $byReceiver->get((string) $phone, [])['messageid'] ?? null,
+                fn (string $phone): ?string => $byReceiver->get(ltrim(trim((string) $phone), '+'), [])['messageid']
+                    ?? $byReceiver->get(ltrim(trim((string) $phone), '+'), [])['messageId']
+                    ?? $byReceiver->get(ltrim(trim((string) $phone), '+'), [])['id']
+                    ?? null,
                 $request->recipients,
             );
 
@@ -107,7 +124,7 @@ final readonly class AnbernetDriver implements SmsGateway, SupportsBulkSms, Supp
                 'messageid' => $gatewayMessageId,
             ]);
 
-            $data = $response->json() ?? [];
+            $data = $this->unwrapResponseData($response->json());
 
             if ($response->failed()) {
                 return new DeliveryStatusResponse(
@@ -149,12 +166,17 @@ final readonly class AnbernetDriver implements SmsGateway, SupportsBulkSms, Supp
 
     private function buildSendPayload(array $recipients, string $body, string $senderId): array
     {
+        $normalizedRecipients = array_values(array_map(
+            fn (string $phone): string => ltrim(trim($phone), '+'),
+            $recipients,
+        ));
+
         return [
             'account' => $this->credentials['account'] ?? '',
             'password' => $this->credentials['password'] ?? '',
             'token' => $this->credentials['token'] ?? '',
             'senderid' => $senderId,
-            'receivers' => $recipients,
+            'receivers' => $normalizedRecipients,
             'msgdata' => $body,
             'flashon' => 0,
             'transtype' => 'T',
@@ -166,7 +188,12 @@ final readonly class AnbernetDriver implements SmsGateway, SupportsBulkSms, Supp
     {
         return match (true) {
             isset($data['message']) => (string) $data['message'],
+            isset($data['Message']) => (string) $data['Message'],
+            isset($data['error']) => (string) $data['error'],
+            isset($data['Error']) => (string) $data['Error'],
+            isset($data['description']) => (string) $data['description'],
             isset($data['Balance Status']) => 'Balance check response instead of SMS send',
+            ! empty($data) => json_encode($data),
             default => 'Unknown error',
         };
     }
@@ -182,6 +209,20 @@ final readonly class AnbernetDriver implements SmsGateway, SupportsBulkSms, Supp
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    private function unwrapResponseData(mixed $data): array
+    {
+        if (! is_array($data)) {
+            return [];
+        }
+
+        // Handle array-wrapped responses like [{"status":"success",...}, 200] or [{...}]
+        if (isset($data[0]) && is_array($data[0])) {
+            return $data[0];
+        }
+
+        return $data;
     }
 
     private function client(): PendingRequest

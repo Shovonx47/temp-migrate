@@ -27,7 +27,7 @@ class SpendingTrendChart extends ChartWidget
         $data = DB::table('messages')
             ->where('created_at', '>=', $from)
             ->where('created_at', '<=', $to)
-            ->selectRaw('DATE(created_at) as date, SUM(cost) as revenue, SUM(gateway_cost) as cost')
+            ->selectRaw('DATE(created_at) as date, SUM(cost) as revenue, SUM(primary_dipping_cost) as cost')
             ->groupBy('date')
             ->orderBy('date')
             ->get();

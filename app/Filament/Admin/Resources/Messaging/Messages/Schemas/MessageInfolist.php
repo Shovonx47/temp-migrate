@@ -2,6 +2,8 @@
 
 namespace App\Filament\Admin\Resources\Messaging\Messages\Schemas;
 
+use App\Enums\MessageStatus;
+use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
@@ -34,8 +36,21 @@ class MessageInfolist
                                     ->money('BDT'),
                                 TextEntry::make('segments')
                                     ->numeric(),
+                                TextEntry::make('gateway.name')
+                                    ->label('Gateway')
+                                    ->placeholder('—'),
+                                TextEntry::make('gateway_message_id')
+                                    ->label('Gateway Message ID')
+                                    ->copyable()
+                                    ->placeholder('—'),
                                 TextEntry::make('sent_at')
-                                    ->dateTime(),
+                                    ->dateTime()
+                                    ->placeholder('—'),
+                                TextEntry::make('failed_at')
+                                    ->label('Failed At')
+                                    ->dateTime()
+                                    ->placeholder('—')
+                                    ->color(fn ($record) => $record?->status === MessageStatus::Failed ? 'danger' : null),
                                 TextEntry::make('body')
                                     ->columnSpanFull(),
                                 TextEntry::make('created_at')
@@ -44,6 +59,21 @@ class MessageInfolist
                                     ->dateTime(),
                             ]),
                     ]),
+
+                Section::make('Failure Details')
+                    ->description('Why this message failed to send — sourced directly from the gateway API response.')
+                    ->icon('heroicon-o-exclamation-circle')
+                    ->schema([
+                        TextEntry::make('failed_reason')
+                            ->label('Failure Reason')
+                            ->columnSpanFull()
+                            ->color('danger')
+                            ->icon('heroicon-m-x-circle')
+                            ->placeholder('No failure reason recorded.')
+                            ->formatStateUsing(fn (?string $state): string => $state ?? 'No failure reason recorded.'),
+                    ])
+                    ->visible(fn ($record) => $record?->status === MessageStatus::Failed || filled($record?->failed_reason))
+                    ->collapsible(),
             ]);
     }
 }

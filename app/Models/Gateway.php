@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\GatewayCostMode;
 use App\Enums\GatewayDriver;
 use Database\Factories\GatewayFactory;
 use Illuminate\Database\Eloquent\Attributes\Guarded;
@@ -28,6 +29,10 @@ class Gateway extends Model
             'config' => 'array',
             'requests_per_second' => 'integer',
             'supports_bulk' => 'boolean',
+            'dlr_support' => 'boolean',
+            'cost_mode' => GatewayCostMode::class,
+            'dipping_required' => 'boolean',
+            'has_third_party_dipping' => 'boolean',
         ];
     }
 
@@ -39,6 +44,26 @@ class Gateway extends Model
     public function gatewayOperatorRates(): HasMany
     {
         return $this->hasMany(GatewayOperatorRate::class);
+    }
+
+    public function dippingCharges(): HasMany
+    {
+        return $this->hasMany(GatewayDippingCharge::class);
+    }
+
+    public function operatorCostPeriods(): HasMany
+    {
+        return $this->hasMany(GatewayOperatorCostPeriod::class);
+    }
+
+    public function thirdPartyDippingConfigs(): HasMany
+    {
+        return $this->hasMany(GatewayThirdPartyDippingConfig::class);
+    }
+
+    public function thirdPartyDippingPeriods(): HasMany
+    {
+        return $this->hasMany(GatewayThirdPartyDippingPeriod::class);
     }
 
     public function messages(): HasMany

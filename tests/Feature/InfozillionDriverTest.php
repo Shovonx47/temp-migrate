@@ -4,8 +4,11 @@ use App\Enums\DeliveryOutcome;
 use App\Services\Sms\Data\BulkSmsRequest;
 use App\Services\Sms\Data\SmsRequest;
 use App\Services\Sms\Drivers\InfozillionDriver;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+
+uses(RefreshDatabase::class);
 
 /*
 |--------------------------------------------------------------------------

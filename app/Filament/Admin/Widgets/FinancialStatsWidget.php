@@ -37,7 +37,7 @@ class FinancialStatsWidget extends BaseWidget
         $gatewayCost = Message::withoutGlobalScopes()
             ->where('created_at', '>=', $from)
             ->where('created_at', '<=', $to)
-            ->sum('gateway_cost');
+            ->sum('primary_dipping_cost');
 
         $txCount = Transaction::withoutGlobalScopes()
             ->where('created_at', '>=', $from)

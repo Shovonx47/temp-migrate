@@ -21,8 +21,9 @@ test('customer can list their messages', function () {
     $user = User::factory()->create();
     $messages = Message::factory()->for($user)->count(3)->create();
 
+    $this->actingAs($user);
+
     livewire(ListMessages::class, ['resource' => MessageResource::class])
-        ->actingAs($user)
         ->assertCanSeeTableRecords($messages);
 });
 
@@ -30,8 +31,9 @@ test('customer can view a message', function () {
     $user = User::factory()->create();
     $message = Message::factory()->for($user)->create();
 
+    $this->actingAs($user);
+
     livewire(ViewMessage::class, ['record' => $message->id, 'resource' => MessageResource::class])
-        ->actingAs($user)
         ->assertSee($message->uid);
 });
 
@@ -40,8 +42,9 @@ test('customer cannot view messages of another user', function () {
     $other = User::factory()->create();
     $message = Message::factory()->for($other)->create();
 
+    $this->actingAs($user);
+
     livewire(ViewMessage::class, ['record' => $message->id, 'resource' => MessageResource::class])
-        ->actingAs($user)
         ->assertForbidden();
 });
 
@@ -52,8 +55,9 @@ test('customer can send a quick message via TagsInput', function () {
     $sender = Sender::factory()->create();
     $sender->users()->attach($user);
 
+    $this->actingAs($user);
+
     livewire(CreateQuickMessage::class, ['resource' => MessageResource::class])
-        ->actingAs($user)
         ->fillForm([
             'sender_id' => $sender->id,
             'phones' => ['01711000001', '01711000002'],
@@ -73,19 +77,21 @@ test('customer can send a quick message via TagsInput', function () {
             ['phone' => '01711000002', 'values' => []],
         ]);
 
-    Bus::assertDispatched(
+    Bus::assertDispatchedSync(
         ProcessBatchJob::class,
         fn (ProcessBatchJob $job): bool => $job->batch->id === $batch->id
             && $job->sourceType === 'manual'
-            && $job->body === 'Hello there',
+            && $job->body === 'Hello there'
+            && $job->syncSending === true,
     );
 });
 
 test('quick message requires sender phones and body', function () {
     $user = User::factory()->create();
 
+    $this->actingAs($user);
+
     livewire(CreateQuickMessage::class, ['resource' => MessageResource::class])
-        ->actingAs($user)
         ->fillForm([
             'sender_id' => null,
             'phones' => [],

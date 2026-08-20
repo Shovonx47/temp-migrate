@@ -38,7 +38,12 @@ class MessageInfolist
                                 TextEntry::make('parts')
                                     ->numeric(),
                                 TextEntry::make('sent_at')
-                                    ->dateTime(),
+                                    ->dateTime()
+                                    ->visible(fn ($record) => $record->sent_at !== null),
+                                TextEntry::make('failed_reason')
+                                    ->label('Failed Reason')
+                                    ->color('danger')
+                                    ->visible(fn ($record) => ! empty($record->failed_reason)),
                                 TextEntry::make('body')
                                     ->columnSpanFull(),
                                 TextEntry::make('created_at')

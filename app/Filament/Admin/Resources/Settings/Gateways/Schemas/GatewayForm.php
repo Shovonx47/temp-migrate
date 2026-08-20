@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Settings\Gateways\Schemas;
 
+use App\Enums\GatewayCostMode;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Fieldset;
@@ -17,8 +18,42 @@ class GatewayForm
     {
         return $schema->components([
             self::gatewayDetailsSection(),
+            self::billingConfigurationSection(),
             self::configurationSection(),
         ]);
+    }
+
+    private static function billingConfigurationSection(): Section
+    {
+        return Section::make('Billing & Cost Configuration')
+            ->description('Configure DLR tracking, dipping rules, and cost modes for this gateway.')
+            ->schema([
+                Select::make('dlr_support')
+                    ->label('DLR Support')
+                    ->boolean()
+                    ->default(false)
+                    ->helperText('Determines whether delivery reports are tracked or explicitly marked N/A in analytics.')
+                    ->required(),
+                Select::make('cost_mode')
+                    ->label('Cost Mode')
+                    ->options(GatewayCostMode::class)
+                    ->default(GatewayCostMode::Manual->value)
+                    ->helperText('Manual is the authoritative billing source. API assisted allows cross-check.')
+                    ->required(),
+                Select::make('dipping_required')
+                    ->label('Mandatory Dipping')
+                    ->boolean()
+                    ->default(false)
+                    ->helperText('If enabled, profit calculation will require a configured dipping charge and refuse silent zeroing.')
+                    ->required(),
+                Select::make('has_third_party_dipping')
+                    ->label('Third-Party Dipping')
+                    ->boolean()
+                    ->default(false)
+                    ->helperText('Enables third-party dipping volume and cost tracking tabs.')
+                    ->required(),
+            ])
+            ->columns(2);
     }
 
     private static function gatewayDetailsSection(): Section

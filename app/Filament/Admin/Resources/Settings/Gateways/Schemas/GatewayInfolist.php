@@ -37,6 +37,24 @@ class GatewayInfolist
                                     ->dateTime(),
                             ]),
                     ]),
+                Section::make('Billing & Cost Configuration')
+                    ->schema([
+                        Grid::make(4)
+                            ->schema([
+                                IconEntry::make('dlr_support')
+                                    ->label('DLR Support')
+                                    ->boolean(),
+                                TextEntry::make('cost_mode')
+                                    ->label('Cost Mode')
+                                    ->badge(),
+                                IconEntry::make('dipping_required')
+                                    ->label('Mandatory Dipping')
+                                    ->boolean(),
+                                IconEntry::make('has_third_party_dipping')
+                                    ->label('3rd-Party Dipping')
+                                    ->boolean(),
+                            ]),
+                    ]),
             ]);
     }
 }

@@ -16,6 +16,7 @@ enum MessageStatus: string implements HasColor, HasIcon, HasLabel
     case Sent = 'sent';
     case Delivered = 'delivered';
     case Failed = 'failed';
+    case DlrFailed = 'dlr_failed';
 
     public function getLabel(): string|Htmlable|null
     {
@@ -30,6 +31,7 @@ enum MessageStatus: string implements HasColor, HasIcon, HasLabel
             self::Sent => 'info',
             self::Delivered => 'success',
             self::Failed => 'danger',
+            self::DlrFailed => 'danger',
         };
     }
 
@@ -41,6 +43,7 @@ enum MessageStatus: string implements HasColor, HasIcon, HasLabel
             self::Sent => Heroicon::OutlinedPaperAirplane,
             self::Delivered => Heroicon::OutlinedCheckBadge,
             self::Failed => Heroicon::OutlinedXCircle,
+            self::DlrFailed => Heroicon::OutlinedExclamationTriangle,
         };
     }
 }

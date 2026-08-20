@@ -122,23 +122,30 @@ class CreateQuickMessage extends CreateRecord
         ]));
 
         if (! $requiresApproval) {
-            ProcessBatchJob::dispatch(
+            ProcessBatchJob::dispatchSync(
                 $batch,
                 'manual',
                 $batch->source_config,
                 $body,
                 [],
-            )->onQueue('batches')->afterCommit();
+                syncSending: true,
+            );
         }
 
+        $freshBatch = $batch->fresh();
+        $isSuccess = $freshBatch && $freshBatch->status === BatchStatus::Completed;
+
         Notification::make()
-            ->title($requiresApproval ? 'Awaiting approval' : 'Messages are being processed')
+            ->title($requiresApproval ? 'Awaiting approval' : ($isSuccess ? 'Message sent successfully' : 'Messages are being processed'))
             ->body($requiresApproval
                 ? 'Your message batch is pending admin approval before sending.'
-                : 'We will notify you when the recipients are ready to send.'
+                : ($isSuccess
+                    ? 'Your quick message has been sent successfully.'
+                    : 'We will notify you when the recipients are ready to send.'
+                )
             )
-            ->icon(Heroicon::Inbox)
-            ->info()
+            ->icon($requiresApproval ? Heroicon::Inbox : Heroicon::CheckCircle)
+            ->status($requiresApproval ? 'info' : ($isSuccess ? 'success' : 'info'))
             ->send();
 
         return $batch;

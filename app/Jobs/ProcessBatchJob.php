@@ -13,6 +13,7 @@ use App\Models\Contact;
 use App\Models\Message;
 use App\Models\Sender;
 use App\Models\User;
+use App\Services\Billing\DippingChargeResolver;
 use App\Support\GatewayCostResolver;
 use App\Support\MessageMetrics;
 use App\Support\MnoCarrier;
@@ -52,6 +53,8 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
 
     private ?GatewayCostResolver $gatewayCostResolver = null;
 
+    private ?DippingChargeResolver $dippingChargeResolver = null;
+
     private ?int $gatewayId = null;
 
     private bool $isMaskingSender = false;
@@ -77,6 +80,7 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
         public readonly array $config,
         public readonly string $body,
         public readonly array $bodyVariables,
+        public readonly bool $syncSending = false,
     ) {}
 
     public function uniqueId(): string
@@ -348,11 +352,19 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
         if ($messageIds !== []) {
             if ($this->usesBulkSending) {
                 foreach (array_chunk($messageIds, 999) as $chunkIds) {
-                    SendBatchBulkSmsJob::dispatch($batch, $chunkIds)->onQueue('sms-sending');
+                    if ($this->syncSending) {
+                        SendBatchBulkSmsJob::dispatchSync($batch, $chunkIds);
+                    } else {
+                        SendBatchBulkSmsJob::dispatch($batch, $chunkIds)->onQueue('sms-sending');
+                    }
                 }
             } else {
                 foreach ($messageIds as $id) {
-                    SendBatchSingleSmsJob::dispatch($batch, $id)->onQueue('sms-sending');
+                    if ($this->syncSending) {
+                        SendBatchSingleSmsJob::dispatchSync($batch, $id);
+                    } else {
+                        SendBatchSingleSmsJob::dispatch($batch, $id)->onQueue('sms-sending');
+                    }
                 }
             }
         }
@@ -395,11 +407,23 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
             $row['cost'] = round($rate * (int) $row['parts'], 4);
             $totalCost = round($totalCost + $row['cost'], 4);
 
-            $gatewayRate = $this->gatewayCostResolver?->resolveGatewayCost((string) $row['to'], $isMasking) ?? 0.0;
-            $row['gateway_cost'] = round($gatewayRate * (int) $row['parts'], 4);
-
             $operatorRate = $this->gatewayCostResolver?->resolveOperatorCost((string) $row['to'], $isMasking) ?? 0.0;
-            $row['operator_cost'] = round($operatorRate * (int) $row['parts'], 4);
+            $operatorCost = round($operatorRate * (int) $row['parts'], 4);
+            $row['operator_cost'] = $operatorCost;
+
+            $dipping = $this->dippingChargeResolver?->resolve(
+                (string) $row['to'],
+                $isMasking,
+                $operatorCost,
+                (int) $row['parts'],
+            ) ?? ['charge' => null, 'rate' => 0.0, 'cost' => 0.0];
+
+            $row['primary_dipping_rate'] = $dipping['rate'];
+            $row['primary_dipping_cost'] = $dipping['cost'];
+            $row['dipping_charge_id'] = $dipping['charge']?->id;
+            $row['was_third_party_dipped'] = false;
+            $row['third_party_dipping_cost'] = null;
+            $row['third_party_dipping_rate'] = null;
         }
         unset($row);
 
@@ -835,6 +859,7 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
 
         if ($sender->gateway !== null) {
             $this->gatewayCostResolver = GatewayCostResolver::forGateway($sender->gateway);
+            $this->dippingChargeResolver = DippingChargeResolver::forGateway($sender->gateway);
         }
 
         $gateway = $sender->gateway;

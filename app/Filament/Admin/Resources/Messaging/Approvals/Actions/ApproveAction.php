@@ -69,7 +69,7 @@ class ApproveAction
                     $record->source_config ?? [],
                     $record->body,
                     $record->extractBodyVariables(),
-                )->onQueue('batches')->afterCommit();
+                )->afterCommit();
 
                 Notification::make()
                     ->title('Batch Approved')

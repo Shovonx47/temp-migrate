@@ -346,7 +346,7 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
                     if ($this->syncSending) {
                         SendBatchBulkSmsJob::dispatchSync($batch, $chunkIds);
                     } else {
-                        SendBatchBulkSmsJob::dispatch($batch, $chunkIds)->onQueue('sms-sending');
+                        SendBatchBulkSmsJob::dispatch($batch, $chunkIds);
                     }
                 }
             } else {
@@ -354,7 +354,7 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
                     if ($this->syncSending) {
                         SendBatchSingleSmsJob::dispatchSync($batch, $id);
                     } else {
-                        SendBatchSingleSmsJob::dispatch($batch, $id)->onQueue('sms-sending');
+                        SendBatchSingleSmsJob::dispatch($batch, $id);
                     }
                 }
             }

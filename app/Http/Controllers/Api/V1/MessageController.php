@@ -113,7 +113,7 @@ class MessageController extends Controller
                 $batch->source_config,
                 $body,
                 [],
-            )->onQueue('batches')->afterCommit();
+            )->afterCommit();
         }
 
         return new JsonResponse([

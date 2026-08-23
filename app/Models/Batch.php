@@ -140,7 +140,7 @@ class Batch extends Model implements Transactionable
             $this->source_config ?? [],
             $this->body,
             $this->extractBodyVariables(),
-        )->onQueue('batches')->afterCommit();
+        )->afterCommit();
     }
 
     /**

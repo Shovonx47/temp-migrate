@@ -170,23 +170,48 @@ HTML);
         ]);
 
         if (! $requiresApproval) {
-            ProcessBatchJob::dispatch(
-                $batch,
-                $source,
-                $batch->source_config,
-                $body,
-                $bodyVariables,
-            )->onQueue('batches')->afterCommit();
+            $recipientCount = $this->estimateRecipientCount($source, $data);
+            if ($recipientCount <= 500) {
+                ProcessBatchJob::dispatchSync(
+                    $batch,
+                    $source,
+                    $batch->source_config,
+                    $body,
+                    $bodyVariables,
+                    syncSending: true,
+                );
+            } else {
+                ProcessBatchJob::dispatch(
+                    $batch,
+                    $source,
+                    $batch->source_config,
+                    $body,
+                    $bodyVariables,
+                )->afterCommit();
+            }
         }
 
+        $freshBatch = $batch->fresh();
+        $isSuccess = $freshBatch && $freshBatch->status === BatchStatus::Completed;
+        $isFailed = $freshBatch && $freshBatch->status === BatchStatus::Failed;
+
         Notification::make()
-            ->title($requiresApproval ? 'Awaiting approval' : 'Messages are being processed')
+            ->title($requiresApproval
+                ? 'Awaiting approval'
+                : ($isSuccess ? 'Message sent successfully' : ($isFailed ? 'Batch failed' : 'Messages are being processed'))
+            )
             ->body($requiresApproval
                 ? 'Your message batch is pending admin approval before sending.'
-                : 'We will notify you when the recipients are ready to send.'
+                : ($isSuccess
+                    ? 'Your bulk message batch has been sent successfully.'
+                    : ($isFailed
+                        ? 'Batch processing encountered an issue. Check your Sent Message Log.'
+                        : 'We will notify you when the recipients are ready to send.'
+                    )
+                )
             )
-            ->icon(Heroicon::Inbox)
-            ->info()
+            ->icon($requiresApproval ? Heroicon::Inbox : ($isSuccess ? Heroicon::CheckCircle : ($isFailed ? Heroicon::ExclamationTriangle : Heroicon::Inbox)))
+            ->status($requiresApproval ? 'info' : ($isSuccess ? 'success' : ($isFailed ? 'danger' : 'info')))
             ->send();
 
         return $batch;

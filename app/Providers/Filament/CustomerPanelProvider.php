@@ -18,6 +18,7 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationGroup;
 use Filament\Navigation\NavigationItem;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -73,12 +74,18 @@ class CustomerPanelProvider extends PanelProvider
             ->sidebarCollapsibleOnDesktop()
             ->collapsibleNavigationGroups()
             ->navigationGroups([
-                CustomerNavigationGroup::Messaging,
-                CustomerNavigationGroup::Audience,
-                CustomerNavigationGroup::Billing,
-                CustomerNavigationGroup::Reports,
-                CustomerNavigationGroup::Developer,
-                CustomerNavigationGroup::Analytics,
+                NavigationGroup::make('Messaging Portal')
+                    ->icon(Heroicon::OutlinedChatBubbleLeftRight),
+                NavigationGroup::make('Audience')
+                    ->icon(Heroicon::OutlinedUsers),
+                NavigationGroup::make('Billing')
+                    ->icon(Heroicon::OutlinedCreditCard),
+                NavigationGroup::make('Reports')
+                    ->icon(Heroicon::OutlinedChartBar),
+                NavigationGroup::make('Developer')
+                    ->icon(Heroicon::OutlinedCodeBracket),
+                NavigationGroup::make('Analytics')
+                    ->icon(Heroicon::OutlinedChartBar),
             ])
             ->sidebarWidth('300px')
             ->maxContentWidth(Width::Full)

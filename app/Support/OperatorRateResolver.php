@@ -30,12 +30,14 @@ readonly class OperatorRateResolver
         private array $operators,
         private array $codeIndex,
         private array $overrides,
+        private bool $hasActivePlan = false,
+        private ?string $planName = null,
     ) {}
 
     /**
      * Build a resolver pre-loaded with the operator catalog and the given user's
-     * effective rates. Resolves through the tariff plan system first, then falls
-     * back to legacy user_operator_rates, then to operator system defaults.
+     * effective rates. Resolves through the tariff plan system first. When an active
+     * tariff plan is assigned, lookups strictly respect that plan (no default operator fallback).
      *
      * Use this at the start of a batch so per-row lookups are O(1).
      */
@@ -60,18 +62,39 @@ readonly class OperatorRateResolver
         }
 
         // 1. Try to resolve rates from the user's active tariff plan assignment.
-        $overrides = self::resolveFromTariffPlan($user)
-            // 2. Fall back to the legacy user_operator_rates table.
-            ?? self::resolveFromLegacyOverrides($user);
+        $planData = self::resolveFromTariffPlan($user);
 
-        return new self($operators, $codeIndex, $overrides ?? []);
+        if ($planData !== null) {
+            return new self(
+                $operators,
+                $codeIndex,
+                $planData['rates'],
+                hasActivePlan: true,
+                planName: $planData['name'],
+            );
+        }
+
+        // 2. Fall back to the legacy user_operator_rates table.
+        $legacyOverrides = self::resolveFromLegacyOverrides($user);
+
+        return new self($operators, $codeIndex, $legacyOverrides ?? []);
+    }
+
+    public function hasActivePlan(): bool
+    {
+        return $this->hasActivePlan;
+    }
+
+    public function getPlanName(): ?string
+    {
+        return $this->planName;
     }
 
     /**
      * Load rates from the user's active tariff plan assignment.
      *
-     * @return array<int, array{masking_price: ?float, non_masking_price: ?float}>|null
-     *                                                                                  Returns null when no active assignment exists (triggers legacy fallback).
+     * @return array{name: string, rates: array<int, array{masking_price: ?float, non_masking_price: ?float}>}|null
+     *                                                                                                              Returns null when no active assignment exists.
      */
     private static function resolveFromTariffPlan(User $user): ?array
     {
@@ -95,7 +118,10 @@ readonly class OperatorRateResolver
             ])
             ->all();
 
-        return $rates;
+        return [
+            'name' => (string) $plan->name,
+            'rates' => $rates,
+        ];
     }
 
     /**
@@ -143,6 +169,25 @@ readonly class OperatorRateResolver
         }
 
         $field = $isMasking ? 'masking_price' : 'non_masking_price';
+        $typeName = $isMasking ? 'masking' : 'non-masking';
+
+        // When a user has an active tariff plan, strictly resolve from that plan.
+        if ($this->hasActivePlan) {
+            $rate = $this->overrides[$operator->id][$field] ?? null;
+
+            if ($rate !== null) {
+                return (float) $rate;
+            }
+
+            $planDesc = $this->planName ? "assigned tariff plan [{$this->planName}]" : 'assigned tariff plan';
+
+            throw new OperatorRateNotConfiguredException(
+                phone: $e164Phone,
+                operatorName: $operator->name,
+                isMasking: $isMasking,
+                message: "No {$typeName} rate configured in {$planDesc} for operator [{$operator->name}].",
+            );
+        }
 
         $override = $this->overrides[$operator->id][$field] ?? null;
         if ($override !== null) {
@@ -193,11 +238,18 @@ readonly class OperatorRateResolver
         $rates = [];
 
         foreach ($this->operators as $operator) {
-            $override = $this->overrides[$operator->id][$field] ?? null;
-            $value = $override ?? $operator->{$field};
+            if ($this->hasActivePlan) {
+                $override = $this->overrides[$operator->id][$field] ?? null;
+                if ($override !== null) {
+                    $rates[$operator->id] = (float) $override;
+                }
+            } else {
+                $override = $this->overrides[$operator->id][$field] ?? null;
+                $value = $override ?? $operator->{$field};
 
-            if ($value !== null) {
-                $rates[$operator->id] = (float) $value;
+                if ($value !== null) {
+                    $rates[$operator->id] = (float) $value;
+                }
             }
         }
 

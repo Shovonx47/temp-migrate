@@ -130,11 +130,33 @@ class CreateSmartMessage extends CreateRecord
             return;
         }
 
-        $maxRate = $this->resolveMaxRate($user, (int) ($data['sender_id'] ?? 0));
+        $senderId = (int) ($data['sender_id'] ?? 0);
+        $sender = $senderId > 0 ? Sender::find($senderId) : null;
 
-        if ($maxRate === null) {
-            return; // no rates configured anywhere — job will fail with a precise error
+        if (! $sender || $sender->type === null) {
+            return;
         }
+
+        $resolver = OperatorRateResolver::forUser($user);
+        $isMasking = $sender->type->isMasking();
+        $rates = $resolver->ratesForUser($isMasking);
+
+        if ($rates === []) {
+            $typeName = $isMasking ? 'Masking' : 'Non-masking';
+            $planName = $resolver->getPlanName();
+            $planMsg = $planName ? " in your assigned tariff plan [{$planName}]" : ' in your tariff plan';
+
+            Notification::make()
+                ->title("{$typeName} rate not configured")
+                ->body("Please set your {$typeName} rate{$planMsg} before sending messages.")
+                ->icon(Heroicon::ExclamationTriangle)
+                ->danger()
+                ->send();
+
+            $this->halt();
+        }
+
+        $maxRate = max($rates);
 
         $parts = MessageMetrics::for($body)->parts;
         $estimated = round($maxRate * $parts * $recipientCount, 4);
@@ -157,20 +179,6 @@ class CreateSmartMessage extends CreateRecord
             ->send();
 
         $this->halt();
-    }
-
-    private function resolveMaxRate(User $user, int $senderId): ?float
-    {
-        $sender = $senderId > 0 ? Sender::find($senderId) : null;
-
-        if (! $sender || $sender->type === null) {
-            return null;
-        }
-
-        $resolver = OperatorRateResolver::forUser($user);
-        $rates = $resolver->ratesForUser($sender->type->isMasking());
-
-        return $rates === [] ? null : max($rates);
     }
 
     /**

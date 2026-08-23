@@ -298,3 +298,46 @@ test('user with no plan and no legacy rates falls back to operator system defaul
     expect($resolver->resolve('+8801711000001', isMasking: true))->toBe(0.5)
         ->and($resolver->resolve('+8801711000001', isMasking: false))->toBe(0.3);
 });
+
+test('tariff plan missing rate throws exception instead of falling back to operator default', function () {
+    makeBdWithOperators(maskingDefault: 0.5, nonMaskingDefault: 0.4);
+    $gp = Operator::where('name', 'Grameenphone')->first();
+
+    $user = User::factory()->create();
+
+    $plan = TariffPlan::create([
+        'name' => 'Shahin Tariff',
+        'type' => 'custom',
+        'status' => 'active',
+        'currency' => 'BDT',
+    ]);
+
+    // Masking price is configured, but non-masking price is left null
+    TariffRate::create([
+        'tariff_plan_id' => $plan->id,
+        'operator_id' => $gp->id,
+        'masking_price' => 0.50,
+        'non_masking_price' => null,
+    ]);
+
+    TariffPlanAssignment::create([
+        'user_id' => $user->id,
+        'tariff_plan_id' => $plan->id,
+        'assigned_by' => null,
+        'effective_from' => today(),
+        'status' => 'active',
+    ]);
+
+    $resolver = OperatorRateResolver::forUser($user);
+
+    // Masking resolves to 0.50
+    expect($resolver->resolve('+8801711000001', isMasking: true))->toBe(0.50);
+
+    // Non-masking does NOT fall back to 0.40 operator default; it throws OperatorRateNotConfiguredException
+    expect(fn () => $resolver->resolve('+8801711000001', isMasking: false))
+        ->toThrow(OperatorRateNotConfiguredException::class);
+
+    // ratesForUser(false) does not include unconfigured non-masking rate
+    expect($resolver->ratesForUser(false))->toBe([]);
+});
+

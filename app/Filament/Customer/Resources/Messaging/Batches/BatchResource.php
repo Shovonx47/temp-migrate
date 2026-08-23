@@ -24,11 +24,13 @@ class BatchResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = CustomerNavigationGroup::Messaging;
 
-    protected static ?string $navigationLabel = 'Batches';
+    protected static ?string $navigationLabel = 'Sent Message Logs';
 
-    protected static ?string $modelLabel = 'Batch';
+    protected static ?string $modelLabel = 'Sent Message Log';
 
-    protected static ?string $pluralModelLabel = 'Batches';
+    protected static ?string $pluralModelLabel = 'Sent Message Logs';
+
+    protected static ?int $navigationSort = 1;
 
     public static function infolist(Schema $schema): Schema
     {

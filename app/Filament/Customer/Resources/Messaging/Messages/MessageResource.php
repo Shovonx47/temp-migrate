@@ -26,7 +26,13 @@ class MessageResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = CustomerNavigationGroup::Messaging;
 
-    protected static ?int $navigationSort = 3;
+    protected static ?string $navigationLabel = 'Sent Message Details';
+
+    protected static ?string $modelLabel = 'Sent Message Detail';
+
+    protected static ?string $pluralModelLabel = 'Sent Message Details';
+
+    protected static ?int $navigationSort = 2;
 
     public static function table(Table $table): Table
     {

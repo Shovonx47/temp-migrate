@@ -8,14 +8,14 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Callout;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Components\View;
-use Filament\Schemas\Components\Wizard;
-use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Auth;
@@ -24,7 +24,6 @@ use Illuminate\Support\HtmlString;
 use Illuminate\Validation\Rules\Exists;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Throwable;
-use Ysfkaya\FilamentPhoneInput\Forms\PhoneInput;
 
 class MessageForm
 {
@@ -37,191 +36,185 @@ class MessageForm
                 Hidden::make('file_headers')->default([]),
                 Hidden::make('file_sample')->default([]),
                 Hidden::make('file_total_rows')->default(0),
-                Wizard::make([
-                    self::composeStep(),
-                    self::recipientStep(),
-                    self::mappingStep(),
-                    self::reviewStep(),
-                ]),
-            ]);
-    }
 
-    private static function composeStep()
-    {
-        return Step::make('Compose')
-            ->icon(Heroicon::PencilSquare)
-            ->columns()
-            ->schema([
-                Select::make('sender_id')
-                    ->label('Sender ID')
-                    ->prefixIcon(Heroicon::Identification)
-                    ->options(fn () => Auth::user()
-                        ->senders()
-                        ->select(['senders.sender_id', 'senders.id'])
-                        ->pluck('sender_id', 'id')
-                        ->all()
-                    )
-                    ->searchable()
-                    ->preload()
-                    ->required()
-                    ->exists(
-                        table: 'sender_user',
-                        column: 'sender_id',
-                        modifyRuleUsing: fn (Exists $rule) => $rule->where('user_id', Auth::id())
-                    ),
-                Select::make('source')
-                    ->label('Source')
-                    ->prefixIcon(Heroicon::Inbox)
-                    ->options([
-                        'manual' => 'Manual',
-                        'group' => 'Group',
-                        'upload' => 'Upload',
-                    ])
-                    ->default('manual')
-                    ->live()
-                    ->required(),
-                Textarea::make('body')
-                    ->label('Message')
-                    ->placeholder('Hi {name}, your order {order_id} is confirmed.')
-                    ->columnSpanFull()
-                    ->rows(5)
-                    ->required()
-                    ->live(onBlur: true)
-                    ->extraInputAttributes(['data-sms-body' => 'true'])
-                    ->afterStateUpdatedJs(<<<'JS'
-                        const matches = ($state ?? '').matchAll(/{(\w+)}/g);
-                        const variables = [...new Set([...matches].map(m => m[1]))];
-                        $set('body_variables', variables);
-                    JS
-                    ),
-                View::make('filament.schemas.components.sms-stats')
-                    ->columnSpanFull(),
-                Callout::make('Variables are not supported for group messages.')
-                    ->description(function (Get $get): HtmlString {
-                        $vars = $get('body_variables') ?? [];
-                        $list = implode(', ', array_map(fn (string $v) => '<strong>{'.$v.'}</strong>', $vars));
+                Section::make()
+                    ->columns(2)
+                    ->schema([
+                        Select::make('sender_id')
+                            ->label('Sender ID')
+                            ->prefixIcon(Heroicon::Identification)
+                            ->options(fn () => Auth::user()
+                                ->senders()
+                                ->select(['senders.sender_id', 'senders.id'])
+                                ->pluck('sender_id', 'id')
+                                ->all()
+                            )
+                            ->searchable()
+                            ->preload()
+                            ->live()
+                            ->required()
+                            ->exists(
+                                table: 'sender_user',
+                                column: 'sender_id',
+                                modifyRuleUsing: fn (Exists $rule) => $rule->where('user_id', Auth::id())
+                            ),
 
-                        return new HtmlString("Your message contains $list — these placeholders will be sent as-is to every contact. Switch to Upload or Manual if you need per-recipient values.");
-                    })
-                    ->warning()
-                    ->columnSpanFull()
-                    ->visible(fn (Get $get) => $get('source') === 'group'
-                        && ! empty($get('body_variables'))
-                    ),
-            ]);
-    }
+                        Select::make('source')
+                            ->label('Source')
+                            ->prefixIcon(Heroicon::Inbox)
+                            ->options([
+                                'manual' => 'Manual',
+                                'group' => 'Group',
+                                'upload' => 'Upload',
+                            ])
+                            ->default('manual')
+                            ->live()
+                            ->required(),
 
-    private static function recipientStep()
-    {
-        return Step::make('Recipient')
-            ->icon(Heroicon::Users)
-            ->schema([
-                // Manual entry repeater will only be visible if 'Manual' is selected as the source
-                Repeater::make('recipients')
-                    ->visible(fn (Get $get) => $get('source') === 'manual')
-                    ->required(fn (Get $get) => $get('source') === 'manual')
-                    ->table(function (Get $get) {
-                        $columns = [
-                            Repeater\TableColumn::make('Phone')
-                                ->alignLeft()
-                                ->markAsRequired(),
-                        ];
+                        // Recipients: Comma-separated Phone Numbers (when no template variables)
+                        TagsInput::make('phones')
+                            ->label('Phone Numbers')
+                            ->placeholder('Type or paste numbers separated by commas, space or press Enter')
+                            ->splitKeys(['Tab', ' ', ',', 'Enter'])
+                            ->separator(',')
+                            ->live()
+                            ->columnSpanFull()
+                            ->visible(fn (Get $get) => $get('source') === 'manual' && empty($get('body_variables')))
+                            ->required(fn (Get $get) => $get('source') === 'manual' && empty($get('body_variables'))),
 
-                        foreach ($get('body_variables') ?? [] as $variable) {
-                            $columns[] = Repeater\TableColumn::make(ucfirst($variable))
-                                ->alignLeft()
-                                ->markAsRequired();
-                        }
+                        // Recipients: Manual entry repeater (when template variables like {name} exist)
+                        Repeater::make('recipients')
+                            ->label('Recipients')
+                            ->columnSpanFull()
+                            ->visible(fn (Get $get) => $get('source') === 'manual' && ! empty($get('body_variables')))
+                            ->required(fn (Get $get) => $get('source') === 'manual' && ! empty($get('body_variables')))
+                            ->table(function (Get $get) {
+                                $columns = [
+                                    Repeater\TableColumn::make('Phone')
+                                        ->alignLeft()
+                                        ->markAsRequired(),
+                                ];
 
-                        return $columns;
-                    })
-                    ->schema(function (Get $get) {
-                        $fields = [
-                            PhoneInput::make('phone')->required(),
-                        ];
+                                foreach ($get('body_variables') ?? [] as $variable) {
+                                    $columns[] = Repeater\TableColumn::make(ucfirst($variable))
+                                        ->alignLeft()
+                                        ->markAsRequired();
+                                }
 
-                        foreach ($get('body_variables') ?? [] as $variable) {
-                            $fields[] = TextInput::make("values.{$variable}")
-                                ->label(ucfirst($variable))
-                                ->placeholder("Value for {$variable}")
-                                ->required();
-                        }
+                                return $columns;
+                            })
+                            ->schema(function (Get $get) {
+                                $fields = [
+                                    TextInput::make('phone')
+                                        ->placeholder('Type or paste phone numbers')
+                                        ->required(),
+                                ];
 
-                        return $fields;
-                    }),
+                                foreach ($get('body_variables') ?? [] as $variable) {
+                                    $fields[] = TextInput::make("values.{$variable}")
+                                        ->label(ucfirst($variable))
+                                        ->placeholder("Value for {$variable}")
+                                        ->required();
+                                }
 
-                // Group selection will only be visible if 'Group' is selected as the source
-                Select::make('groups')
-                    ->label('Groups')
-                    ->options(fn (): array => auth()->user()
-                        ->groups()
-                        ->latest()
-                        ->limit(50)
-                        ->pluck('name', 'id')
-                        ->all()
-                    )
-                    ->getSearchResultsUsing(fn (string $search): array => auth()->user()
-                        ->groups()
-                        ->whereLike('name', "%{$search}%")
-                        ->limit(50)
-                        ->pluck('name', 'id')
-                        ->all()
-                    )
-                    ->multiple()
-                    ->searchable()
-                    ->preload()
-                    ->visible(fn (Get $get) => $get('source') === 'group')
-                    ->required(fn (Get $get) => $get('source') === 'group'),
+                                return $fields;
+                            }),
 
-                // Upload field will only be visible if 'Upload' is selected as the source
-                FileUpload::make('file')
-                    ->disk('local')
-                    ->directory('uploads/recipient-files')
-                    ->acceptedFileTypes([
-                        'text/csv',
-                        'text/plain',
-                        'application/vnd.ms-excel',
-                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                    ])
-                    ->helperText('Upload a CSV or Excel file with a "phone" column and any variables used in your message body.')
-                    ->maxSize(100 * 1024) // 100 MB
-                    ->preserveFilenames()
-                    ->live()
-                    ->afterStateUpdated(fn ($state, Set $set) => self::parseUploadedFile($state, $set))
-                    ->dehydrated()
-                    ->visible(fn (Get $get) => $get('source') === 'upload')
-                    ->required(fn (Get $get) => $get('source') === 'upload'),
+                        // Recipients: Group selection
+                        Select::make('groups')
+                            ->label('Groups')
+                            ->columnSpanFull()
+                            ->options(fn (): array => auth()->user()
+                                ->groups()
+                                ->latest()
+                                ->limit(50)
+                                ->pluck('name', 'id')
+                                ->all()
+                            )
+                            ->getSearchResultsUsing(fn (string $search): array => auth()->user()
+                                ->groups()
+                                ->whereLike('name', "%{$search}%")
+                                ->limit(50)
+                                ->pluck('name', 'id')
+                                ->all()
+                            )
+                            ->multiple()
+                            ->searchable()
+                            ->preload()
+                            ->live()
+                            ->visible(fn (Get $get) => $get('source') === 'group')
+                            ->required(fn (Get $get) => $get('source') === 'group'),
 
-                View::make('filament.schemas.components.upload-preview')
-                    ->visible(fn (Get $get) => $get('source') === 'upload'
-                        && ! empty($get('file_headers'))
-                    ),
-            ]);
-    }
+                        // Recipients: Upload file
+                        FileUpload::make('file')
+                            ->label('File')
+                            ->columnSpanFull()
+                            ->disk('local')
+                            ->directory('uploads/recipient-files')
+                            ->acceptedFileTypes([
+                                'text/csv',
+                                'text/plain',
+                                'application/vnd.ms-excel',
+                                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                            ])
+                            ->helperText('Upload a CSV or Excel file with a "phone" column and any variables used in your message body.')
+                            ->maxSize(100 * 1024) // 100 MB
+                            ->preserveFilenames()
+                            ->live()
+                            ->afterStateUpdated(fn ($state, Set $set) => self::parseUploadedFile($state, $set))
+                            ->dehydrated()
+                            ->visible(fn (Get $get) => $get('source') === 'upload')
+                            ->required(fn (Get $get) => $get('source') === 'upload'),
 
-    private static function mappingStep()
-    {
-        return Step::make('Mapping')
-            ->icon(Heroicon::Square2Stack)
-            ->visible(fn (Get $get) => $get('source') === 'upload')
-            ->schema([
-                MappingComponent::make('mapping')
-                    ->hiddenLabel(),
-            ]);
-    }
+                        View::make('filament.schemas.components.upload-preview')
+                            ->columnSpanFull()
+                            ->visible(fn (Get $get) => $get('source') === 'upload'
+                                && ! empty($get('file_headers'))
+                            ),
 
-    private static function reviewStep()
-    {
-        return Step::make('Review')
-            ->icon(Heroicon::CheckBadge)
-            ->schema([
-                View::make('filament.schemas.components.message-review'),
+                        // Mapping field for upload source
+                        MappingComponent::make('mapping')
+                            ->columnSpanFull()
+                            ->hiddenLabel()
+                            ->visible(fn (Get $get) => $get('source') === 'upload'
+                                && ! empty($get('file_headers'))
+                            ),
+
+                        // Message Body
+                        Textarea::make('body')
+                            ->label('Message')
+                            ->placeholder('Hi {name}, your order {order_id} is confirmed.')
+                            ->columnSpanFull()
+                            ->rows(5)
+                            ->required()
+                            ->live(onBlur: true)
+                            ->extraInputAttributes(['data-sms-body' => 'true'])
+                            ->afterStateUpdatedJs(<<<'JS'
+                                const matches = ($state ?? '').matchAll(/{(\w+)}/g);
+                                const variables = [...new Set([...matches].map(m => m[1]))];
+                                $set('body_variables', variables);
+                            JS
+                            ),
+
+                        Callout::make('Variables are not supported for group messages.')
+                            ->description(function (Get $get): HtmlString {
+                                $vars = $get('body_variables') ?? [];
+                                $list = implode(', ', array_map(fn (string $v) => '<strong>{'.$v.'}</strong>', $vars));
+
+                                return new HtmlString("Your message contains $list — these placeholders will be sent as-is to every contact. Switch to Upload or Manual if you need per-recipient values.");
+                            })
+                            ->warning()
+                            ->columnSpanFull()
+                            ->visible(fn (Get $get) => $get('source') === 'group'
+                                && ! empty($get('body_variables'))
+                            ),
+                    ]),
             ]);
     }
 
     /**
      * Resolve the just-uploaded file and feed its headers + sample rows back into form state
-     * so the mapping/review steps can render without re-parsing.
+     * so the mapping step can render without re-parsing.
      */
     private static function parseUploadedFile(mixed $state, Set $set): void
     {
@@ -249,8 +242,6 @@ class MessageForm
 
     private static function resolveUploadAbsolutePath(mixed $state): ?string
     {
-        // FileUpload state can be: null, a TemporaryUploadedFile, an array of TemporaryUploadedFile,
-        // a string disk-relative path, or an associative array keyed by sha for multi-file uploads.
         if ($state === null || $state === '' || $state === []) {
             return null;
         }

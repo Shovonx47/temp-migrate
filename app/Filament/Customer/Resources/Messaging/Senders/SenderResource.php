@@ -21,7 +21,13 @@ class SenderResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = CustomerNavigationGroup::Messaging;
 
-    protected static ?int $navigationSort = 1;
+    protected static ?string $navigationLabel = 'Sender ID List';
+
+    protected static ?string $modelLabel = 'Sender ID';
+
+    protected static ?string $pluralModelLabel = 'Sender ID List';
+
+    protected static ?int $navigationSort = 3;
 
     protected static ?string $recordTitleAttribute = 'sender_id';
 

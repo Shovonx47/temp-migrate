@@ -47,7 +47,7 @@ class MessagesTable
                     ViewAction::make(),
                 ]),
             ])
-            ->heading('Messages')
+            ->heading('Sent Message Details')
             ->headerActions([
                 ExportAction::make()
                     ->exporter(MessageExporter::class),

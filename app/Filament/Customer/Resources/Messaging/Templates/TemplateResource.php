@@ -27,7 +27,13 @@ class TemplateResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = CustomerNavigationGroup::Messaging;
 
-    protected static ?int $navigationSort = 2;
+    protected static ?string $navigationLabel = 'Templates List';
+
+    protected static ?string $modelLabel = 'Template';
+
+    protected static ?string $pluralModelLabel = 'Templates List';
+
+    protected static ?int $navigationSort = 4;
 
     protected static ?string $recordTitleAttribute = 'name';
 

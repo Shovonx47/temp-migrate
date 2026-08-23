@@ -10,27 +10,30 @@ use Illuminate\Contracts\Support\Htmlable;
 
 enum CustomerNavigationGroup: string implements HasIcon, HasLabel
 {
-    case Analytics = 'analytics';
     case Messaging = 'messaging';
     case Audience = 'audience';
     case Billing = 'billing';
     case Reports = 'reports';
     case Developer = 'developer';
+    case Analytics = 'analytics';
 
     public function getLabel(): string|Htmlable|null
     {
-        return $this->name;
+        return match ($this) {
+            self::Messaging => 'Messaging Portal',
+            default => $this->name,
+        };
     }
 
     public function getIcon(): string|BackedEnum|Htmlable|null
     {
         return match ($this) {
-            self::Analytics => Heroicon::OutlinedChartBar,
             self::Messaging => Heroicon::OutlinedChatBubbleLeftRight,
             self::Audience => Heroicon::OutlinedUsers,
             self::Billing => Heroicon::OutlinedCreditCard,
             self::Reports => Heroicon::OutlinedChartBar,
             self::Developer => Heroicon::OutlinedCodeBracket,
+            self::Analytics => Heroicon::OutlinedChartBar,
         };
     }
 }

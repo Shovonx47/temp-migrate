@@ -189,12 +189,20 @@ class MessageForm
                             ->required()
                             ->live(onBlur: true)
                             ->extraInputAttributes(['data-sms-body' => 'true'])
+                            ->afterStateUpdated(function (?string $state, Set $set) {
+                                preg_match_all('/{(\w+)}/', $state ?? '', $matches);
+                                $variables = array_values(array_unique($matches[1] ?? []));
+                                $set('body_variables', $variables);
+                            })
                             ->afterStateUpdatedJs(<<<'JS'
                                 const matches = ($state ?? '').matchAll(/{(\w+)}/g);
                                 const variables = [...new Set([...matches].map(m => m[1]))];
                                 $set('body_variables', variables);
                             JS
                             ),
+
+                        View::make('filament.schemas.components.sms-stats')
+                            ->columnSpanFull(),
 
                         Callout::make('Variables are not supported for group messages.')
                             ->description(function (Get $get): HtmlString {

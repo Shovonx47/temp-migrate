@@ -257,6 +257,61 @@ test('customer can submit message via create method with confirmation', function
     expect($batch->body)->toBe('Test message with confirmation modal');
 });
 
+test('customer can send a bulk message with upload source', function () {
+    Bus::fake();
+    Storage::fake('local');
 
+    $user = User::factory()->create(['balance' => 1000, 'sms_auto_approved' => true]);
+    $sender = Sender::factory()->create();
+    $sender->users()->attach($user);
 
+    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('recipients.csv', "phone,name\n01711000001,Alice\n01711000002,Bob\n");
 
+    actingAs($user, 'customer');
+
+    Livewire::test(CreateSmartMessage::class, ['resource' => MessageResource::class])
+        ->fillForm([
+            'sender_id' => $sender->id,
+            'source' => 'upload',
+            'file' => $file,
+            'file_total_rows' => 2,
+            'body' => 'Hello {name}',
+            'body_variables' => ['name'],
+            'mapping' => ['phone' => 'phone', 'variables' => ['name' => 'name']],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $batch = Batch::query()->where('user_id', $user->id)->firstOrFail();
+
+    expect($batch->source_type)->toBe(BatchSource::Upload)
+        ->and($batch->body)->toBe('Hello {name}')
+        ->and($batch->sender_id)->toBe($sender->id)
+        ->and($batch->status)->toBe(BatchStatus::Processing);
+
+    Bus::assertDispatched(
+        ProcessBatchJob::class,
+        fn (ProcessBatchJob $job): bool => $job->batch->id === $batch->id
+            && $job->sourceType === 'upload',
+    );
+});
+
+test('bulk message halts with notification when balance is insufficient', function () {
+    $user = User::factory()->create(['balance' => 0.05, 'sms_auto_approved' => true]);
+    $sender = Sender::factory()->create();
+    $sender->users()->attach($user);
+
+    actingAs($user, 'customer');
+
+    Livewire::test(CreateSmartMessage::class, ['resource' => MessageResource::class])
+        ->fillForm([
+            'sender_id' => $sender->id,
+            'source' => 'manual',
+            'phones' => ['01711000001', '01711000002', '01711000003'],
+            'body' => 'Expensive bulk message',
+        ])
+        ->call('create')
+        ->assertNotified('Insufficient balance');
+
+    expect(Batch::query()->where('user_id', $user->id)->count())->toBe(0);
+});

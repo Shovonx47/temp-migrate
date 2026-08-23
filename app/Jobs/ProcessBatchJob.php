@@ -61,8 +61,6 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
 
     private bool $usesBulkSending = false;
 
-    private ?string $gatewayMnoCode = null;
-
     /** @var array<string, ?Sender> */
     private array $senderCache = [];
 
@@ -139,13 +137,6 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
 
                 if ($formattedNumber === null) {
                     $this->recordFailure($phoneRaw, 'Invalid phone number format', $failedCount, $processedSinceFlush);
-                    $this->maybeFlush($batch, $rows, $successCount, $failedCount, $processedSinceFlush, $latestCursor);
-
-                    continue;
-                }
-
-                if ($this->gatewayMnoCode !== null && ! MnoCarrier::matchesCarrier($formattedNumber, $this->gatewayMnoCode)) {
-                    $this->recordFailure($phoneRaw, 'Carrier mismatch: recipient belongs to a different operator than the gateway', $failedCount, $processedSinceFlush);
                     $this->maybeFlush($batch, $rows, $successCount, $failedCount, $processedSinceFlush, $latestCursor);
 
                     continue;
@@ -860,11 +851,6 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
         if ($sender->gateway !== null) {
             $this->gatewayCostResolver = GatewayCostResolver::forGateway($sender->gateway);
             $this->dippingChargeResolver = DippingChargeResolver::forGateway($sender->gateway);
-        }
-
-        $gateway = $sender->gateway;
-        if ($gateway !== null && data_get($gateway->credentials, 'api_type') === 'mno') {
-            $this->gatewayMnoCode = MnoCarrier::fromBillMsisdn((string) data_get($gateway->credentials, 'bill_msisdn', ''));
         }
     }
 

@@ -72,6 +72,14 @@ class CustomerPanelProvider extends PanelProvider
             // Layout
             ->sidebarCollapsibleOnDesktop()
             ->collapsibleNavigationGroups()
+            ->navigationGroups([
+                CustomerNavigationGroup::Messaging,
+                CustomerNavigationGroup::Audience,
+                CustomerNavigationGroup::Billing,
+                CustomerNavigationGroup::Reports,
+                CustomerNavigationGroup::Developer,
+                CustomerNavigationGroup::Analytics,
+            ])
             ->sidebarWidth('300px')
             ->maxContentWidth(Width::Full)
             ->colors(['primary' => Color::Teal])

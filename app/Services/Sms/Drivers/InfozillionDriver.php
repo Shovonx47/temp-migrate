@@ -382,8 +382,8 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
     private function buildSendPayload(array $recipients, string $body, string $senderId, bool $isUnicode): array
     {
         $recipientCount = count($recipients);
-        $configuredType = $this->credentials['transaction_type'] ?? 'T';
-        $transactionType = $recipientCount > 1 ? 'P' : $configuredType;
+        $configuredType = $this->credentials['transaction_type'] ?? null;
+        $transactionType = $configuredType ?? ($recipientCount > 1 ? 'P' : 'T');
 
         $messageType = $isUnicode
             ? '3'
@@ -391,19 +391,15 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
 
         $isLongSms = (bool) ($this->credentials['is_long_sms'] ?? (mb_strlen($body) > 160));
 
-        // Infozillion authenticates every request against `billMsisdn`.
-        // The `cli` field must equal `billMsisdn`; sending the user-supplied
-        // sender ID as `cli` causes the gateway to reject the request.
-        // The user-visible sender name is controlled by the gateway's own
-        // registered CLI configuration, not this field.
         $billMsisdn = $this->credentials['bill_msisdn'] ?? '';
+        $cli = ! empty($senderId) ? $senderId : ($this->credentials['cli'] ?? $billMsisdn);
 
         $payload = [
             'username' => $this->credentials['username'] ?? '',
             'password' => $this->credentials['password'] ?? '',
             'billMsisdn' => $billMsisdn,
             'apiKey' => $this->credentials['api_key'] ?? '',
-            'cli' => $billMsisdn,
+            'cli' => $cli,
             'msisdnList' => array_map(fn (string $msisdn) => ltrim($msisdn, '+'), $recipients),
             'transactionType' => $transactionType,
             'messageType' => (string) $messageType,

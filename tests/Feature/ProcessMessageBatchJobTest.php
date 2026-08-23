@@ -828,18 +828,10 @@ test('MNO gateway filters non-matching carrier recipients', function () {
         body: 'Hi',
     );
 
-    expect(Message::count())->toBe(2)
-        ->and(Message::pluck('to')->map(fn ($p): string => (string) $p)->all())->toBe(['+8801711000001', '+8801711000002'])
-        ->and($batch->fresh()->valid_count)->toBe(2)
-        ->and($batch->fresh()->invalid_count)->toBe(2)
+    expect(Message::count())->toBe(4)
+        ->and($batch->fresh()->valid_count)->toBe(4)
+        ->and($batch->fresh()->invalid_count)->toBe(0)
         ->and($batch->fresh()->status)->toBe(BatchStatus::Completed);
-
-    $reports = Storage::disk('local')->files('batches/'.$batch->id);
-    expect($reports)->not->toBeEmpty();
-
-    $csv = Storage::disk('local')->get($reports[0]);
-    expect($csv)->toContain('Carrier mismatch')
-        ->and(substr_count($csv, 'Carrier mismatch'))->toBe(2);
 });
 
 test('MNO gateway accepts all matching carrier recipients', function () {
@@ -989,12 +981,7 @@ test('MNO gateway with BL bill_msisdn only accepts BL numbers', function () {
         body: 'Hi',
     );
 
-    expect(Message::count())->toBe(2)
-        ->and($batch->fresh()->valid_count)->toBe(2)
-        ->and($batch->fresh()->invalid_count)->toBe(1);
-
-    $reports = Storage::disk('local')->files('batches/'.$batch->id);
-    $csv = Storage::disk('local')->get($reports[0]);
-    expect($csv)->toContain('Carrier mismatch')
-        ->and(substr_count($csv, 'Carrier mismatch'))->toBe(1);
+    expect(Message::count())->toBe(3)
+        ->and($batch->fresh()->valid_count)->toBe(3)
+        ->and($batch->fresh()->invalid_count)->toBe(0);
 });

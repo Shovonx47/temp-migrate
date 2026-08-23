@@ -70,21 +70,6 @@ class SendBatchSingleSmsJob implements ShouldQueue
             return;
         }
 
-        // Atomic idempotency guard: claim this message by flipping status from
-        // Pending → Sending in a single UPDATE. If another worker already claimed
-        // it (or it's no longer pending), affected rows will be 0 and we exit.
-        $claimed = DB::table('messages')
-            ->where('id', $this->messageId)
-            ->where('status', MessageStatus::Pending->value)
-            ->update([
-                'status' => MessageStatus::Sending->value,
-                'updated_at' => now(),
-            ]);
-
-        if ($claimed === 0) {
-            return;
-        }
-
         $message = Message::where('id', $this->messageId)
             ->with(['sender.gateway', 'gateway'])
             ->select(['id', 'to', 'body', 'cost', 'user_id', 'is_unicode', 'sender_id', 'gateway_id'])
@@ -97,6 +82,21 @@ class SendBatchSingleSmsJob implements ShouldQueue
         $gateway = $message->gateway ?? $message->sender?->gateway ?? $batch->sender?->gateway;
 
         if (! $gateway) {
+            return;
+        }
+
+        // Atomic idempotency guard: claim this message by flipping status from
+        // Pending → Sending in a single UPDATE. If another worker already claimed
+        // it (or it's no longer pending), affected rows will be 0 and we exit.
+        $claimed = DB::table('messages')
+            ->where('id', $this->messageId)
+            ->where('status', MessageStatus::Pending->value)
+            ->update([
+                'status' => MessageStatus::Sending->value,
+                'updated_at' => now(),
+            ]);
+
+        if ($claimed === 0) {
             return;
         }
 

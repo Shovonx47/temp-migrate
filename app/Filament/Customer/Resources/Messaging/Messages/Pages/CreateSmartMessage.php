@@ -81,7 +81,7 @@ class CreateSmartMessage extends CreateRecord
                 $afterFormatted = Number::currency($balanceAfter, 'BDT');
                 $rateFormatted = Number::currency($maxRate, 'BDT');
                 $escapedBody = e($body);
-                $senderName = e($sender?->name ?? 'Default / Not Selected');
+                $senderName = e($sender?->sender_id ?? $sender?->name ?? 'Default / Not Selected');
 
                 return new HtmlString(<<<HTML
 <div class="space-y-4 text-sm text-left">
@@ -282,14 +282,28 @@ HTML);
         $recipientCount = $this->estimateRecipientCount($source, $data);
 
         if ($recipientCount === 0) {
-            return;
+            Notification::make()
+                ->title('No recipients found')
+                ->body('Please provide at least one valid recipient before sending.')
+                ->icon(Heroicon::ExclamationTriangle)
+                ->danger()
+                ->send();
+
+            $this->halt();
         }
 
         $senderId = (int) ($data['sender_id'] ?? 0);
         $sender = $senderId > 0 ? Sender::find($senderId) : null;
 
         if (! $sender || $sender->type === null) {
-            return;
+            Notification::make()
+                ->title('Sender ID required')
+                ->body('Please select a valid Sender ID before sending.')
+                ->icon(Heroicon::ExclamationTriangle)
+                ->danger()
+                ->send();
+
+            $this->halt();
         }
 
         $resolver = OperatorRateResolver::forUser($user);

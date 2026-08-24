@@ -3,12 +3,13 @@
 namespace App\Filament\Customer\Resources\Messaging\Messages\Schemas;
 
 use App\Filament\Forms\Components\MappingComponent;
+use App\Models\Batch;
+use App\Models\Message;
 use App\Support\RecipientFileParser;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Callout;
@@ -24,6 +25,7 @@ use Illuminate\Support\HtmlString;
 use Illuminate\Validation\Rules\Exists;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Throwable;
+use Ysfkaya\FilamentPhoneInput\Forms\PhoneInput;
 
 class MessageForm
 {
@@ -49,6 +51,11 @@ class MessageForm
                                 ->pluck('sender_id', 'id')
                                 ->all()
                             )
+                            ->default(function () {
+                                $senders = Auth::user()?->senders()->pluck('senders.id');
+
+                                return ($senders && $senders->count() === 1) ? $senders->first() : null;
+                            })
                             ->searchable()
                             ->preload()
                             ->live()
@@ -72,11 +79,11 @@ class MessageForm
                             ->required(),
 
                         // Recipients: Comma-separated Phone Numbers (when no template variables)
-                        TagsInput::make('phones')
+                        PhoneInput::make('phones')
+                            ->tags()
+                            ->suggestions(fn (): array => self::getRecentRecipientNumbers())
                             ->label('Phone Numbers')
-                            ->placeholder('Type or paste numbers separated by commas, space or press Enter')
-                            ->splitKeys(['Tab', ' ', ',', 'Enter'])
-                            ->separator(',')
+                            ->placeholder('Type a number, press Enter')
                             ->live()
                             ->columnSpanFull()
                             ->visible(fn (Get $get) => $get('source') === 'manual' && empty($get('body_variables')))
@@ -269,5 +276,53 @@ class MessageForm
         }
 
         return null;
+    }
+
+    /**
+     * Returns a deduplicated list of recent phone numbers to use as suggestions
+     * in the Phone Numbers tags field. Numbers are pulled from:
+     *   1. The 100 most-recently sent outgoing messages (messages table).
+     *   2. The 20 most-recent manual batches' recipient lists.
+     *
+     * @return array<string>
+     */
+    public static function getRecentRecipientNumbers(): array
+    {
+        $user = Auth::user();
+        if (! $user) {
+            return [];
+        }
+
+        $messageNumbers = Message::withoutGlobalScopes()
+            ->where('user_id', $user->id)
+            ->whereNotNull('to')
+            ->where('to', '!=', '')
+            ->latest('id')
+            ->limit(100)
+            ->pluck('to')
+            ->map(fn ($to) => (string) $to)
+            ->all();
+
+        $batchRecipients = [];
+        $recentBatches = Batch::withoutGlobalScopes()
+            ->where('user_id', $user->id)
+            ->where('source_type', 'manual')
+            ->latest('id')
+            ->limit(20)
+            ->get(['source_config']);
+
+        foreach ($recentBatches as $batch) {
+            $recipients = $batch->source_config['recipients'] ?? [];
+            foreach ($recipients as $recipient) {
+                if (! empty($recipient['phone'])) {
+                    $batchRecipients[] = (string) $recipient['phone'];
+                }
+            }
+        }
+
+        $combined = array_merge($messageNumbers, $batchRecipients);
+        $unique = array_values(array_unique(array_filter(array_map('trim', $combined))));
+
+        return array_slice($unique, 0, 10);
     }
 }

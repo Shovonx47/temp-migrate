@@ -13,6 +13,7 @@ use App\Models\Sender;
 use App\Models\User;
 use App\Support\MessageMetrics;
 use App\Support\OperatorRateResolver;
+use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
@@ -46,7 +47,7 @@ class CreateQuickMessage extends CreateRecord
         return 'Quick Message';
     }
 
-    protected function getCreateFormAction(): \Filament\Actions\Action
+    protected function getCreateFormAction(): Action
     {
         return parent::getCreateFormAction()
             ->label('Send SMS')
@@ -236,6 +237,11 @@ class CreateQuickMessage extends CreateRecord
     }
 
     /**
+     * Returns a deduplicated list of recent phone numbers to use as suggestions
+     * in the Phone Numbers tags field. Numbers are pulled from:
+     *   1. The 100 most-recently sent outgoing messages (messages table).
+     *   2. The 20 most-recent manual batches' recipient lists.
+     *
      * @return array<string>
      */
     public function getRecentRecipientNumbers(): array
@@ -245,6 +251,7 @@ class CreateQuickMessage extends CreateRecord
             return [];
         }
 
+        // Pull from recent outgoing messages.
         $messageNumbers = Message::withoutGlobalScopes()
             ->where('user_id', $user->id)
             ->whereNotNull('to')
@@ -255,6 +262,7 @@ class CreateQuickMessage extends CreateRecord
             ->map(fn ($to) => (string) $to)
             ->all();
 
+        // Pull from recent manual batches source_config.
         $batchRecipients = [];
         $recentBatches = Batch::withoutGlobalScopes()
             ->where('user_id', $user->id)
@@ -275,6 +283,6 @@ class CreateQuickMessage extends CreateRecord
         $combined = array_merge($messageNumbers, $batchRecipients);
         $unique = array_values(array_unique(array_filter(array_map('trim', $combined))));
 
-        return array_slice($unique, 0, 8);
+        return array_slice($unique, 0, 10);
     }
 }

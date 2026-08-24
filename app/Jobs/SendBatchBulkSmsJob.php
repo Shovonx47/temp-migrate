@@ -208,7 +208,7 @@ class SendBatchBulkSmsJob implements ShouldQueue
             ->whereNotNull('gateway_message_id')
             ->update([
                 'poll_attempt' => 1,
-                'next_poll_at' => now()->addMinutes(2),
+                'next_poll_at' => now()->addMinutes(1),
             ]);
     }
 

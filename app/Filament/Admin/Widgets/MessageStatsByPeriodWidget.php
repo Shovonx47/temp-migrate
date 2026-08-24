@@ -25,10 +25,11 @@ class MessageStatsByPeriodWidget extends BaseWidget
             ->where('created_at', '<=', $to);
 
         $total = (clone $baseQuery)->count();
+        $successful = (clone $baseQuery)->whereIn('status', ['sent', 'delivered'])->count();
         $delivered = (clone $baseQuery)->where('status', 'delivered')->count();
-        $failed = (clone $baseQuery)->where('status', 'failed')->count();
-        $deliveryRate = $total > 0 ? round(($delivered / $total) * 100, 1) : 0;
-        $totalCost = (clone $baseQuery)->sum('cost');
+        $failed = (clone $baseQuery)->whereIn('status', ['failed', 'dlr_failed'])->count();
+        $successRate = $total > 0 ? round(($successful / $total) * 100, 1) : 0;
+        $totalCost = (clone $baseQuery)->whereNotIn('status', ['failed', 'dlr_failed'])->sum('cost');
         $avgParts = (clone $baseQuery)->avg('parts') ?? 0;
         $unicode = (clone $baseQuery)->where('is_unicode', true)->count();
 
@@ -37,10 +38,15 @@ class MessageStatsByPeriodWidget extends BaseWidget
                 ->description('In selected period')
                 ->icon('heroicon-o-paper-airplane'),
 
-            Stat::make('Delivery Rate', $deliveryRate.'%')
-                ->description(number_format($delivered).' delivered')
-                ->color($deliveryRate >= 90 ? 'success' : ($deliveryRate >= 70 ? 'warning' : 'danger'))
+            Stat::make('Success Rate', $successRate.'%')
+                ->description(number_format($successful).' sent or delivered')
+                ->color($successRate >= 90 ? 'success' : ($successRate >= 70 ? 'warning' : 'danger'))
                 ->icon('heroicon-o-check-badge'),
+
+            Stat::make('Delivered', number_format($delivered))
+                ->description($total > 0 ? round(($delivered / $total) * 100, 1).'% confirmed delivered' : '0% confirmed')
+                ->color($delivered > 0 ? 'success' : 'gray')
+                ->icon('heroicon-o-check-circle'),
 
             Stat::make('Failed', number_format($failed))
                 ->description($total > 0 ? round(($failed / $total) * 100, 1).'% failure rate' : '0% failure rate')

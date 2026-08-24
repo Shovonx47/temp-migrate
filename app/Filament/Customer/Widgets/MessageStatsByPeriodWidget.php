@@ -23,32 +23,39 @@ class MessageStatsByPeriodWidget extends BaseWidget
             ->where('created_at', '>=', $from)
             ->where('created_at', '<=', $to)
             ->selectRaw('COUNT(*) as total')
+            ->selectRaw("COALESCE(SUM(CASE WHEN status IN ('sent', 'delivered') THEN 1 ELSE 0 END), 0) as successful")
             ->selectRaw("COALESCE(SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END), 0) as delivered")
-            ->selectRaw("COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) as failed")
-            ->selectRaw("COALESCE(SUM(CASE WHEN status != 'failed' THEN cost ELSE 0 END), 0) as total_cost")
+            ->selectRaw("COALESCE(SUM(CASE WHEN status IN ('failed', 'dlr_failed') THEN 1 ELSE 0 END), 0) as failed")
+            ->selectRaw("COALESCE(SUM(CASE WHEN status NOT IN ('failed', 'dlr_failed') THEN cost ELSE 0 END), 0) as total_cost")
             ->selectRaw('COALESCE(AVG(parts), 0) as avg_parts')
             ->selectRaw('COALESCE(SUM(is_unicode), 0) as unicode')
             ->first();
 
         $total = (int) $stats->total;
+        $successful = (int) $stats->successful;
         $delivered = (int) $stats->delivered;
         $failed = (int) $stats->failed;
         $unicode = (int) $stats->unicode;
 
-        $deliveryRate = $total > 0 ? round(($delivered / $total) * 100, 1) : 0;
+        $successRate = $total > 0 ? round(($successful / $total) * 100, 1) : 0;
 
         return [
             Stat::make('Total Messages', number_format($total))
                 ->description('In selected period')
                 ->icon('heroicon-o-paper-airplane'),
 
-            Stat::make('Delivery Rate', $deliveryRate.'%')
-                ->description(number_format($delivered).' delivered')
-                ->color($deliveryRate >= 90 ? 'success' : ($deliveryRate >= 70 ? 'warning' : 'danger'))
+            Stat::make('Success Rate', $successRate.'%')
+                ->description(number_format($successful).' sent or delivered')
+                ->color($successRate >= 90 ? 'success' : ($successRate >= 70 ? 'warning' : 'danger'))
                 ->icon('heroicon-o-check-badge'),
 
+            Stat::make('Delivered', number_format($delivered))
+                ->description($total > 0 ? round(($delivered / $total) * 100, 1).'% confirmed delivered' : '0% confirmed')
+                ->color($delivered > 0 ? 'success' : 'gray')
+                ->icon('heroicon-o-check-circle'),
+
             Stat::make('Failed', number_format($failed))
-                ->description($total > 0 ? round(($failed / $total) * 100, 1).'% failure rate' : '0% failure rate')
+                ->description($total > 0 ? round(($failed / $total) * 100, 1).'% failure rate (send + DLR)' : '0% failure rate')
                 ->color($failed > 0 ? 'danger' : 'success')
                 ->icon('heroicon-o-x-circle'),
 

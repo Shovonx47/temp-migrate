@@ -183,7 +183,7 @@ test('increments poll_attempt and sets next_poll_at when DLR returns InTransit a
         ->and($fresh->next_poll_at->isFuture())->toBeTrue();
 });
 
-test('clears poll columns and stops when max attempts reached', function () {
+test('marks message as Delivered when max attempts reached via fallback', function () {
     $message = makeSentMessageWithDriver(
         new DeliveryStatusResponse(outcome: DeliveryOutcome::InTransit),
         ['poll_attempt' => PollMessageDeliveryJob::MAX_ATTEMPTS],
@@ -193,7 +193,22 @@ test('clears poll columns and stops when max attempts reached', function () {
 
     $fresh = $message->fresh();
 
-    expect($fresh->status)->toBe(MessageStatus::Sent)
+    expect($fresh->status)->toBe(MessageStatus::Delivered)
+        ->and($fresh->poll_attempt)->toBeNull()
+        ->and($fresh->next_poll_at)->toBeNull();
+});
+
+test('auto-marks message as Delivered when sent more than 5 minutes ago and still in transit', function () {
+    $message = makeSentMessageWithDriver(
+        new DeliveryStatusResponse(outcome: DeliveryOutcome::InTransit),
+        ['sent_at' => now()->subMinutes(6), 'poll_attempt' => 1],
+    );
+
+    (new PollMessageDeliveryJob($message->id))->handle();
+
+    $fresh = $message->fresh();
+
+    expect($fresh->status)->toBe(MessageStatus::Delivered)
         ->and($fresh->poll_attempt)->toBeNull()
         ->and($fresh->next_poll_at)->toBeNull();
 });

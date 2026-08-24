@@ -40,8 +40,26 @@ class ContactImporter extends Importer
 
     public function resolveRecord(): Contact
     {
+        $userId = $this->getImport()->user_id;
+        $phone = $this->data['phone'] ?? null;
+
+        if ($phone && preg_match('/^(?:\+?88)?0?(1[3-9]\d{8})$/', $phone, $m)) {
+            $phone = '+880'.$m[1];
+        }
+
+        if ($userId && $phone) {
+            $contact = Contact::withoutGlobalScopes()
+                ->where('user_id', $userId)
+                ->where('phone', $phone)
+                ->first();
+
+            if ($contact) {
+                return $contact;
+            }
+        }
+
         return new Contact([
-            'user_id' => $this->getImport()->user_id,
+            'user_id' => $userId,
         ]);
     }
 

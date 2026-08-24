@@ -18,9 +18,9 @@ class MessageStatsWidget extends BaseWidget
             ->whereDate('created_at', today())
             ->count();
 
-        $todayFailed = Message::withoutGlobalScopes()
+        $todaySuccessful = Message::withoutGlobalScopes()
             ->whereDate('created_at', today())
-            ->where('status', 'failed')
+            ->whereIn('status', ['sent', 'delivered'])
             ->count();
 
         $todayDelivered = Message::withoutGlobalScopes()
@@ -28,8 +28,13 @@ class MessageStatsWidget extends BaseWidget
             ->where('status', 'delivered')
             ->count();
 
-        $deliveryRate = $todayMessages > 0
-            ? round(($todayDelivered / $todayMessages) * 100, 1)
+        $todayFailed = Message::withoutGlobalScopes()
+            ->whereDate('created_at', today())
+            ->whereIn('status', ['failed', 'dlr_failed'])
+            ->count();
+
+        $successRate = $todayMessages > 0
+            ? round(($todaySuccessful / $todayMessages) * 100, 1)
             : 0;
 
         $todayCost = Message::withoutGlobalScopes()
@@ -41,14 +46,19 @@ class MessageStatsWidget extends BaseWidget
                 ->description('Sent today')
                 ->icon('heroicon-o-paper-airplane'),
 
-            Stat::make('Delivery Rate', $deliveryRate.'%')
-                ->description('Success rate today')
-                ->color('success')
+            Stat::make('Success Rate', $successRate.'%')
+                ->description(number_format($todaySuccessful).' sent or delivered')
+                ->color($successRate >= 90 ? 'success' : ($successRate >= 70 ? 'warning' : 'danger'))
                 ->icon('heroicon-o-check-badge'),
 
+            Stat::make('Delivered', number_format($todayDelivered))
+                ->description('Confirmed by carrier')
+                ->color($todayDelivered > 0 ? 'success' : 'gray')
+                ->icon('heroicon-o-check-circle'),
+
             Stat::make('Failed Today', number_format($todayFailed))
-                ->description('Delivery failures')
-                ->color('danger')
+                ->description('Send & delivery failures')
+                ->color($todayFailed > 0 ? 'danger' : 'success')
                 ->icon('heroicon-o-x-circle'),
 
             Stat::make('Cost Today', number_format($todayCost, 2).' BDT')

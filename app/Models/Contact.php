@@ -23,9 +23,26 @@ class Contact extends Model
     protected function casts(): array
     {
         return [
-            'phone' => E164PhoneNumberCast::class,
+            'phone' => E164PhoneNumberCast::class.':BD',
             'meta' => 'array',
         ];
+    }
+
+    public function setPhoneAttribute(mixed $value): void
+    {
+        if (is_string($value)) {
+            $cleaned = preg_replace('/[^\d+]/', '', $value);
+            if (preg_match('/^(?:\+?88)?0?(1[3-9]\d{8})$/', $cleaned, $m)) {
+                $this->attributes['phone'] = '+880'.$m[1];
+
+                return;
+            }
+            $this->attributes['phone'] = $cleaned;
+
+            return;
+        }
+
+        $this->attributes['phone'] = $value;
     }
 
     public function user(): BelongsTo

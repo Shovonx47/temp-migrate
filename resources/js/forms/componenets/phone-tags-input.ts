@@ -7,6 +7,7 @@ interface PhoneTagsInputData {
     locale: string | null;
     splitKeys: string[];
     intlTelInputSelectedCountryCookieName: string;
+    suggestions?: string[];
 }
 
 interface PhoneTagsInputComponent {
@@ -15,6 +16,7 @@ interface PhoneTagsInputComponent {
     current: string;
     options: Record<string, unknown>;
     splitKeys: string[];
+    suggestions: string[];
     iti: any;
     input: HTMLInputElement | null;
     intlTelInputSelectedCountryCookieName: string;
@@ -26,6 +28,7 @@ interface PhoneTagsInputComponent {
     commit(): boolean;
     syncState(): void;
     removeTag(index: number): void;
+    toggleSuggestion(number: string): void;
 }
 
 function setCookie(name: string, value: string): void {
@@ -51,6 +54,7 @@ export default function phoneTagsInput(data: PhoneTagsInputData) {
         current: '',
         options: data.options ?? {},
         splitKeys: data.splitKeys ?? ['Enter', ','],
+        suggestions: Array.isArray(data.suggestions) ? data.suggestions : [],
         iti: null,
         input: null,
         intlTelInputSelectedCountryCookieName: data.intlTelInputSelectedCountryCookieName,
@@ -167,6 +171,16 @@ export default function phoneTagsInput(data: PhoneTagsInputData) {
 
         removeTag(this: PhoneTagsInputComponent, index: number) {
             this.state = this.state.filter((_, i) => i !== index);
+            this.syncState();
+        },
+
+        toggleSuggestion(this: PhoneTagsInputComponent, number: string) {
+            const index = this.state.indexOf(number);
+            if (index > -1) {
+                this.state = this.state.filter((_, i) => i !== index);
+            } else {
+                this.state = [...this.state, number];
+            }
             this.syncState();
         },
     };

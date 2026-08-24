@@ -13,6 +13,13 @@ class CreateContact extends CreateRecord
     {
         $data['user_id'] = auth()->id();
 
+        if (! empty($data['phone'])) {
+            $cleaned = preg_replace('/[^\d+]/', '', (string) $data['phone']);
+            if (preg_match('/^(?:\+?88)?0?(1[3-9]\d{8})$/', $cleaned, $m)) {
+                $data['phone'] = '+880'.$m[1];
+            }
+        }
+
         return $data;
     }
 }

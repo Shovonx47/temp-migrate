@@ -117,6 +117,75 @@ test('quick message requires sender phones and body', function () {
         ]);
 });
 
+test('quick message auto-selects sender_id when customer has exactly one sender assigned', function () {
+    $user = User::factory()->create();
+    $sender = Sender::factory()->create();
+    $sender->users()->attach($user);
+
+    actingAs($user, 'customer');
+
+    Livewire::test(CreateQuickMessage::class, ['resource' => MessageResource::class])
+        ->assertSchemaStateSet([
+            'sender_id' => $sender->id,
+        ]);
+});
+
+test('quick message does not auto-select sender_id when customer has multiple senders assigned', function () {
+    $user = User::factory()->create();
+    $senders = Sender::factory()->count(2)->create();
+    foreach ($senders as $sender) {
+        $sender->users()->attach($user);
+    }
+
+    actingAs($user, 'customer');
+
+    Livewire::test(CreateQuickMessage::class, ['resource' => MessageResource::class])
+        ->assertSchemaStateSet([
+            'sender_id' => null,
+        ]);
+});
+
+test('quick message provides recent recipient numbers from sent messages and batches', function () {
+    $user = User::factory()->create();
+    actingAs($user, 'customer');
+
+    // Create 6 messages with distinct phone numbers for this user
+    $phoneNumbers = [
+        '+8801711000001',
+        '+8801711000002',
+        '+8801711000003',
+        '+8801711000004',
+        '+8801711000005',
+        '+8801711000006',
+    ];
+
+    foreach ($phoneNumbers as $phone) {
+        Message::factory()->create([
+            'user_id' => $user->id,
+            'to' => $phone,
+        ]);
+    }
+
+    // Also create a manual batch with 2 more numbers
+    Batch::factory()->create([
+        'user_id' => $user->id,
+        'source_type' => BatchSource::Manual,
+        'source_config' => [
+            'recipients' => [
+                ['phone' => '+8801711000007', 'values' => []],
+                ['phone' => '+8801711000008', 'values' => []],
+            ],
+        ],
+    ]);
+
+    $component = Livewire::test(CreateQuickMessage::class, ['resource' => MessageResource::class]);
+    $recentNumbers = $component->instance()->getRecentRecipientNumbers();
+
+    expect($recentNumbers)->toHaveCount(8)
+        ->and($recentNumbers)->toContain('+8801711000001')
+        ->and($recentNumbers)->toContain('+8801711000008');
+});
+
 test('customer can send a bulk message in one step with comma-separated phones', function () {
     Bus::fake();
 

@@ -41,7 +41,7 @@ enum MessageStatus: string implements HasColor, HasIcon, HasLabel
             self::Pending => Heroicon::OutlinedClock,
             self::Sending => Heroicon::OutlinedPlay,
             self::Sent => Heroicon::OutlinedPaperAirplane,
-            self::Delivered => Heroicon::OutlinedCheckBadge,
+            self::Delivered => Heroicon::OutlinedCheckCircle,
             self::Failed => Heroicon::OutlinedXCircle,
             self::DlrFailed => Heroicon::OutlinedExclamationTriangle,
         };

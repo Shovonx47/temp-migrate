@@ -15,6 +15,7 @@
     $suffixLabel = $getSuffixLabel();
     $placeholder = $getPlaceholder();
     $id = $getId();
+    $suggestions = method_exists($field, 'getSuggestions') ? $field->getSuggestions() : [];
 
     $cssUrl = FilamentAsset::getStyleHref(
         'filament-phone-input',
@@ -81,6 +82,7 @@
                 locale: @js($getLocale()),
                 splitKeys: @js(['Enter', 'Tab', ',']),
                 intlTelInputSelectedCountryCookieName: @js($getCookieName()),
+                suggestions: @js($suggestions),
             })"
             class="fi-fo-phone-tags w-full"
         >
@@ -113,6 +115,34 @@
                     </div>
                 </template>
             </div>
+
+            <template x-cloak x-if="suggestions && suggestions.length > 0">
+                <div class="fi-fo-phone-suggestions border-t border-gray-100 dark:border-white/10 px-3 py-2 bg-gray-50/50 dark:bg-white/[0.02]">
+                    <div class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 mb-1.5 font-medium">
+                        <x-filament::icon
+                            icon="heroicon-m-clock"
+                            class="h-3.5 w-3.5 text-gray-400 dark:text-gray-500"
+                        />
+                        <span>Recent recipients:</span>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5">
+                        <template x-for="number in suggestions" :key="number">
+                            <button
+                                type="button"
+                                x-on:click.stop="toggleSuggestion(number)"
+                                :class="state.includes(number) 
+                                    ? 'bg-primary-50 text-primary-700 ring-1 ring-primary-600/30 dark:bg-primary-500/10 dark:text-primary-400 dark:ring-primary-400/30 font-medium' 
+                                    : 'bg-white text-gray-700 hover:bg-gray-100 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:ring-white/10'"
+                                class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-mono transition duration-150 ease-in-out cursor-pointer shadow-xs"
+                            >
+                                <span x-show="state.includes(number)" class="text-primary-600 dark:text-primary-400 font-bold">✓</span>
+                                <span x-show="!state.includes(number)" class="text-gray-400 dark:text-gray-500">+</span>
+                                <span x-text="number"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </template>
         </div>
     </x-filament::input.wrapper>
 </x-dynamic-component>

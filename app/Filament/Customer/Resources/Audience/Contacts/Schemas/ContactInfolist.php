@@ -19,8 +19,6 @@ class ContactInfolist
                             ->schema([
                                 TextEntry::make('name')->label('Contact Name')->weight('bold'),
                                 TextEntry::make('phone'),
-                                TextEntry::make('email'),
-                                TextEntry::make('status')->badge(),
                                 TextEntry::make('created_at')->dateTime(),
                                 TextEntry::make('updated_at')->dateTime(),
                             ]),

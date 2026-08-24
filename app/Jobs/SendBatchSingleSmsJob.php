@@ -134,7 +134,7 @@ class SendBatchSingleSmsJob implements ShouldQueue
                     'failed_reason' => null,
                     // Schedule DLR polling via DB so the command can pick it up even after a Redis flush.
                     'poll_attempt' => $response->gatewayMessageId !== null ? 1 : null,
-                    'next_poll_at' => $response->gatewayMessageId !== null ? $now->copy()->addMinutes(2) : null,
+                    'next_poll_at' => $response->gatewayMessageId !== null ? $now->copy()->addMinutes(1) : null,
                     'updated_at' => $now,
                 ]);
             } else {

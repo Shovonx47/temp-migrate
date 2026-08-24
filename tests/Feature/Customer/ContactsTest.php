@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\UserStatus;
+use App\Enums\UserType;
 use App\Filament\Customer\Resources\Audience\Contacts\ContactResource;
 use App\Filament\Customer\Resources\Audience\Contacts\Pages\CreateContact;
 use App\Filament\Customer\Resources\Audience\Contacts\Pages\EditContact;
@@ -7,51 +9,56 @@ use App\Filament\Customer\Resources\Audience\Contacts\Pages\ListContacts;
 use App\Filament\Customer\Resources\Audience\Contacts\Pages\ViewContact;
 use App\Models\Contact;
 use App\Models\User;
+use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 
-use function Pest\Livewire\livewire;
+use function Pest\Laravel\actingAs;
 
 uses(RefreshDatabase::class);
 
-test('customer can list their contacts', function () {
-    $user = User::factory()->create();
-    $contacts = Contact::factory()->for($user)->count(3)->create();
+beforeEach(function () {
+    Filament::setCurrentPanel(Filament::getPanel('customer'));
 
-    livewire(ListContacts::class, ['resource' => ContactResource::class])
-        ->actingAs($user)
+    $this->user = User::factory()->create([
+        'type' => UserType::Customer,
+        'status' => UserStatus::Approved,
+        'phone' => '+8801711111111',
+    ]);
+
+    actingAs($this->user, 'customer');
+});
+
+test('customer can list their contacts', function () {
+    $contacts = Contact::factory()->for($this->user)->count(3)->create();
+
+    Livewire::test(ListContacts::class, ['resource' => ContactResource::class])
         ->assertCanSeeTableRecords($contacts);
 });
 
 test('customer can view a contact', function () {
-    $user = User::factory()->create();
-    $contact = Contact::factory()->for($user)->create();
+    $contact = Contact::factory()->for($this->user)->create();
 
-    livewire(ViewContact::class, ['record' => $contact->id, 'resource' => ContactResource::class])
-        ->actingAs($user)
+    Livewire::test(ViewContact::class, ['record' => $contact->id, 'resource' => ContactResource::class])
         ->assertSee($contact->name);
 });
 
-test('customer can create a contact', function () {
-    $user = User::factory()->create();
-
-    livewire(CreateContact::class, ['resource' => ContactResource::class])
-        ->actingAs($user)
+test('customer can create a contact with name and phone only', function () {
+    Livewire::test(CreateContact::class, ['resource' => ContactResource::class])
         ->fillForm([
             'name' => 'Test Contact',
-            'phone' => '+8801700000001',
+            'phone' => '01712345678',
         ])
         ->call('create')
         ->assertHasNoFormErrors();
 
-    expect(Contact::where('user_id', $user->id)->where('name', 'Test Contact')->exists())->toBeTrue();
+    expect(Contact::where('user_id', $this->user->id)->where('name', 'Test Contact')->exists())->toBeTrue();
 });
 
 test('customer can edit their contact', function () {
-    $user = User::factory()->create();
-    $contact = Contact::factory()->for($user)->create(['name' => 'Original']);
+    $contact = Contact::factory()->for($this->user)->create(['name' => 'Original']);
 
-    livewire(EditContact::class, ['record' => $contact->id, 'resource' => ContactResource::class])
-        ->actingAs($user)
+    Livewire::test(EditContact::class, ['record' => $contact->id, 'resource' => ContactResource::class])
         ->fillForm(['name' => 'Updated'])
         ->call('save')
         ->assertHasNoFormErrors();
@@ -60,11 +67,9 @@ test('customer can edit their contact', function () {
 });
 
 test('customer cannot view contacts of another user', function () {
-    $user = User::factory()->create();
-    $other = User::factory()->create();
+    $other = User::factory()->create(['type' => UserType::Customer, 'status' => UserStatus::Approved]);
     $contact = Contact::factory()->for($other)->create();
 
-    livewire(ViewContact::class, ['record' => $contact->id, 'resource' => ContactResource::class])
-        ->actingAs($user)
-        ->assertForbidden();
+    expect(fn () => Livewire::test(ViewContact::class, ['record' => $contact->id, 'resource' => ContactResource::class]))
+        ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
 });

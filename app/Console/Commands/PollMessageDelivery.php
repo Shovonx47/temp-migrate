@@ -48,6 +48,22 @@ class PollMessageDelivery extends Command
             $this->line("Dispatched {$dispatched} DLR poll job(s).");
         }
 
+        // Fallback: Transition any sent messages older than 5 minutes to Delivered
+        $autoDelivered = Message::query()
+            ->where('status', MessageStatus::Sent)
+            ->where('sent_at', '<=', now()->subMinutes(5))
+            ->update([
+                'status' => MessageStatus::Delivered->value,
+                'delivered_at' => now(),
+                'poll_attempt' => null,
+                'next_poll_at' => null,
+                'updated_at' => now(),
+            ]);
+
+        if ($autoDelivered > 0) {
+            $this->line("Auto-marked {$autoDelivered} message(s) as delivered via 5-min fallback.");
+        }
+
         return self::SUCCESS;
     }
 }

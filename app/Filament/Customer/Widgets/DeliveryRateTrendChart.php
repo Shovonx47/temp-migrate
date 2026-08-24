@@ -28,7 +28,7 @@ class DeliveryRateTrendChart extends ChartWidget
             ->where('created_at', '<=', $to)
             ->toBase()
             ->selectRaw('DATE(created_at) as date, COUNT(*) as total')
-            ->selectRaw("COALESCE(SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END), 0) as delivered")
+            ->selectRaw("COALESCE(SUM(CASE WHEN status IN ('sent', 'delivered') THEN 1 ELSE 0 END), 0) as successful")
             ->groupBy('date')
             ->orderBy('date')
             ->get();
@@ -36,9 +36,9 @@ class DeliveryRateTrendChart extends ChartWidget
         return [
             'datasets' => [
                 [
-                    'label' => 'Delivery Rate (%)',
+                    'label' => 'Success Rate (%)',
                     'data' => $data->map(fn ($row) => $row->total > 0
-                        ? round(($row->delivered / $row->total) * 100, 1)
+                        ? round(($row->successful / $row->total) * 100, 1)
                         : 0)->toArray(),
                     'borderColor' => '#10b981',
                     'backgroundColor' => 'rgba(16, 185, 129, 0.1)',

@@ -448,12 +448,14 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
         $deliveryStatuses = $data['deliveryStatus'] ?? [];
 
         if (empty($deliveryStatuses)) {
-            $a2pStatus = $data['a2pDeliveryStatus'] ?? '';
+            $a2pStatus = (string) ($data['a2pDeliveryStatus'] ?? '');
+            $a2pLower = strtolower($a2pStatus);
+            $httpStatus = (string) ($data['ansSendSmsHttpStatus'] ?? '');
 
-            if (str_contains((string) $a2pStatus, 'failure')) {
+            if (str_contains($a2pLower, 'failure') || str_contains($a2pLower, 'failed') || str_contains(strtolower($httpStatus), 'bad_gateway') || str_starts_with($httpStatus, '4') || str_starts_with($httpStatus, '5')) {
                 return new DeliveryStatusResponse(
                     outcome: DeliveryOutcome::Failed,
-                    rawStatus: (string) $a2pStatus,
+                    rawStatus: $a2pStatus,
                     errorMessage: (string) ($data['serverResponseMessage'] ?? $a2pStatus),
                     raw: $data,
                 );
@@ -461,33 +463,36 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
 
             return new DeliveryStatusResponse(
                 outcome: DeliveryOutcome::InTransit,
-                rawStatus: (string) $a2pStatus,
+                rawStatus: $a2pStatus,
                 raw: $data,
             );
         }
 
         $firstStatus = (string) ($deliveryStatuses[0] ?? '');
-        $parts = explode('-', $firstStatus, 2);
-        $status = strtolower(trim((string) ($parts[1] ?? $firstStatus)));
+        $statusLower = strtolower($firstStatus);
 
-        return match ($status) {
-            'delivered' => new DeliveryStatusResponse(
-                outcome: DeliveryOutcome::Delivered,
-                rawStatus: $firstStatus,
-                raw: $data,
-            ),
-            'undelivered', 'failed' => new DeliveryStatusResponse(
+        if (str_contains($statusLower, 'undelivered') || str_contains($statusLower, 'failed') || str_contains($statusLower, 'rejected') || str_contains($statusLower, 'expired')) {
+            return new DeliveryStatusResponse(
                 outcome: DeliveryOutcome::Failed,
                 rawStatus: $firstStatus,
                 errorMessage: 'SMS delivery status: '.$firstStatus,
                 raw: $data,
-            ),
-            default => new DeliveryStatusResponse(
-                outcome: DeliveryOutcome::InTransit,
+            );
+        }
+
+        if (str_contains($statusLower, 'delivered')) {
+            return new DeliveryStatusResponse(
+                outcome: DeliveryOutcome::Delivered,
                 rawStatus: $firstStatus,
                 raw: $data,
-            ),
-        };
+            );
+        }
+
+        return new DeliveryStatusResponse(
+            outcome: DeliveryOutcome::InTransit,
+            rawStatus: $firstStatus,
+            raw: $data,
+        );
     }
 
     private function resolveEndpoint(string $action): string

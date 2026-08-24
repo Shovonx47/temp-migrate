@@ -105,6 +105,16 @@ class FilamentServiceProvider extends ServiceProvider
                     fn (string $value): bool => $value !== '',
                 )));
         });
+
+        PhoneInput::macro('suggestions', function (array|\Closure $suggestions) {
+            $this->suggestions = $suggestions;
+
+            return $this;
+        });
+
+        PhoneInput::macro('getSuggestions', function (): array {
+            return (array) $this->evaluate($this->suggestions ?? []);
+        });
     }
 
     protected function configureTable(): void

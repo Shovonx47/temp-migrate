@@ -44,9 +44,9 @@ class PollMessageDeliveryJob implements ShouldQueue
     public int $tries = 1;
 
     /**
-     * Maximum number of poll attempts per message. After this the job gives up.
+     * Maximum number of poll attempts per message.
      */
-    public const int MAX_ATTEMPTS = 7;
+    public const int MAX_ATTEMPTS = 5;
 
     /**
      * Do not poll messages sent more than 48 hours ago — DLR data may no longer be available.
@@ -62,36 +62,73 @@ class PollMessageDeliveryJob implements ShouldQueue
         $message = Message::where('id', $this->messageId)
             ->where('status', MessageStatus::Sent)
             ->whereNotNull('gateway_message_id')
-            ->withWhereHas('sender.gateway')
+            ->with(['sender.gateway', 'gateway'])
             ->first();
 
         if (! $message) {
             return; // Already resolved or missing gateway_message_id.
         }
 
+        $now = Carbon::now();
+
         // Guard: stop polling very old messages.
-        if ($message->sent_at && $message->sent_at->diffInHours(now()) > self::MAX_AGE_HOURS) {
+        if ($message->sent_at && $message->sent_at->diffInHours($now) > self::MAX_AGE_HOURS) {
             $message->update(['poll_attempt' => null, 'next_poll_at' => null]);
 
             return;
         }
 
-        $gateway = $message->sender->gateway;
+        $gateway = $message->gateway ?? $message->sender?->gateway;
+
+        if (! $gateway) {
+            if ($message->sent_at && $message->sent_at->diffInMinutes($now) >= 5) {
+                $this->handleDelivered($message, new DeliveryStatusResponse(outcome: DeliveryOutcome::Delivered), $now);
+            }
+
+            return;
+        }
 
         $driver = Sms::usingGateway($gateway)->driver($gateway->driver->value);
 
         if (! $driver instanceof SupportsDeliveryStatus) {
+            if ($message->sent_at && $message->sent_at->diffInMinutes($now) >= 5) {
+                $this->handleDelivered($message, new DeliveryStatusResponse(outcome: DeliveryOutcome::Delivered), $now);
+            }
+
             return;
         }
 
         $dlr = $driver->fetchDeliveryStatus((string) $message->gateway_message_id, (string) $message->to);
-        $now = Carbon::now();
 
         match ($dlr->outcome) {
             DeliveryOutcome::Delivered => $this->handleDelivered($message, $dlr, $now),
             DeliveryOutcome::Failed => $this->handleDeliveryFailed($message, $dlr, $now),
-            DeliveryOutcome::InTransit => $this->scheduleNextPoll($message, $now),
+            DeliveryOutcome::InTransit => $this->handleInTransitOrFallback($message, $dlr, $now),
         };
+    }
+
+    private function handleInTransitOrFallback(Message $message, DeliveryStatusResponse $dlr, Carbon $now): void
+    {
+        // Fallback: If 5 or more minutes have elapsed since sending and no failure was reported, mark as Delivered.
+        if ($message->sent_at && $message->sent_at->diffInMinutes($now) >= 5) {
+            SmsLogger::info('dlr_delivered_fallback', [
+                'message_id' => $message->id,
+                'user_id' => $message->user_id,
+                'phone' => (string) $message->to,
+                'gateway_message_id' => $message->gateway_message_id,
+                'status' => 'delivered',
+                'reason' => 'Auto-marked delivered after 5+ minutes fallback',
+            ]);
+
+            $this->handleDelivered($message, new DeliveryStatusResponse(
+                outcome: DeliveryOutcome::Delivered,
+                rawStatus: $dlr->rawStatus ?? 'Delivered (Fallback)',
+            ), $now);
+
+            return;
+        }
+
+        $this->scheduleNextPoll($message, $now);
     }
 
     private function handleDelivered($message, DeliveryStatusResponse $dlr, Carbon $now): void
@@ -150,15 +187,18 @@ class PollMessageDeliveryJob implements ShouldQueue
 
     /**
      * Schedules the next poll by updating `poll_attempt` and `next_poll_at` on the message.
-     * When the maximum attempt count is reached, clears the poll columns and stops.
+     * When the maximum attempt count is reached, falls back to Delivered if no failure.
      */
     private function scheduleNextPoll(Message $message, Carbon $now): void
     {
         $attempt = (int) ($message->poll_attempt ?? 1);
 
         if ($attempt >= self::MAX_ATTEMPTS) {
-            // Exhausted retries — leave the message as Sent, clear scheduling columns.
-            $message->update(['poll_attempt' => null, 'next_poll_at' => null]);
+            // Cap reached — apply fallback Delivered and clear poll columns
+            $this->handleDelivered($message, new DeliveryStatusResponse(
+                outcome: DeliveryOutcome::Delivered,
+                rawStatus: 'Delivered (Fallback Max Attempts)',
+            ), $now);
 
             return;
         }
@@ -179,13 +219,10 @@ class PollMessageDeliveryJob implements ShouldQueue
     private function delayForAttempt(int $attempt): int
     {
         return match ($attempt) {
-            1 => 120,           //  2 min  (initial, set by send jobs)
-            2 => 300,           //  5 min
-            3 => 900,           // 15 min
-            4 => 3_600,         //  1 hr
-            5 => 14_400,        //  4 hr
-            6 => 43_200,        // 12 hr
-            default => 43_200,  // 12 hr  (attempt 7+, though 7 is the cap)
+            1 => 60,            // 1 min (initial)
+            2 => 120,           // +2 min
+            3 => 120,           // +2 min (~5 min mark)
+            default => 120,
         };
     }
 }

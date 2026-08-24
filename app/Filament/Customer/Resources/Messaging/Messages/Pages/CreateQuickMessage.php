@@ -8,6 +8,7 @@ use App\Filament\Customer\Resources\Messaging\Batches\BatchResource;
 use App\Filament\Customer\Resources\Messaging\Messages\MessageResource;
 use App\Jobs\ProcessBatchJob;
 use App\Models\Batch;
+use App\Models\Message;
 use App\Models\Sender;
 use App\Models\User;
 use App\Support\MessageMetrics;
@@ -45,6 +46,13 @@ class CreateQuickMessage extends CreateRecord
         return 'Quick Message';
     }
 
+    protected function getCreateFormAction(): \Filament\Actions\Action
+    {
+        return parent::getCreateFormAction()
+            ->label('Send SMS')
+            ->icon(Heroicon::PaperAirplane);
+    }
+
     public function form(Schema $schema): Schema
     {
         return $schema
@@ -62,6 +70,11 @@ class CreateQuickMessage extends CreateRecord
                                 ->pluck('sender_id', 'id')
                                 ->all()
                             )
+                            ->default(function () {
+                                $senders = Auth::user()?->senders()->pluck('senders.id');
+
+                                return ($senders && $senders->count() === 1) ? $senders->first() : null;
+                            })
                             ->searchable()
                             ->preload()
                             ->required()
@@ -72,6 +85,7 @@ class CreateQuickMessage extends CreateRecord
                             ),
                         PhoneInput::make('phones')
                             ->tags()
+                            ->suggestions(fn () => $this->getRecentRecipientNumbers())
                             ->label('Phone Numbers')
                             ->placeholder('Type a number, press Enter')
                             ->required()
@@ -219,5 +233,48 @@ class CreateQuickMessage extends CreateRecord
             ->send();
 
         $this->halt();
+    }
+
+    /**
+     * @return array<string>
+     */
+    public function getRecentRecipientNumbers(): array
+    {
+        $user = Auth::user();
+        if (! $user) {
+            return [];
+        }
+
+        $messageNumbers = Message::withoutGlobalScopes()
+            ->where('user_id', $user->id)
+            ->whereNotNull('to')
+            ->where('to', '!=', '')
+            ->latest('id')
+            ->limit(100)
+            ->pluck('to')
+            ->map(fn ($to) => (string) $to)
+            ->all();
+
+        $batchRecipients = [];
+        $recentBatches = Batch::withoutGlobalScopes()
+            ->where('user_id', $user->id)
+            ->where('source_type', 'manual')
+            ->latest('id')
+            ->limit(20)
+            ->get(['source_config']);
+
+        foreach ($recentBatches as $batch) {
+            $recipients = $batch->source_config['recipients'] ?? [];
+            foreach ($recipients as $recipient) {
+                if (! empty($recipient['phone'])) {
+                    $batchRecipients[] = (string) $recipient['phone'];
+                }
+            }
+        }
+
+        $combined = array_merge($messageNumbers, $batchRecipients);
+        $unique = array_values(array_unique(array_filter(array_map('trim', $combined))));
+
+        return array_slice($unique, 0, 8);
     }
 }

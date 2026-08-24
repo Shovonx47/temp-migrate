@@ -26,19 +26,19 @@ class DeliveryRateTrendChart extends ChartWidget
         $data = DB::table('messages')
             ->where('created_at', '>=', $from)
             ->where('created_at', '<=', $to)
-            ->selectRaw('DATE(created_at) as date, COUNT(*) as total, SUM(CASE WHEN status = \'delivered\' THEN 1 ELSE 0 END) as delivered')
+            ->selectRaw("DATE(created_at) as date, COUNT(*) as total, SUM(CASE WHEN status IN ('sent', 'delivered') THEN 1 ELSE 0 END) as successful")
             ->groupBy('date')
             ->orderBy('date')
             ->get()
             ->map(fn ($row) => [
                 'date' => $row->date,
-                'rate' => $row->total > 0 ? round(($row->delivered / $row->total) * 100, 1) : 0,
+                'rate' => $row->total > 0 ? round(($row->successful / $row->total) * 100, 1) : 0,
             ]);
 
         return [
             'datasets' => [
                 [
-                    'label' => 'Delivery Rate %',
+                    'label' => 'Success Rate %',
                     'data' => $data->pluck('rate')->toArray(),
                     'borderColor' => '#10b981',
                     'backgroundColor' => 'rgba(16, 185, 129, 0.1)',

@@ -153,3 +153,27 @@ test('recovers stuck Sent messages after a Redis flush by dispatching on the nex
     Queue::assertPushed(PollMessageDeliveryJob::class, fn ($job) => $job->messageId === $message1->id);
     Queue::assertPushed(PollMessageDeliveryJob::class, fn ($job) => $job->messageId === $message2->id);
 });
+
+// ---------------------------------------------------------------------------
+// 5-minute Fallback
+// ---------------------------------------------------------------------------
+
+test('auto-transitions sent messages older than 5 minutes to Delivered status', function () {
+    $user = User::factory()->create();
+
+    $oldSentMessage = makeSentMessageWithPollColumns([
+        'sent_at' => now()->subMinutes(6),
+        'status' => MessageStatus::Sent,
+    ], $user);
+
+    $recentSentMessage = makeSentMessageWithPollColumns([
+        'sent_at' => now()->subMinutes(2),
+        'status' => MessageStatus::Sent,
+    ], $user);
+
+    $this->artisan('messages:poll-delivery')->assertSuccessful();
+
+    expect($oldSentMessage->fresh()->status)->toBe(MessageStatus::Delivered)
+        ->and($oldSentMessage->fresh()->delivered_at)->not->toBeNull()
+        ->and($recentSentMessage->fresh()->status)->toBe(MessageStatus::Sent);
+});

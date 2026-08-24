@@ -18,7 +18,10 @@ class GroupsRelationManager extends RelationManager
         return $table
             ->columns([
                 TextColumn::make('name')->searchable()->sortable(),
-                TextColumn::make('status')->badge()->sortable(),
+                TextColumn::make('contacts_count')
+                    ->counts('contacts')
+                    ->label('Contacts')
+                    ->badge(),
                 TextColumn::make('created_at')->dateTime()->sortable(),
             ])
             ->recordUrl(fn ($record) => GroupResource::getUrl('view', ['record' => $record]));

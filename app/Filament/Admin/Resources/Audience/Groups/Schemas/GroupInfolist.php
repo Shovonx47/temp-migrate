@@ -19,7 +19,6 @@ class GroupInfolist
                             ->schema([
                                 TextEntry::make('user.name')->label('User')->weight('bold'),
                                 TextEntry::make('name')->label('Group Name'),
-                                TextEntry::make('status')->badge(),
                                 TextEntry::make('created_at')->dateTime(),
                                 TextEntry::make('updated_at')->dateTime(),
                             ]),

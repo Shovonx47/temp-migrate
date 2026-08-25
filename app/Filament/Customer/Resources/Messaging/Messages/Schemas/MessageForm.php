@@ -164,7 +164,13 @@ class MessageForm
                                 'application/vnd.ms-excel',
                                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                             ])
-                            ->helperText('Upload a CSV or Excel file with a "phone" column and any variables used in your message body.')
+                            ->helperText(new HtmlString(
+                                'Upload a CSV or Excel file with a <strong>"phone"</strong> column and any variables used in your message body. ' .
+                                '<a href="' . asset('bd_phone_numbers.xlsx') . '" download ' .
+                                'class="inline-flex items-center gap-1 font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 underline underline-offset-2 transition-colors">' .
+                                '⬇ Download Sample File' .
+                                '</a>'
+                            ))
                             ->maxSize(100 * 1024) // 100 MB
                             ->preserveFilenames()
                             ->live()

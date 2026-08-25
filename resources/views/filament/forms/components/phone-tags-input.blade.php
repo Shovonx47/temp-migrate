@@ -15,7 +15,12 @@
     $suffixLabel = $getSuffixLabel();
     $placeholder = $getPlaceholder();
     $id = $getId();
-    $suggestions = method_exists($field, 'getSuggestions') ? $field->getSuggestions() : [];
+    // FIX: method_exists() cannot see methods added via ->macro() — macros are
+    // resolved at runtime through __call(), not declared on the class, so
+    // method_exists($field, 'getSuggestions') always returned false and
+    // $suggestions was silently hard-coded to []. Use hasMacro() instead,
+    // which is the Macroable trait's own registry check.
+    $suggestions = $field::hasMacro('getSuggestions') ? $field->getSuggestions() : [];
 
     $cssUrl = FilamentAsset::getStyleHref(
         'filament-phone-input',

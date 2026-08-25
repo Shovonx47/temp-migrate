@@ -25,7 +25,7 @@ class DepositResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
-    protected static ?string $navigationLabel = 'Deposits';
+    protected static ?string $navigationLabel = 'Payment History';
 
     protected static ?string $recordTitleAttribute = 'transaction_id';
 

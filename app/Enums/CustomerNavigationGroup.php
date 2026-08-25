@@ -20,7 +20,8 @@ enum CustomerNavigationGroup: string implements HasIcon, HasLabel
     public function getLabel(): string|Htmlable|null
     {
         return match ($this) {
-            self::Messaging => 'Messaging Portal',
+            self::Messaging => 'Messaging Management',
+            self::Billing => 'Reports',
             default => $this->name,
         };
     }

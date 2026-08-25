@@ -18,6 +18,8 @@ class Pricing extends Page implements HasTable
 
     protected static string|UnitEnum|null $navigationGroup = CustomerNavigationGroup::Billing;
 
+    protected static ?string $navigationLabel = 'Pricing Reports';
+
     protected string $view = 'filament.customer.pages.pricing';
 
     public function table(Table $table): Table

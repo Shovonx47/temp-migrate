@@ -25,7 +25,7 @@ class TransactionResource extends Resource
 
     protected static ?int $navigationSort = 2;
 
-    protected static ?string $navigationLabel = 'Transactions';
+    protected static ?string $navigationLabel = 'Transactional Report';
 
     protected static ?string $recordTitleAttribute = 'id';
 

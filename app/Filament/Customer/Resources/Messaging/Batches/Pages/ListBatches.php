@@ -23,9 +23,98 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 
+use App\Services\ReportExportService;
+use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
+use Filament\Support\Icons\Heroicon;
+
 class ListBatches extends ListRecords
 {
     protected static string $resource = BatchResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('exportAs')
+                ->label('Export As')
+                ->icon(Heroicon::OutlinedArrowDownTray)
+                ->color('gray')
+                ->modalHeading('Export Sent Message Logs')
+                ->modalDescription('Select your preferred report format to download.')
+                ->modalSubmitActionLabel('Download Report')
+                ->schema([
+                    \Filament\Forms\Components\Radio::make('format')
+                        ->label('Select Format')
+                        ->options([
+                            'excel' => 'Excel / CSV Spreadsheet (.csv)',
+                            'pdf' => 'PDF Document (.pdf)',
+                        ])
+                        ->default('excel')
+                        ->required(),
+                ])
+                ->action(function (array $data) {
+                    return ($data['format'] ?? 'excel') === 'pdf'
+                        ? $this->exportPdf()
+                        : $this->exportExcel();
+                }),
+        ];
+    }
+
+    public function exportExcel()
+    {
+        $query = $this->getFilteredTableQuery()->latest('id');
+
+        $headers = [
+            'Recipient Number',
+            'Sender ID',
+            'Content',
+            'SMS Type',
+            'Cost (BDT)',
+            'Previous Balance',
+            'Next Balance',
+            'SMS Count',
+            'Status',
+            'Failure Reason',
+            'Date & Time',
+        ];
+
+        $rows = $query->lazy(500)->map(function ($msg) {
+            return [
+                $msg->to,
+                $msg->sender->sender_id ?? '',
+                $msg->body,
+                $this->resolveSmsType($msg),
+                number_format($msg->cost ?? 0, 4),
+                $this->resolvePreviousBalance($msg) !== null ? number_format($this->resolvePreviousBalance($msg), 2) : '',
+                $this->resolveNextBalance($msg) !== null ? number_format($this->resolveNextBalance($msg), 2) : '',
+                $msg->parts ?? 1,
+                $msg->status->value ?? $msg->status,
+                $this->resolveFailureReason($msg) ?? '',
+                ($msg->delivered_at ?? $msg->sent_at ?? $msg->failed_at ?? $msg->created_at)?->format('Y-m-d H:i:s'),
+            ];
+        });
+
+        $filename = 'sent-message-logs-'.now()->format('Y-m-d-His').'.csv';
+
+        return ReportExportService::downloadCsv($filename, $headers, $rows);
+    }
+
+    public function exportPdf()
+    {
+        $user = auth()->user();
+        $records = $this->getFilteredTableQuery()->latest('id')->limit(500)->get();
+
+        $data = [
+            'title' => 'Sent Message Logs Report',
+            'user' => $user,
+            'records' => $records,
+            'period' => 'Generated '.now()->format('d M Y, h:i A'),
+        ];
+
+        $filename = 'sent-message-logs-'.now()->format('Y-m-d-His').'.pdf';
+
+        return ReportExportService::downloadPdf($filename, 'reports.pdf.messages-report', $data);
+    }
 
     public function table(Table $table): Table
     {

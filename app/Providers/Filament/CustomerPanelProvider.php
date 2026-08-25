@@ -74,14 +74,12 @@ class CustomerPanelProvider extends PanelProvider
             ->sidebarCollapsibleOnDesktop()
             ->collapsibleNavigationGroups()
             ->navigationGroups([
-                NavigationGroup::make('Messaging Portal')
+                NavigationGroup::make('Messaging Management')
                     ->icon(Heroicon::OutlinedChatBubbleLeftRight),
                 NavigationGroup::make('Audience')
                     ->icon(Heroicon::OutlinedUsers),
-                NavigationGroup::make('Billing')
-                    ->icon(Heroicon::OutlinedCreditCard),
                 NavigationGroup::make('Reports')
-                    ->icon(Heroicon::OutlinedChartBar),
+                    ->icon(Heroicon::OutlinedCreditCard),
                 NavigationGroup::make('Developer')
                     ->icon(Heroicon::OutlinedCodeBracket),
                 NavigationGroup::make('Analytics')

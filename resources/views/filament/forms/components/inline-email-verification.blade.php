@@ -1,0 +1,97 @@
+@php
+    $statePath = $getStatePath();
+    $emailVerified = $this->email_verified ?? false;
+    $emailOtpSent = $this->email_otp_sent ?? false;
+    $emailSuccess = $this->email_success ?? null;
+    $emailError = $this->email_error ?? null;
+@endphp
+
+<div class="space-y-3" x-data="{
+    cooldown: @entangle('email_cooldown').live,
+    timer: null,
+    startTimer() {
+        if (this.cooldown > 0 && !this.timer) {
+            this.timer = setInterval(() => {
+                if (this.cooldown > 0) {
+                    this.cooldown--;
+                } else {
+                    clearInterval(this.timer);
+                    this.timer = null;
+                }
+            }, 1000);
+        }
+    }
+}" x-init="startTimer(); $watch('cooldown', () => startTimer())">
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        <div class="relative flex-1">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                <x-filament::icon icon="heroicon-o-envelope" class="w-5 h-5 text-gray-400 dark:text-gray-500" />
+            </div>
+            <input
+                type="email"
+                wire:model.blur="data.email"
+                id="data.email"
+                placeholder="Enter your email address"
+                @disabled($emailVerified)
+                class="block w-full pl-10 pr-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 disabled:opacity-60 disabled:bg-gray-50 dark:disabled:bg-gray-800"
+            />
+        </div>
+
+        <div>
+            @if ($emailVerified)
+                <div class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-400 text-xs font-semibold whitespace-nowrap shadow-xs">
+                    <x-filament::icon icon="heroicon-m-check-badge" class="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                    <span>Verified</span>
+                </div>
+            @else
+                <button
+                    type="button"
+                    wire:click="sendEmailOtp"
+                    wire:loading.attr="disabled"
+                    :disabled="cooldown > 0"
+                    class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg text-white bg-teal-600 hover:bg-teal-700 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-xs cursor-pointer"
+                >
+                    <span wire:loading.remove wire:target="sendEmailOtp" x-text="cooldown > 0 ? `Resend (${cooldown}s)` : 'Send Email OTP'"></span>
+                    <span wire:loading wire:target="sendEmailOtp">Sending...</span>
+                </button>
+            @endif
+        </div>
+    </div>
+
+    @if ($emailSuccess)
+        <div class="p-2.5 rounded-lg bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-900 text-xs text-teal-700 dark:text-teal-300 flex items-center gap-2">
+            <x-filament::icon icon="heroicon-m-check-circle" class="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
+            <span>{{ $emailSuccess }}</span>
+        </div>
+    @endif
+
+    @if ($emailError)
+        <div class="p-2.5 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 text-xs text-red-700 dark:text-red-300 flex items-center gap-2">
+            <x-filament::icon icon="heroicon-m-exclamation-triangle" class="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
+            <span>{{ $emailError }}</span>
+        </div>
+    @endif
+
+    @if (!$emailVerified && $emailOtpSent)
+        <div class="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700 animate-fadeIn">
+            <div class="relative flex-1">
+                <input
+                    type="text"
+                    wire:model="email_otp"
+                    maxlength="6"
+                    placeholder="Enter 6-digit Email OTP"
+                    class="block w-full px-3 py-1.5 text-sm font-mono tracking-wider rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                />
+            </div>
+            <button
+                type="button"
+                wire:click="verifyEmailOtp"
+                wire:loading.attr="disabled"
+                class="px-4 py-1.5 text-xs font-semibold rounded-lg text-white bg-teal-600 hover:bg-teal-700 focus:outline-hidden focus:ring-2 focus:ring-teal-500 transition shadow-xs cursor-pointer"
+            >
+                <span wire:loading.remove wire:target="verifyEmailOtp">Verify</span>
+                <span wire:loading wire:target="verifyEmailOtp">Verifying...</span>
+            </button>
+        </div>
+    @endif
+</div>

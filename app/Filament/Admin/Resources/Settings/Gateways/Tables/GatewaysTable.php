@@ -29,6 +29,24 @@ class GatewaysTable
                     ->weight('bold')
                     ->wrap(false),
 
+                TextColumn::make('priority')
+                    ->label('OTP Priority')
+                    ->badge()
+                    ->color(fn (int $state): string => match ($state) {
+                        1 => 'success',
+                        2 => 'info',
+                        3 => 'warning',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn ($state) => "Priority {$state}")
+                    ->sortable(),
+
+                TextColumn::make('is_otp_enabled')
+                    ->label('OTP Route')
+                    ->badge()
+                    ->formatStateUsing(fn (bool $state): string => $state ? 'ENABLED' : 'DISABLED')
+                    ->color(fn (bool $state): string => $state ? 'success' : 'gray'),
+
                 TextColumn::make('is_enabled')
                     ->label('Status')
                     ->badge()

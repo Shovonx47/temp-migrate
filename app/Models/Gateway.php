@@ -33,6 +33,9 @@ class Gateway extends Model
             'cost_mode' => GatewayCostMode::class,
             'dipping_required' => 'boolean',
             'has_third_party_dipping' => 'boolean',
+            'priority' => 'integer',
+            'is_otp_enabled' => 'boolean',
+            'is_enabled' => 'boolean',
         ];
     }
 
@@ -75,5 +78,17 @@ class Gateway extends Model
     protected function enabled(Builder $query): Builder
     {
         return $query->where('is_enabled', true);
+    }
+
+    #[Scope]
+    protected function forOtp(Builder $query): Builder
+    {
+        return $query->where('is_enabled', true)->where('is_otp_enabled', true);
+    }
+
+    #[Scope]
+    protected function ordered(Builder $query): Builder
+    {
+        return $query->orderBy('priority', 'asc')->orderBy('id', 'asc');
     }
 }

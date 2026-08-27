@@ -1,11 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Admin\Resources\Users\Customers\Tables;
 
+use App\Enums\KycStatus;
 use App\Enums\UserStatus;
 use App\Filament\Admin\Resources\Users\Customers\Actions\ApprovalAction;
+use App\Filament\Admin\Resources\Users\Customers\Actions\ApproveKycAction;
 use App\Filament\Admin\Resources\Users\Customers\Actions\DepositAction;
 use App\Filament\Admin\Resources\Users\Customers\Actions\LoginAction;
+use App\Filament\Admin\Resources\Users\Customers\Actions\RejectKycAction;
+use App\Filament\Admin\Resources\Users\Customers\Actions\RequestKycResubmissionAction;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -31,29 +37,52 @@ class CustomersTable
             ->columns([
                 TextColumn::make('name')
                     ->label('Name')
-                    ->searchable(),
-                TextColumn::make('activeTariffAssignment.tariffPlan.name')
-                    ->label('Current Plan')
-                    ->placeholder('No plan assigned')
-                    ->badge()
-                    ->color('info')
-                    ->searchable(),
+                    ->searchable()
+                    ->weight('bold'),
+
+                TextColumn::make('nid_number')
+                    ->label('NID Number')
+                    ->searchable()
+                    ->placeholder('—'),
+
                 TextColumn::make('email')
                     ->label('Email')
                     ->searchable(),
+
                 TextColumn::make('phone')
                     ->label('Phone')
                     ->searchable(),
+
+                TextColumn::make('kyc_status')
+                    ->label('KYC Status')
+                    ->badge(),
+
+                TextColumn::make('status')
+                    ->label('Account Status')
+                    ->badge(),
+
                 TextColumn::make('balance')
                     ->label('Balance')
                     ->money('BDT'),
-                TextColumn::make('status')
-                    ->label('Status')
-                    ->badge(),
+
+                TextColumn::make('created_at')
+                    ->label('Registered')
+                    ->date()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                SelectFilter::make('kyc_status')
+                    ->label('KYC Status')
+                    ->options(KycStatus::class),
                 SelectFilter::make('status')
+                    ->label('Account Status')
                     ->options(UserStatus::class),
+                TernaryFilter::make('trade_license_submitted')
+                    ->label('Trade License')
+                    ->placeholder('All')
+                    ->trueLabel('Submitted')
+                    ->falseLabel('Not Submitted'),
                 TernaryFilter::make('api_access')
                     ->label('API Access')
                     ->placeholder('All')
@@ -81,7 +110,10 @@ class CustomersTable
             ->recordActions([
                 ActionGroup::make([
                     ViewAction::make()
-                        ->label('View Customer'),
+                        ->label('View Customer & KYC'),
+                    ApproveKycAction::make(),
+                    RequestKycResubmissionAction::make(),
+                    RejectKycAction::make(),
                     DepositAction::make(),
                     ApprovalAction::make(),
                     LoginAction::make(),

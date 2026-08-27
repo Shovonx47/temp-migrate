@@ -86,7 +86,21 @@ class GatewayForm
                     ->minValue(1)
                     ->default(10)
                     ->required(),
+                TextInput::make('priority')
+                    ->label('OTP Gateway Priority')
+                    ->helperText('Lower number = higher priority during OTP failover (e.g. 1 is tried first).')
+                    ->numeric()
+                    ->minValue(1)
+                    ->default(1)
+                    ->required(),
+                Select::make('is_otp_enabled')
+                    ->label('Use for OTP Sending')
+                    ->boolean()
+                    ->default(true)
+                    ->helperText('Include this gateway in OTP priority delivery failover.')
+                    ->required(),
                 Select::make('is_enabled')
+                    ->label('Gateway Enabled')
                     ->boolean()
                     ->default(false)
                     ->required(),

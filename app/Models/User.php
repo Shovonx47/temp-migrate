@@ -28,8 +28,38 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Propaganistas\LaravelPhone\Casts\E164PhoneNumberCast;
 
-#[Fillable(['name', 'email', 'phone', 'type', 'sp_id', 'status', 'api_access', 'sms_auto_approved', 'balance', 'password', 'front_nid', 'back_nid'])]
-#[Hidden(['type', 'password', 'remember_token', 'front_nid', 'back_nid'])]
+use App\Enums\KycStatus;
+
+#[Fillable([
+    'name',
+    'email',
+    'phone',
+    'nid_number',
+    'type',
+    'sp_id',
+    'status',
+    'api_access',
+    'sms_auto_approved',
+    'balance',
+    'password',
+    'front_nid',
+    'back_nid',
+    'live_photo',
+    'business_name',
+    'business_address',
+    'trade_license_number',
+    'trade_license_file',
+    'nid_verified',
+    'live_photo_verified',
+    'trade_license_submitted',
+    'kyc_status',
+    'kyc_rejected_reason',
+    'email_verified_at',
+    'phone_verified_at',
+    'kyc_submitted_at',
+    'kyc_verified_at',
+])]
+#[Hidden(['type', 'password', 'remember_token', 'front_nid', 'back_nid', 'live_photo', 'trade_license_file'])]
 #[ScopedBy(ScopedBySp::class)]
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 {
@@ -55,11 +85,18 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 
             'type' => UserType::class,
             'status' => UserStatus::class,
+            'kyc_status' => KycStatus::class,
             'api_access' => 'boolean',
             'sms_auto_approved' => 'boolean',
+            'nid_verified' => 'boolean',
+            'live_photo_verified' => 'boolean',
+            'trade_license_submitted' => 'boolean',
 
             'password' => 'hashed',
             'email_verified_at' => 'datetime',
+            'phone_verified_at' => 'datetime',
+            'kyc_submitted_at' => 'datetime',
+            'kyc_verified_at' => 'datetime',
         ];
     }
 

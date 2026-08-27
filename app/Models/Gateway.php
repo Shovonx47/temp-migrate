@@ -28,6 +28,7 @@ class Gateway extends Model
             'credentials' => 'encrypted:array',
             'config' => 'array',
             'requests_per_second' => 'integer',
+            'timeout_seconds' => 'integer',
             'supports_bulk' => 'boolean',
             'dlr_support' => 'boolean',
             'cost_mode' => GatewayCostMode::class,
@@ -36,7 +37,15 @@ class Gateway extends Model
             'priority' => 'integer',
             'is_otp_enabled' => 'boolean',
             'is_enabled' => 'boolean',
+            'last_health_check_at' => 'datetime',
+            'last_health_latency_ms' => 'integer',
+            'last_health_response' => 'array',
         ];
+    }
+
+    public function routePlanGateways(): HasMany
+    {
+        return $this->hasMany(RoutePlanGateway::class);
     }
 
     public function senders(): HasMany

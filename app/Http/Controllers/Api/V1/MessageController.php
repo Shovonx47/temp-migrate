@@ -95,13 +95,18 @@ class MessageController extends Controller
         }
 
         $requiresApproval = $user->requiresSmsApproval();
+        $clientIp = $request->ip();
 
         $batch = DB::transaction(fn (): Batch => Batch::create([
             'user_id' => $user->id,
             'sender_id' => $sender->id,
             'body' => $body,
             'source_type' => BatchSource::API,
-            'source_config' => ['recipients' => $recipients],
+            'source_ip' => $clientIp,
+            'source_config' => [
+                'recipients' => $recipients,
+                'ip' => $clientIp,
+            ],
             'status' => $requiresApproval ? BatchStatus::Pending : BatchStatus::Processing,
             'approval' => $requiresApproval ? SmsApproval::Pending : null,
         ]));

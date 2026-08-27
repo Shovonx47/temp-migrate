@@ -118,49 +118,115 @@ class SendBatchBulkSmsJob implements ShouldQueue
             return;
         }
 
-        $from = $messages->first()->sender?->sender_id ?? $batch->sender?->sender_id;
-
-        $recipients = $messages->map(fn (Message $m): string => (string) $m->to)->all();
-
-        $response = $driver->sendBulk(new BulkSmsRequest(
-            recipients: $recipients,
-            body: $batch->body,
-            from: $from,
-            isUnicode: (bool) $messages->first()->is_unicode,
-        ));
-
-        if ($response->successful) {
-            SmsLogger::info('bulk_sms_sent', [
+        if (! app(\App\Settings\SmsSettings::class)->sms_enabled) {
+            SmsLogger::error('sms_disabled', [
                 'user_id' => $batch->user_id,
-                'gateway_id' => $gateway->id,
-                'gateway_name' => $gateway->name ?? $gateway->driver->value,
-                'status' => 'sent',
-                'parts' => count($recipients),
-                'gateway_message_id' => $response->gatewayBatchId,
-                'job_id' => $this->job?->getJobId(),
-                'queue' => $this->queue,
-            ]);
-        } else {
-            SmsLogger::error('bulk_sms_failed', [
-                'user_id' => $batch->user_id,
-                'gateway_id' => $gateway->id,
-                'gateway_name' => $gateway->name ?? $gateway->driver->value,
                 'status' => 'failed',
-                'parts' => count($recipients),
-                'error_message' => $response->errorMessage,
-                'job_id' => $this->job?->getJobId(),
-                'queue' => $this->queue,
+                'error_message' => 'SMS sending is globally disabled in SMS Settings.',
             ]);
+
+            $this->applyBulkResponse($messages, new BulkSmsResponse(false, 'SMS sending is globally disabled.'));
+            $this->refundFailedMessages($batch, $messages);
+
+            return;
         }
 
-        $this->applyBulkResponse($messages, $response);
+        $from = $messages->first()->sender?->sender_id ?? $batch->sender?->sender_id;
+        $recipients = $messages->map(fn (Message $m): string => (string) $m->to)->all();
+        $isUnicode = (bool) $messages->first()->is_unicode;
 
-        if (! $response->successful) {
+        // Resolve priority gateways
+        $routeResolver = app(\App\Services\Sms\Routing\SmsRouteResolver::class);
+        $gateways = $routeResolver->resolveGateways(
+            recipient: $recipients[0] ?? null,
+            trafficType: 'promotional',
+            sender: $messages->first()->sender ?? $batch->sender,
+            preferredGateway: $gateway,
+        )->filter(fn (Gateway $g) => $g->supports_bulk);
+
+        if ($gateways->isEmpty()) {
+            $gateways = collect([$gateway]);
+        }
+
+        $successfulResponse = null;
+        $lastError = 'No bulk provider responded successfully.';
+        $successfulGateway = $gateway;
+
+        foreach ($gateways as $attemptIndex => $currentGateway) {
+            $driver = Sms::usingGateway($currentGateway)->driver($currentGateway->driver->value);
+
+            if (! $driver instanceof SupportsBulkSms) {
+                continue;
+            }
+
+            try {
+                $response = $driver->sendBulk(new BulkSmsRequest(
+                    recipients: $recipients,
+                    body: $batch->body,
+                    from: $from,
+                    isUnicode: $isUnicode,
+                ));
+
+                if ($response->successful) {
+                    $successfulResponse = $response;
+                    $successfulGateway = $currentGateway;
+
+                    SmsLogger::info('bulk_sms_sent', [
+                        'user_id' => $batch->user_id,
+                        'gateway_id' => $currentGateway->id,
+                        'gateway_name' => $currentGateway->name ?? $currentGateway->driver->value,
+                        'status' => 'sent',
+                        'parts' => count($recipients),
+                        'gateway_message_id' => $response->gatewayBatchId,
+                        'job_id' => $this->job?->getJobId(),
+                        'queue' => $this->queue,
+                    ]);
+
+                    break;
+                }
+
+                $lastError = $response->errorMessage ?? 'Bulk provider rejected request';
+
+                SmsLogger::warning('bulk_sms_gateway_failover', [
+                    'user_id' => $batch->user_id,
+                    'gateway_id' => $currentGateway->id,
+                    'gateway_name' => $currentGateway->name ?? $currentGateway->driver->value,
+                    'status' => 'failover',
+                    'error_message' => "Attempt {$attemptIndex} bulk failed: {$lastError}. Trying next priority provider...",
+                    'job_id' => $this->job?->getJobId(),
+                ]);
+            } catch (\Throwable $e) {
+                $lastError = $e->getMessage();
+
+                SmsLogger::warning('bulk_sms_gateway_failover_exception', [
+                    'user_id' => $batch->user_id,
+                    'gateway_id' => $currentGateway->id,
+                    'gateway_name' => $currentGateway->name ?? $currentGateway->driver->value,
+                    'status' => 'failover',
+                    'error_message' => "Attempt {$attemptIndex} bulk exception: {$lastError}. Trying next priority provider...",
+                    'job_id' => $this->job?->getJobId(),
+                ]);
+            }
+        }
+
+        $finalResponse = $successfulResponse ?? new BulkSmsResponse(successful: false, errorMessage: $lastError);
+
+        $this->applyBulkResponse($messages, $finalResponse, $successfulGateway->id);
+
+        if (! $finalResponse->successful) {
+            SmsLogger::error('bulk_sms_failed_all_gateways', [
+                'user_id' => $batch->user_id,
+                'status' => 'failed',
+                'parts' => count($recipients),
+                'error_message' => "All priority bulk gateways failed: {$lastError}",
+                'job_id' => $this->job?->getJobId(),
+            ]);
+
             $this->refundFailedMessages($batch, $messages);
         }
 
         // Schedule DLR polling via DB so the command can pick it up even after a Redis flush.
-        if ($response->successful && $driver instanceof SupportsDeliveryStatus) {
+        if ($finalResponse->successful && Sms::usingGateway($successfulGateway)->driver($successfulGateway->driver->value) instanceof SupportsDeliveryStatus) {
             $this->schedulePollJobs($messages->pluck('id')->all());
         }
     }
@@ -212,7 +278,7 @@ class SendBatchBulkSmsJob implements ShouldQueue
             ]);
     }
 
-    private function applyBulkResponse(Collection $messages, BulkSmsResponse $response): void
+    private function applyBulkResponse(Collection $messages, BulkSmsResponse $response, ?int $gatewayId = null): void
     {
         $ids = $messages->pluck('id')->all();
         $now = Carbon::now();
@@ -224,6 +290,10 @@ class SendBatchBulkSmsJob implements ShouldQueue
             'failed_reason' => $response->errorMessage,
             'updated_at' => $now,
         ];
+
+        if ($gatewayId !== null) {
+            $commonUpdate['gateway_id'] = $gatewayId;
+        }
 
         if ($response->perRecipientIds === []) {
             // Same ID (or null) for every recipient — single query.

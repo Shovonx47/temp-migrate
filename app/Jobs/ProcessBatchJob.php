@@ -200,6 +200,7 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
                     'source' => $batch->source_type === BatchSource::API
                         ? MessageSource::API->value
                         : MessageSource::Web->value,
+                    'source_ip' => $batch->source_ip ?? $batch->source_config['ip'] ?? null,
                     'parts' => $metrics->parts,
                     'is_unicode' => $metrics->encoding === MessageMetrics::UCS2,
                     'created_at' => $now,

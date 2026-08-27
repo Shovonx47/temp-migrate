@@ -86,6 +86,14 @@ class GatewayForm
                     ->minValue(1)
                     ->default(10)
                     ->required(),
+                TextInput::make('timeout_seconds')
+                    ->label('Connection Timeout (Seconds)')
+                    ->helperText('Maximum HTTP request timeout before failing over to the next provider.')
+                    ->numeric()
+                    ->minValue(1)
+                    ->maxValue(120)
+                    ->default(10)
+                    ->required(),
                 TextInput::make('priority')
                     ->label('OTP Gateway Priority')
                     ->helperText('Lower number = higher priority during OTP failover (e.g. 1 is tried first).')

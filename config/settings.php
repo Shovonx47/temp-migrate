@@ -2,6 +2,7 @@
 
 // use Spatie\LaravelData\Data;
 use App\Settings\GeneralSettings;
+use App\Settings\SmsSettings;
 use Spatie\LaravelSettings\SettingsCasts\DateTimeInterfaceCast;
 use Spatie\LaravelSettings\SettingsCasts\DateTimeZoneCast;
 use Spatie\LaravelSettings\SettingsRepositories\DatabaseSettingsRepository;
@@ -15,6 +16,7 @@ return [
      */
     'settings' => [
         GeneralSettings::class,
+        SmsSettings::class,
     ],
 
     /*

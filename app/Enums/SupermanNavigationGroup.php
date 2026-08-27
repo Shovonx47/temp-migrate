@@ -69,6 +69,7 @@ enum SupermanNavigationGroup: string implements HasIcon, HasLabel
             self::SystemSettings => 'System Settings',
             self::ApiDocumentation => 'API Documentation',
             self::Resellers => 'S P',
+            self::Providers => 'Provider Settings',
             default => $this->name,
         };
     }

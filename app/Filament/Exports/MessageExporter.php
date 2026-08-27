@@ -24,6 +24,8 @@ class MessageExporter extends Exporter
             ExportColumn::make('to'),
             ExportColumn::make('body'),
             ExportColumn::make('status'),
+            ExportColumn::make('source_ip')
+                ->label('Source IP'),
             ExportColumn::make('gateway_message_id'),
             ExportColumn::make('cost'),
             ExportColumn::make('failed_reason'),

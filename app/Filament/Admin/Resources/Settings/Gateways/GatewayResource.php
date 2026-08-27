@@ -30,9 +30,11 @@ class GatewayResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedServer;
 
-    protected static string|UnitEnum|null $navigationGroup = SupermanNavigationGroup::Settings;
+    protected static string|UnitEnum|null $navigationGroup = SupermanNavigationGroup::Providers;
 
-    protected static ?int $navigationSort = 1;
+    protected static ?string $navigationLabel = 'Gateways / Providers';
+
+    protected static ?int $navigationSort = 0;
 
     public static function form(Schema $schema): Schema
     {

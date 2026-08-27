@@ -156,6 +156,7 @@ class ProcessCampaignJob implements ShouldQueue
                         'was_third_party_dipped' => false,
                         'third_party_dipping_cost' => null,
                         'third_party_dipping_rate' => null,
+                        'source_ip' => $campaign->source_ip,
                         'status' => MessageStatus::Sent,
                         'sent_at' => now(),
                     ]);

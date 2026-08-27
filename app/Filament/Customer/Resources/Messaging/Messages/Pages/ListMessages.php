@@ -272,7 +272,7 @@ class ListMessages extends ListRecords
             ->with([
                 'sender:id,sender_id',
                 'tariffRate:id,masking_price,non_masking_price',
-                'messageBatch:id,source_type,source_config,total_recipients',
+                'messageBatch:id,source_type,source_config,total_recipients,source_ip',
             ])
             ->addSelect([
                 'batch_balance_before' => Transaction::query()
@@ -457,6 +457,23 @@ class ListMessages extends ListRecords
 
     private function resolveSourceIp(Message $message): ?string
     {
+        // 1. Best source: dedicated source_ip column on the message (set at dispatch time)
+        if (filled($message->source_ip)) {
+            return $message->source_ip;
+        }
+
+        // 2. Fallback: source_ip stored on the parent batch
+        if (filled($message->messageBatch?->source_ip)) {
+            return $message->messageBatch->source_ip;
+        }
+
+        // 3. Fallback: ip stored inside batch source_config (legacy / pre-column records)
+        $batchIp = $message->messageBatch?->source_config['ip'] ?? null;
+        if (filled($batchIp)) {
+            return $batchIp;
+        }
+
+        // 4. Last resort: scan gateway request/response payloads (never populated for our stack)
         $fromResponse = $this->extractPayloadValue($message->matched_response_payload, [
             'sourceIp', 'source_ip', 'serverIp', 'server_ip', 'sourceIP', 'clientIp', 'client_ip',
         ]);

@@ -21,6 +21,7 @@ class CreateCampaign extends CreateRecord
         $this->send_strategy = $data['send_strategy'] ?? 'now';
 
         $data['user_id'] = auth()->id();
+        $data['source_ip'] = request()->ip();
         // Start in Draft; we'll transition once the snapshot is built.
         $data['status'] = CampaignStatus::Draft;
 

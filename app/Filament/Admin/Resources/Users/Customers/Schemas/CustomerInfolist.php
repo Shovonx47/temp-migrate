@@ -168,6 +168,15 @@ class CustomerInfolist
                                     ->placeholder('No plan assigned — using operator defaults.')
                                     ->badge()
                                     ->color('info'),
+
+                                TextEntry::make('ip_whitelist')
+                                    ->label('API IP Whitelist')
+                                    ->state(function ($record) {
+                                        $approved = $record->ipWhitelistRequests()->approved()->pluck('ip_address')->toArray();
+                                        return empty($approved) ? 'No restriction (All IPs allowed)' : implode(', ', $approved);
+                                    })
+                                    ->badge(fn ($state) => $state !== 'No restriction (All IPs allowed)')
+                                    ->color(fn ($state) => $state !== 'No restriction (All IPs allowed)' ? 'success' : 'gray'),
                             ]),
                     ]),
             ]);

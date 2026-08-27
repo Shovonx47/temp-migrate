@@ -125,13 +125,18 @@ class CreateQuickMessage extends CreateRecord
         /** @var User $user */
         $user = Auth::user();
         $requiresApproval = $user->requiresSmsApproval();
+        $clientIp = request()->ip();
 
         $batch = DB::transaction(fn (): Batch => Batch::create([
             'user_id' => $user->id,
             'sender_id' => $data['sender_id'] ?? null,
             'body' => $body,
             'source_type' => 'manual',
-            'source_config' => ['recipients' => $recipients],
+            'source_ip' => $clientIp,
+            'source_config' => [
+                'recipients' => $recipients,
+                'ip' => $clientIp,
+            ],
             'status' => $requiresApproval ? BatchStatus::Pending : BatchStatus::Processing,
             'approval' => $requiresApproval ? SmsApproval::Pending : null,
         ]));

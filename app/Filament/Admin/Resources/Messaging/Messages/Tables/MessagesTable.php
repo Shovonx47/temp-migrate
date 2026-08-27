@@ -68,6 +68,10 @@ class MessagesTable
                     ->prefix('৳')
                     ->numeric(decimalPlaces: 4)
                     ->sortable(),
+                TextColumn::make('source_ip')
+                    ->label('Source IP')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

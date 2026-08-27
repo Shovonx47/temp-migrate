@@ -100,73 +100,117 @@ class SendBatchSingleSmsJob implements ShouldQueue
             return;
         }
 
-        $from = $message->sender?->sender_id ?? $batch->sender?->sender_id;
-
-        $driver = Sms::usingGateway($gateway)->driver($gateway->driver->value);
-        $now = Carbon::now();
-
-        try {
-            $response = $driver->send(new SmsRequest(
-                to: (string) $message->to,
-                body: $message->body,
-                from: $from,
-                isUnicode: (bool) $message->is_unicode,
-            ));
-
-            if ($response->successful) {
-                SmsLogger::info('sms_sent', [
-                    'message_id' => $message->id,
-                    'user_id' => $message->user_id,
-                    'gateway_id' => $gateway->id,
-                    'phone' => (string) $message->to,
-                    'gateway_name' => $gateway->name ?? $gateway->driver->value,
-                    'gateway_message_id' => $response->gatewayMessageId,
-                    'status' => 'sent',
-                    'job_id' => $this->job?->getJobId(),
-                    'queue' => $this->queue,
-                ]);
-
-                $message->update([
-                    'status' => MessageStatus::Sent->value,
-                    'sent_at' => $now,
-                    'gateway_message_id' => $response->gatewayMessageId,
-                    'failed_at' => null,
-                    'failed_reason' => null,
-                    // Schedule DLR polling via DB so the command can pick it up even after a Redis flush.
-                    'poll_attempt' => $response->gatewayMessageId !== null ? 1 : null,
-                    'next_poll_at' => $response->gatewayMessageId !== null ? $now->copy()->addMinutes(1) : null,
-                    'updated_at' => $now,
-                ]);
-            } else {
-                SmsLogger::error('sms_send_failed', [
-                    'message_id' => $message->id,
-                    'user_id' => $message->user_id,
-                    'gateway_id' => $gateway->id,
-                    'phone' => (string) $message->to,
-                    'gateway_name' => $gateway->name ?? $gateway->driver->value,
-                    'status' => 'failed',
-                    'error_message' => $response->errorMessage,
-                    'job_id' => $this->job?->getJobId(),
-                    'queue' => $this->queue,
-                ]);
-
-                $this->failAndRefund($message, $now, $response->errorMessage);
-            }
-        } catch (\Throwable $e) {
-            SmsLogger::error('sms_send_exception', [
+        // Check global SMS sending kill-switch
+        if (! app(\App\Settings\SmsSettings::class)->sms_enabled) {
+            SmsLogger::error('sms_disabled', [
                 'message_id' => $message->id,
                 'user_id' => $message->user_id,
-                'gateway_id' => $gateway->id,
                 'phone' => (string) $message->to,
-                'gateway_name' => $gateway->name ?? $gateway->driver->value,
                 'status' => 'failed',
-                'error_message' => $e->getMessage(),
-                'job_id' => $this->job?->getJobId(),
-                'queue' => $this->queue,
+                'error_message' => 'SMS sending is globally disabled in SMS Settings.',
             ]);
 
-            $this->failAndRefund($message, $now, $e->getMessage());
+            $this->failAndRefund($message, now(), 'SMS sending is globally disabled.');
+
+            return;
         }
+
+        $from = $message->sender?->sender_id ?? $batch->sender?->sender_id;
+        $now = Carbon::now();
+
+        // Resolve priority gateway chain (Priority 1 -> Priority 2 -> Priority 3)
+        $routeResolver = app(\App\Services\Sms\Routing\SmsRouteResolver::class);
+        $gateways = $routeResolver->resolveGateways(
+            recipient: (string) $message->to,
+            trafficType: 'transactional',
+            sender: $message->sender ?? $batch->sender,
+            preferredGateway: $gateway,
+        );
+
+        if ($gateways->isEmpty()) {
+            $gateways = collect([$gateway]);
+        }
+
+        $lastError = 'No available gateway responded successfully.';
+
+        foreach ($gateways as $attemptIndex => $currentGateway) {
+            $driver = Sms::usingGateway($currentGateway)->driver($currentGateway->driver->value);
+
+            try {
+                $response = $driver->send(new SmsRequest(
+                    to: (string) $message->to,
+                    body: $message->body,
+                    from: $from,
+                    isUnicode: (bool) $message->is_unicode,
+                ));
+
+                if ($response->successful) {
+                    SmsLogger::info('sms_sent', [
+                        'message_id' => $message->id,
+                        'user_id' => $message->user_id,
+                        'gateway_id' => $currentGateway->id,
+                        'phone' => (string) $message->to,
+                        'gateway_name' => $currentGateway->name ?? $currentGateway->driver->value,
+                        'gateway_message_id' => $response->gatewayMessageId,
+                        'status' => 'sent',
+                        'job_id' => $this->job?->getJobId(),
+                        'queue' => $this->queue,
+                    ]);
+
+                    $message->update([
+                        'gateway_id' => $currentGateway->id,
+                        'status' => MessageStatus::Sent->value,
+                        'sent_at' => $now,
+                        'gateway_message_id' => $response->gatewayMessageId,
+                        'failed_at' => null,
+                        'failed_reason' => null,
+                        'poll_attempt' => $response->gatewayMessageId !== null ? 1 : null,
+                        'next_poll_at' => $response->gatewayMessageId !== null ? $now->copy()->addMinutes(1) : null,
+                        'updated_at' => $now,
+                    ]);
+
+                    return;
+                }
+
+                $lastError = $response->errorMessage ?? 'Gateway rejected SMS';
+
+                SmsLogger::warning('sms_gateway_failover', [
+                    'message_id' => $message->id,
+                    'user_id' => $message->user_id,
+                    'gateway_id' => $currentGateway->id,
+                    'phone' => (string) $message->to,
+                    'gateway_name' => $currentGateway->name ?? $currentGateway->driver->value,
+                    'status' => 'failover',
+                    'error_message' => "Attempt {$attemptIndex} failed: {$lastError}. Trying next priority provider...",
+                    'job_id' => $this->job?->getJobId(),
+                ]);
+            } catch (\Throwable $e) {
+                $lastError = $e->getMessage();
+
+                SmsLogger::warning('sms_gateway_failover_exception', [
+                    'message_id' => $message->id,
+                    'user_id' => $message->user_id,
+                    'gateway_id' => $currentGateway->id,
+                    'phone' => (string) $message->to,
+                    'gateway_name' => $currentGateway->name ?? $currentGateway->driver->value,
+                    'status' => 'failover',
+                    'error_message' => "Attempt {$attemptIndex} exception: {$lastError}. Trying next priority provider...",
+                    'job_id' => $this->job?->getJobId(),
+                ]);
+            }
+        }
+
+        // If all priority gateways fail
+        SmsLogger::error('sms_send_failed_all_gateways', [
+            'message_id' => $message->id,
+            'user_id' => $message->user_id,
+            'phone' => (string) $message->to,
+            'status' => 'failed',
+            'error_message' => "All {$gateways->count()} priority gateway(s) failed. Final error: {$lastError}",
+            'job_id' => $this->job?->getJobId(),
+        ]);
+
+        $this->failAndRefund($message, $now, $lastError);
     }
 
     /**

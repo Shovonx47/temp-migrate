@@ -154,19 +154,24 @@ HTML);
         /** @var User $user */
         $user = Auth::user();
         $requiresApproval = $user->requiresSmsApproval();
+        $clientIp = request()->ip();
 
         $batch = Batch::create([
             'user_id' => $user->id,
             'sender_id' => $data['sender_id'] ?? null,
             'body' => $body,
             'source_type' => $source,
+            'source_ip' => $clientIp,
             'source_config' => [],
             'status' => $requiresApproval ? BatchStatus::Pending : BatchStatus::Processing,
             'approval' => $requiresApproval ? SmsApproval::Pending : null,
         ]);
 
+        $sourceConfig = $this->buildSourceConfig($source, $data, $batch);
+        $sourceConfig['ip'] = $clientIp;
+
         $batch->update([
-            'source_config' => $this->buildSourceConfig($source, $data, $batch),
+            'source_config' => $sourceConfig,
         ]);
 
         if (! $requiresApproval) {

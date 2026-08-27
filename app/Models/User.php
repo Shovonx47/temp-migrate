@@ -29,6 +29,7 @@ use Laravel\Sanctum\HasApiTokens;
 use Propaganistas\LaravelPhone\Casts\E164PhoneNumberCast;
 
 use App\Enums\KycStatus;
+use App\Models\IpWhitelistRequest;
 
 #[Fillable([
     'name',
@@ -194,6 +195,11 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class, 'user_id');
+    }
+
+    public function ipWhitelistRequests(): HasMany
+    {
+        return $this->hasMany(IpWhitelistRequest::class);
     }
 
     public function deposits(): HasMany

@@ -7,6 +7,7 @@ use App\Models\User;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\IpUtils;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureApiAccess
@@ -31,6 +32,19 @@ class EnsureApiAccess
 
         if ($user->status !== UserStatus::Approved) {
             return $this->deny('Account is not approved for API usage.', 403);
+        }
+
+        $approvedIps = $user->ipWhitelistRequests()
+            ->approved()
+            ->pluck('ip_address')
+            ->toArray();
+
+        if (! empty($approvedIps)) {
+            $clientIp = $request->ip();
+
+            if (! $clientIp || ! IpUtils::checkIp($clientIp, $approvedIps)) {
+                return $this->deny('Your IP address is not whitelisted.', 403);
+            }
         }
 
         return $next($request);

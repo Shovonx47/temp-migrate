@@ -29,26 +29,64 @@ class SmsRouteResolver
         $countryId = null;
 
         if ($recipient) {
-            $digits = preg_replace('/[^\d]/', '', $recipient);
-            $operatorCode = null;
+            $digits = ltrim(preg_replace('/[^\d]/', '', $recipient), '+');
 
-            if (str_starts_with($digits, '8801') && strlen($digits) >= 6) {
-                $operatorCode = substr($digits, 3, 3); // e.g. 017 or 17
-            } elseif (str_starts_with($digits, '01') && strlen($digits) >= 5) {
-                $operatorCode = substr($digits, 0, 3); // e.g. 017
+            // Find matching country
+            $countries = Country::query()->active()->get();
+            $matchedCountry = null;
+
+            foreach ($countries as $country) {
+                if ($country->code && str_starts_with($digits, (string) $country->code)) {
+                    $matchedCountry = $country;
+                    break;
+                }
             }
 
-            if ($operatorCode) {
-                $operator = Operator::where('prefix', $operatorCode)
-                    ->orWhere('prefix', ltrim($operatorCode, '0'))
-                    ->orWhere('code', $operatorCode)
-                    ->first();
-                $operatorId = $operator?->id;
+            if (! $matchedCountry && (str_starts_with($digits, '01') || str_starts_with($digits, '880'))) {
+                $matchedCountry = Country::where('iso_alpha2', 'BD')->orWhere('code', '880')->first();
             }
 
-            if (str_starts_with($digits, '880') || str_starts_with($digits, '01')) {
-                $country = Country::where('iso_code', 'BD')->orWhere('phone_code', '880')->first();
-                $countryId = $country?->id;
+            if ($matchedCountry) {
+                $countryId = $matchedCountry->id;
+                $remainder = str_starts_with($digits, (string) $matchedCountry->code)
+                    ? substr($digits, strlen((string) $matchedCountry->code))
+                    : (str_starts_with($digits, '0') ? substr($digits, 1) : $digits);
+
+                $operators = Operator::query()
+                    ->where('country_id', $matchedCountry->id)
+                    ->active()
+                    ->get();
+
+                foreach ($operators as $op) {
+                    foreach ((array) $op->codes as $code) {
+                        $codeStr = (string) $code;
+                        if ($codeStr !== '' && str_starts_with($remainder, $codeStr)) {
+                            $operatorId = $op->id;
+                            break 2;
+                        }
+                    }
+                }
+            } else {
+                $operators = Operator::query()->active()->with('country')->get();
+                foreach ($operators as $op) {
+                    $countryCode = $op->country?->code ? (string) $op->country->code : '';
+                    foreach ((array) $op->codes as $code) {
+                        $codeStr = (string) $code;
+                        if ($codeStr === '') {
+                            continue;
+                        }
+                        if ($countryCode !== '' && str_starts_with($digits, $countryCode.$codeStr)) {
+                            $operatorId = $op->id;
+                            $countryId = $op->country_id;
+                            break 2;
+                        }
+                        if (str_starts_with($digits, '0'.$codeStr) || str_starts_with($digits, $codeStr)) {
+                            $operatorId = $op->id;
+                            $countryId = $op->country_id;
+                            break 2;
+                        }
+                    }
+                }
             }
         }
 

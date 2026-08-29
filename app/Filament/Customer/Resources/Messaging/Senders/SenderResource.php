@@ -27,7 +27,7 @@ class SenderResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Sender ID List';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 1;
 
     protected static ?string $recordTitleAttribute = 'sender_id';
 

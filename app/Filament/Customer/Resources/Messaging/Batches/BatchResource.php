@@ -22,7 +22,7 @@ class BatchResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    protected static string|UnitEnum|null $navigationGroup = CustomerNavigationGroup::Messaging;
+    protected static string|UnitEnum|null $navigationGroup = CustomerNavigationGroup::Billing;
 
     protected static ?string $navigationLabel = 'Sent Message Logs';
 

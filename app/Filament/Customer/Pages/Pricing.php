@@ -20,6 +20,8 @@ class Pricing extends Page implements HasTable
 
     protected static ?string $navigationLabel = 'Pricing Reports';
 
+    protected static ?int $navigationSort = 5;
+
     protected string $view = 'filament.customer.pages.pricing';
 
     public function table(Table $table): Table

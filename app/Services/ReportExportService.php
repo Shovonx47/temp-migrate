@@ -3,9 +3,6 @@
 namespace App\Services;
 
 use Barryvdh\DomPDF\PDF;
-use Dompdf\Dompdf;
-use Dompdf\Options;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportExportService
@@ -37,11 +34,29 @@ class ReportExportService
 
     /**
      * Download a PDF report using a Blade view.
+     *
+     * Always returns a StreamedResponse so Livewire redirects the browser
+     * to a download URL instead of trying to inline binary PDF bytes into
+     * its JSON AJAX response (which causes "Malformed UTF-8 characters").
      */
-    public static function downloadPdf(string $filename, string $view, array $data): Response
+    public static function downloadPdf(string $filename, string $view, array $data): StreamedResponse
     {
         $html = view($view, $data)->render();
+        $pdfOutput = self::renderPdfBytes($html);
 
+        return response()->streamDownload(function () use ($pdfOutput) {
+            echo $pdfOutput;
+        }, $filename, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
+
+    /**
+     * Render HTML to raw PDF bytes, trying multiple engines in order.
+     */
+    private static function renderPdfBytes(string $html): string
+    {
         // 1. Try Laravel service container first (barryvdh/laravel-dompdf registers 'dompdf.wrapper')
         try {
             if (app()->bound('dompdf.wrapper')) {
@@ -49,7 +64,7 @@ class ReportExportService
                 $pdf = app('dompdf.wrapper');
                 $pdf->loadHTML($html)->setPaper('a4', 'landscape');
 
-                return $pdf->download($filename);
+                return $pdf->output();
             }
         } catch (\Throwable) {
             // Fall through to next approach
@@ -68,7 +83,7 @@ class ReportExportService
                     if (method_exists($cls, 'loadHTML')) {
                         $pdf = $cls::loadHTML($html)->setPaper('a4', 'landscape');
 
-                        return $pdf->download($filename);
+                        return $pdf->output();
                     }
                 } catch (\Throwable) {
                     continue;
@@ -94,11 +109,8 @@ class ReportExportService
                 $dompdf->setPaper('a4', 'landscape');
                 $dompdf->render();
 
-                return response()->make($dompdf->output(), 200, [
-                    'Content-Type' => 'application/pdf',
-                    'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-                ]);
-            } catch (\Throwable $e) {
+                return $dompdf->output();
+            } catch (\Throwable) {
                 // Last ditch: try without Options if constructor failed
                 try {
                     $dompdf = new $dompdfClass;
@@ -106,10 +118,7 @@ class ReportExportService
                     $dompdf->setPaper('a4', 'landscape');
                     $dompdf->render();
 
-                    return response()->make($dompdf->output(), 200, [
-                        'Content-Type' => 'application/pdf',
-                        'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-                    ]);
+                    return $dompdf->output();
                 } catch (\Throwable) {
                     // Fall through to final exception
                 }

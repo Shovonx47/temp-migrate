@@ -7,6 +7,7 @@ namespace App\Services\Auth;
 use App\Mail\SendOtpMail;
 use App\Models\EmailGateway;
 use App\Models\Gateway;
+use App\Models\SignupRegisterGateway;
 use App\Models\User;
 use App\Models\VerificationOtp;
 use App\Services\Sms\Data\SmsRequest;
@@ -17,19 +18,22 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Propaganistas\LaravelPhone\PhoneNumber;
-use Symfony\Component\Mailer\Mailer as SymfonyMailer;
 use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
 use Throwable;
 
 class OtpVerificationService
 {
     public const int OTP_EXPIRY_MINUTES = 10;
+
     public const int COOLDOWN_SECONDS = 60;
+
     public const int MAX_ATTEMPTS = 5;
+
     public const int MAX_HOURLY_RESENDS = 5;
 
     public function __construct(
-        protected SmsManager $smsManager
+        protected SmsManager $smsManager,
+        protected SignupRegisterGatewaySender $signupRegisterGatewaySender,
     ) {}
 
     /**
@@ -118,7 +122,7 @@ class OtpVerificationService
         try {
             Mail::to($email)->send($mailable);
 
-            Log::info("Email OTP delivered via default system mailer", [
+            Log::info('Email OTP delivered via default system mailer', [
                 'recipient' => $email,
             ]);
 
@@ -138,7 +142,8 @@ class OtpVerificationService
      */
     protected function sendViaEmailGateway(EmailGateway $gateway, string $email, SendOtpMail $mailable): void
     {
-        $tls = in_array(strtolower((string) $gateway->encryption), ['tls', 'ssl'], true);
+        $encryption = strtolower((string) $gateway->encryption);
+        $tls = $encryption === 'ssl' || (int) $gateway->port === 465 ? true : null;
         $transport = new EsmtpTransport(
             host: $gateway->host,
             port: $gateway->port,
@@ -150,11 +155,10 @@ class OtpVerificationService
             $transport->setPassword($gateway->password ?? '');
         }
 
-        $symfonyMailer = new SymfonyMailer($transport);
         $mailer = new Mailer(
             name: 'dynamic_'.$gateway->id,
             views: app('view'),
-            transport: $symfonyMailer,
+            transport: $transport,
             events: app('events')
         );
 
@@ -198,13 +202,13 @@ class OtpVerificationService
         $otp = (string) random_int(100000, 999999);
         $this->storeOtp($normalizedPhone, 'sms', $otp);
 
-        $smsContent = "Your SMS WhiteInfo verification code is: {$otp}. Valid for ".self::OTP_EXPIRY_MINUTES." minutes.";
+        $smsContent = "Your SMS WhiteInfo verification code is: {$otp}. Valid for ".self::OTP_EXPIRY_MINUTES.' minutes.';
         $sms = new SmsRequest(
             to: $normalizedPhone,
             body: $smsContent,
         );
 
-        $sent = $this->dispatchSmsWithFailover($normalizedPhone, $sms);
+        $sent = $this->dispatchSmsWithFailover($normalizedPhone, $sms, $otp);
 
         if (! $sent) {
             return [
@@ -221,10 +225,14 @@ class OtpVerificationService
     }
 
     /**
-     * Dispatch SMS trying configured gateways in Priority order with Automatic Failover.
+     * Dispatch SMS trying signup HTTP APIs first, then existing OTP SMS gateways, then the default driver.
      */
-    protected function dispatchSmsWithFailover(string $phone, SmsMessage $sms): bool
+    protected function dispatchSmsWithFailover(string $phone, SmsRequest $sms, string $otp): bool
     {
+        if ($this->dispatchSmsViaSignupRegisterGateways($phone, $otp)) {
+            return true;
+        }
+
         $gateways = Gateway::forOtp()->ordered()->get();
 
         if ($gateways->isNotEmpty()) {
@@ -273,6 +281,48 @@ class OtpVerificationService
 
             return app()->environment('local', 'testing');
         }
+    }
+
+    /**
+     * Try HTTP signup register gateways (POST /api/v1/messages style) before existing SMS routes.
+     */
+    protected function dispatchSmsViaSignupRegisterGateways(string $phone, string $otp): bool
+    {
+        $gateways = SignupRegisterGateway::active()->ordered()->get();
+
+        if ($gateways->isEmpty()) {
+            return false;
+        }
+
+        foreach ($gateways as $gateway) {
+            try {
+                $this->signupRegisterGatewaySender->send(
+                    $gateway,
+                    $phone,
+                    $otp,
+                    self::OTP_EXPIRY_MINUTES,
+                );
+
+                Log::info("SMS OTP delivered successfully via signup register gateway [{$gateway->name}] (Priority: {$gateway->priority})", [
+                    'gateway_id' => $gateway->id,
+                    'gateway_name' => $gateway->name,
+                    'priority' => $gateway->priority,
+                    'recipient' => $phone,
+                ]);
+
+                return true;
+            } catch (Throwable $e) {
+                Log::warning("SMS OTP delivery failed via signup register gateway [{$gateway->name}] (Priority: {$gateway->priority}): {$e->getMessage()}. Attempting next gateway...", [
+                    'gateway_id' => $gateway->id,
+                    'gateway_name' => $gateway->name,
+                    'priority' => $gateway->priority,
+                    'recipient' => $phone,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -397,9 +447,12 @@ class OtpVerificationService
             ->first();
 
         if ($recent && $recent->last_sent_at) {
-            $secondsSinceLast = now()->diffInSeconds($recent->last_sent_at);
+            // absolute: true is required — Carbon 3 (shipped with Laravel 13) made diff
+            // methods signed by default, so without this, elapsed time can come back
+            // negative and blow up the cooldown calculation into a huge bogus number.
+            $secondsSinceLast = now()->diffInSeconds($recent->last_sent_at, absolute: true);
             if ($secondsSinceLast < self::COOLDOWN_SECONDS) {
-                $cooldownLeft = self::COOLDOWN_SECONDS - $secondsSinceLast;
+                $cooldownLeft = (int) ceil(self::COOLDOWN_SECONDS - $secondsSinceLast);
 
                 return [
                     'allowed' => false,

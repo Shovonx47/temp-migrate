@@ -21,7 +21,6 @@ use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
-use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
@@ -41,20 +40,32 @@ final class Register extends BaseRegister
 
     // Email OTP state
     public string $email_otp = '';
+
     public bool $email_otp_sent = false;
+
     public bool $email_verified = false;
+
     public ?string $email_verification_token = null;
+
     public int $email_cooldown = 0;
+
     public ?string $email_error = null;
+
     public ?string $email_success = null;
 
     // SMS OTP state
     public string $phone_otp = '';
+
     public bool $phone_otp_sent = false;
+
     public bool $phone_verified = false;
+
     public ?string $phone_verification_token = null;
+
     public int $phone_cooldown = 0;
+
     public ?string $phone_error = null;
+
     public ?string $phone_success = null;
 
     public function sendEmailOtp(OtpVerificationService $otpService): void
@@ -65,19 +76,20 @@ final class Register extends BaseRegister
 
         if (empty($email)) {
             $this->email_error = 'Please enter your email address first.';
+
             return;
         }
 
         $result = $otpService->sendEmailOtp($email);
         if ($result['success']) {
             $this->email_otp_sent = true;
-            $this->email_cooldown = $result['cooldown_seconds'] ?? 60;
+            $this->email_cooldown = (int) ($result['cooldown_seconds'] ?? 60);
             $this->email_success = $result['message'];
             Notification::make()->title($result['message'])->success()->send();
         } else {
             $this->email_error = $result['message'];
             if (! empty($result['cooldown_seconds'])) {
-                $this->email_cooldown = $result['cooldown_seconds'];
+                $this->email_cooldown = (int) $result['cooldown_seconds'];
             }
             Notification::make()->title($result['message'])->danger()->send();
         }
@@ -91,6 +103,7 @@ final class Register extends BaseRegister
 
         if (empty($this->email_otp)) {
             $this->email_error = 'Please enter the 6-digit verification code.';
+
             return;
         }
 
@@ -114,19 +127,20 @@ final class Register extends BaseRegister
 
         if (empty($phone)) {
             $this->phone_error = 'Please enter your mobile number first.';
+
             return;
         }
 
         $result = $otpService->sendSmsOtp($phone);
         if ($result['success']) {
             $this->phone_otp_sent = true;
-            $this->phone_cooldown = $result['cooldown_seconds'] ?? 60;
+            $this->phone_cooldown = (int) ($result['cooldown_seconds'] ?? 60);
             $this->phone_success = $result['message'];
             Notification::make()->title($result['message'])->success()->send();
         } else {
             $this->phone_error = $result['message'];
             if (! empty($result['cooldown_seconds'])) {
-                $this->phone_cooldown = $result['cooldown_seconds'];
+                $this->phone_cooldown = (int) $result['cooldown_seconds'];
             }
             Notification::make()->title($result['message'])->danger()->send();
         }
@@ -140,6 +154,7 @@ final class Register extends BaseRegister
 
         if (empty($this->phone_otp)) {
             $this->phone_error = 'Please enter the 6-digit SMS code.';
+
             return;
         }
 
@@ -249,7 +264,7 @@ final class Register extends BaseRegister
         if (filled($data['live_photo'] ?? null) && str_starts_with((string) $data['live_photo'], 'data:image')) {
             $base64Image = preg_replace('#^data:image/\w+;base64,#i', '', (string) $data['live_photo']);
             $decoded = base64_decode($base64Image);
-            $filename = 'live_photos/live_' . Str::uuid() . '.jpg';
+            $filename = 'live_photos/live_'.Str::uuid().'.jpg';
             Storage::disk('private')->put($filename, $decoded);
             $data['live_photo'] = $filename;
         }

@@ -22,6 +22,7 @@ enum CustomerNavigationGroup: string implements HasIcon, HasLabel
         return match ($this) {
             self::Messaging => 'Messaging Management',
             self::Billing => 'Reports',
+            self::Reports => 'Data',
             default => $this->name,
         };
     }

@@ -11,9 +11,13 @@ use App\Filament\Customer\Resources\Messaging\Messages\MessageResource;
 use App\Models\Message;
 use App\Models\SmsLog;
 use App\Models\Transaction;
+use App\Services\ReportExportService;
+use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Radio;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
@@ -22,11 +26,6 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
-
-use App\Services\ReportExportService;
-use Filament\Actions\Action;
-use Filament\Actions\ActionGroup;
-use Filament\Support\Icons\Heroicon;
 
 class ListBatches extends ListRecords
 {
@@ -43,7 +42,7 @@ class ListBatches extends ListRecords
                 ->modalDescription('Select your preferred report format to download.')
                 ->modalSubmitActionLabel('Download Report')
                 ->schema([
-                    \Filament\Forms\Components\Radio::make('format')
+                    Radio::make('format')
                         ->label('Select Format')
                         ->options([
                             'excel' => 'Excel / CSV Spreadsheet (.csv)',
@@ -246,22 +245,19 @@ class ListBatches extends ListRecords
                     ->limit(1),
                 'matched_request_payload' => SmsLog::query()
                     ->select('request_payload')
-                    ->whereColumn('user_id', 'messages.user_id')
-                    ->whereColumn('phone', 'messages.to')
+                    ->whereColumn('message_id', 'messages.id')
                     ->whereNotNull('request_payload')
                     ->latest('id')
                     ->limit(1),
                 'matched_response_payload' => SmsLog::query()
                     ->select('response_payload')
-                    ->whereColumn('user_id', 'messages.user_id')
-                    ->whereColumn('phone', 'messages.to')
+                    ->whereColumn('message_id', 'messages.id')
                     ->whereNotNull('response_payload')
                     ->latest('id')
                     ->limit(1),
                 'matched_log_error_message' => SmsLog::query()
                     ->select('error_message')
-                    ->whereColumn('user_id', 'messages.user_id')
-                    ->whereColumn('phone', 'messages.to')
+                    ->whereColumn('message_id', 'messages.id')
                     ->whereNotNull('error_message')
                     ->latest('id')
                     ->limit(1),

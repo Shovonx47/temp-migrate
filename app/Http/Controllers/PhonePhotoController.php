@@ -1,0 +1,140 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers;
+
+use App\Models\PhonePhotoSession;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+
+final class PhonePhotoController extends Controller
+{
+    public function createSession(Request $request): JsonResponse
+    {
+        $session = PhonePhotoSession::createNew();
+
+        $captureUrl = route('phone-photo.capture', ['token' => $session->session_token]);
+
+        return response()->json([
+            'success' => true,
+            'session_token' => $session->session_token,
+            'capture_url' => $captureUrl,
+            'expires_at' => $session->expires_at->toIso8601String(),
+        ]);
+    }
+
+    public function showCapturePage(string $token)
+    {
+        try {
+            $session = PhonePhotoSession::findByTokenOrFail($token);
+        } catch (ModelNotFoundException $e) {
+            abort(404, 'Invalid or expired photo session.');
+        }
+
+        if ($session->isExpired()) {
+            abort(410, 'This photo session has expired. Please start over from your registration page.');
+        }
+
+        if ($session->isCompleted()) {
+            return view('phone-photo.already-completed');
+        }
+
+        return view('phone-photo.capture', [
+            'sessionToken' => $session->session_token,
+            'uploadUrl' => route('phone-photo.upload', ['token' => $session->session_token]),
+        ]);
+    }
+
+    public function uploadPhoto(Request $request, string $token): JsonResponse
+    {
+        try {
+            $session = PhonePhotoSession::findByTokenOrFail($token);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid session. Please start over from your registration page.',
+            ], 404);
+        }
+
+        if ($session->isExpired()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Session expired. Please start over from your registration page.',
+            ], 410);
+        }
+
+        if ($session->isCompleted()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Photo already uploaded.',
+                'already_completed' => true,
+            ]);
+        }
+
+        try {
+            $validated = $request->validate([
+                'photo' => 'required|string',
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Photo data is required.',
+            ], 422);
+        }
+
+        $photo = $validated['photo'];
+
+        if (! str_starts_with($photo, 'data:image')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid photo format.',
+            ], 422);
+        }
+
+        $session->markCompleted($photo);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Photo uploaded successfully! You can now return to your computer to continue registration.',
+        ]);
+    }
+
+    public function checkStatus(string $token): JsonResponse
+    {
+        try {
+            $session = PhonePhotoSession::findByTokenOrFail($token);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid session.',
+                'status' => 'not_found',
+            ], 404);
+        }
+
+        if ($session->isExpired()) {
+            return response()->json([
+                'success' => true,
+                'status' => PhonePhotoSession::STATUS_EXPIRED,
+                'message' => 'Session has expired.',
+            ]);
+        }
+
+        if ($session->isCompleted()) {
+            return response()->json([
+                'success' => true,
+                'status' => PhonePhotoSession::STATUS_COMPLETED,
+                'photo_data' => $session->photo_data,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'status' => PhonePhotoSession::STATUS_PENDING,
+            'message' => 'Waiting for photo upload.',
+            'expires_in_seconds' => max(0, $session->expires_at->timestamp - now()->timestamp),
+        ]);
+    }
+}

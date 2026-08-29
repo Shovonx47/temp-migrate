@@ -4,9 +4,10 @@
     $phoneOtpSent = $this->phone_otp_sent ?? false;
     $phoneSuccess = $this->phone_success ?? null;
     $phoneError = $this->phone_error ?? null;
+    $hasFieldError = $errors->has($statePath);
 @endphp
 
-<div class="space-y-3" x-data="{
+<div class="space-y-2" x-data="{
     cooldown: @entangle('phone_cooldown').live,
     timer: null,
     startTimer() {
@@ -22,18 +23,26 @@
         }
     }
 }" x-init="startTimer(); $watch('cooldown', () => startTimer())">
+    <label for="data.phone" class="flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-200">
+        {{ $getLabel() }}
+        @if ($isRequired())
+            <span class="text-red-500">*</span>
+        @endif
+    </label>
+
     <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
         <div class="relative flex-1">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                 <x-filament::icon icon="heroicon-o-phone" class="w-5 h-5 text-gray-400 dark:text-gray-500" />
             </div>
-            <input
+                        <input
                 type="tel"
                 wire:model.blur="data.phone"
                 id="data.phone"
                 placeholder="+8801XXXXXXXXX"
+                required
                 @disabled($phoneVerified)
-                class="block w-full pl-10 pr-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 disabled:opacity-60 disabled:bg-gray-50 dark:disabled:bg-gray-800"
+                class="block w-full pl-10 pr-3 py-2 text-sm rounded-lg border {{ $hasFieldError ? 'border-red-400 dark:border-red-700 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 dark:border-gray-700 focus:ring-teal-500 focus:border-teal-500' }} bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 disabled:opacity-60 disabled:bg-gray-50 dark:disabled:bg-gray-800"
             />
         </div>
 
@@ -57,6 +66,13 @@
             @endif
         </div>
     </div>
+
+    @error($statePath)
+        <div class="p-2.5 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 text-xs text-red-700 dark:text-red-300 flex items-center gap-2">
+            <x-filament::icon icon="heroicon-m-exclamation-triangle" class="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
+            <span>{{ $message }}</span>
+        </div>
+    @enderror
 
     @if ($phoneSuccess)
         <div class="p-2.5 rounded-lg bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-900 text-xs text-teal-700 dark:text-teal-300 flex items-center gap-2">

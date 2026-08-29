@@ -2,13 +2,11 @@
 
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PaymentWebhookController;
+use App\Http\Controllers\PhonePhotoController;
 use App\Http\Controllers\SmsWebhookController;
 use App\Models\Batch;
 use Illuminate\Support\Facades\Storage;
 
-// The payment gateway return URL is reached by any tenant (Customer, S P,
-// or Superman). The controller resolves the correct panel by the deposit
-// owner's user type, so the callback authenticates on all guards.
 Route::match(['post', 'get'], 'payments/{gateway}/callback/{deposit}', PaymentController::class)
     ->name('payments.callback')
     ->middleware(['auth:customer,sp,superman'])
@@ -34,6 +32,15 @@ Route::middleware(['web', 'auth:customer'])
     })
     ->where('filename', '[A-Za-z0-9_\-]+\.csv')
     ->name('customer.messages.failed-report');
+
+Route::prefix('phone-photo')
+    ->name('phone-photo.')
+    ->group(function () {
+        Route::post('session', [PhonePhotoController::class, 'createSession'])->name('create-session');
+        Route::get('{token}', [PhonePhotoController::class, 'showCapturePage'])->name('capture');
+        Route::post('{token}/upload', [PhonePhotoController::class, 'uploadPhoto'])->name('upload');
+        Route::get('{token}/status', [PhonePhotoController::class, 'checkStatus'])->name('status');
+    });
 
 Route::redirect('signin', 'login')->name('login');
 Route::get('terms', function () {

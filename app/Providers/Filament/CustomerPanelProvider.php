@@ -8,6 +8,7 @@ use App\Filament\Customer\Pages\Account\Kyc;
 use App\Filament\Customer\Pages\Account\Pending;
 use App\Filament\Customer\Pages\Account\Rejected;
 use App\Filament\Customer\Pages\Dashboard;
+use App\Filament\Customer\Pages\Login;
 use App\Filament\Customer\Pages\Register;
 use App\Http\Middleware\HandleCustomerApproval;
 use App\Http\Middleware\HandleCustomerKyc;
@@ -47,7 +48,7 @@ class CustomerPanelProvider extends PanelProvider
             ->viteTheme('resources/css/app.css')
 
             // Authentication
-            ->login()
+            ->login(Login::class)
             ->registration(Register::class)
             ->passwordReset()
             ->profile()

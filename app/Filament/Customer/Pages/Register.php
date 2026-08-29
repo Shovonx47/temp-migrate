@@ -180,6 +180,23 @@ final class Register extends BaseRegister
             return null;
         }
 
+        try {
+            return $this->processRegistration();
+        } catch (ValidationException $exception) {
+            $this->notifyValidationFailure($exception);
+
+            throw $exception;
+        }
+    }
+
+    /**
+     * Core registration flow. Split out from register() so every
+     * validation failure path — required-field, OTP, or duplicate
+     * checks — funnels through a single catch that always notifies
+     * the user via a toast, in addition to inline field errors.
+     */
+    protected function processRegistration(): ?RegistrationResponse
+    {
         $otpService = app(OtpVerificationService::class);
         $data = $this->form->getState();
 
@@ -248,6 +265,30 @@ final class Register extends BaseRegister
         return app(RegistrationResponse::class);
     }
 
+    /**
+     * Guarantees the user always sees a clear, unmissable toast whenever
+     * registration is blocked for any reason — missing required fields,
+     * unverified email/phone, or duplicate email/phone/NID.
+     */
+    protected function notifyValidationFailure(ValidationException $exception): void
+    {
+        $messages = collect($exception->errors())
+            ->flatten()
+            ->unique()
+            ->values();
+
+        Notification::make()
+            ->title('Registration incomplete')
+            ->body(
+                $messages->isNotEmpty()
+                    ? $messages->take(6)->implode(' ')
+                    : 'Please go back, review the form, and fill in every required field before creating your account.'
+            )
+            ->danger()
+            ->persistent()
+            ->send();
+    }
+
     protected function mutateFormDataBeforeRegister(array $data): array
     {
         if (is_array($data['front_nid'] ?? null)) {
@@ -298,6 +339,7 @@ final class Register extends BaseRegister
                     ->schema([
                         TextInput::make('name')
                             ->label('Full Name')
+                            ->validationAttribute('Full Name')
                             ->placeholder('Enter your full name')
                             ->prefixIcon(Heroicon::OutlinedUser)
                             ->required()
@@ -310,6 +352,7 @@ final class Register extends BaseRegister
                         ])->schema([
                             TextInput::make('email')
                                 ->label('Email Address')
+                                ->validationAttribute('Email Address')
                                 ->email()
                                 ->required()
                                 ->view('filament.forms.components.inline-email-verification')
@@ -317,6 +360,7 @@ final class Register extends BaseRegister
 
                             TextInput::make('phone')
                                 ->label('Mobile Number')
+                                ->validationAttribute('Mobile Number')
                                 ->required()
                                 ->view('filament.forms.components.inline-phone-verification')
                                 ->columnSpan(1),
@@ -357,6 +401,7 @@ final class Register extends BaseRegister
                     ->schema([
                         TextInput::make('nid_number')
                             ->label('NID Number')
+                            ->validationAttribute('NID Number')
                             ->placeholder('Enter your 10, 13, or 17-digit NID Number')
                             ->prefixIcon(Heroicon::OutlinedCreditCard)
                             ->required()
@@ -369,6 +414,7 @@ final class Register extends BaseRegister
                         ])->schema([
                             FileUpload::make('front_nid')
                                 ->label('NID Front Side')
+                                ->validationAttribute('NID Front Side')
                                 ->image()
                                 ->required()
                                 ->maxSize(4096) // 4MB
@@ -378,6 +424,7 @@ final class Register extends BaseRegister
 
                             FileUpload::make('back_nid')
                                 ->label('NID Back Side')
+                                ->validationAttribute('NID Back Side')
                                 ->image()
                                 ->required()
                                 ->maxSize(4096) // 4MB
@@ -394,6 +441,7 @@ final class Register extends BaseRegister
                     ->schema([
                         LivePhotoCapture::make('live_photo')
                             ->label('Live Camera Photo')
+                            ->validationAttribute('Live Camera Photo')
                             ->required(),
                     ]),
 
@@ -441,6 +489,7 @@ final class Register extends BaseRegister
                     ->schema([
                         Checkbox::make('terms')
                             ->label(new HtmlString('I agree to the <a href="'.route('terms').'" target="_blank" class="underline text-teal-600 hover:text-teal-700 dark:text-teal-400">Terms & Conditions</a> and <a href="'.route('terms').'" target="_blank" class="underline text-teal-600 hover:text-teal-700 dark:text-teal-400">Privacy Policy</a>'))
+                            ->validationAttribute('Terms & Conditions')
                             ->required()
                             ->dehydrated(false),
                     ]),

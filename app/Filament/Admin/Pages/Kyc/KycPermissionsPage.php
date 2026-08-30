@@ -20,7 +20,6 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Actions\Action as TableAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
@@ -61,25 +60,27 @@ class KycPermissionsPage extends Page implements HasForms, HasTable
         $this->form->fill();
     }
 
-    protected function getFormSchema(): array
+    public function form(\Filament\Schemas\Schema $schema): \Filament\Schemas\Schema
     {
-        return [
-            Select::make('admin_user_id')
-                ->label('Select Admin')
-                ->placeholder('Choose an admin to grant/update permissions')
-                ->options(fn () => User::query()
-                    ->where('type', UserType::Superman)
-                    ->where('id', '!=', auth()->id()) // can't edit your own permissions
-                    ->pluck('name', 'id'))
-                ->searchable()
-                ->required(),
+        return $schema
+            ->statePath('data')
+            ->components([
+                Select::make('admin_user_id')
+                    ->label('Select Admin')
+                    ->placeholder('Choose an admin to grant/update permissions')
+                    ->options(fn () => User::query()
+                        ->where('type', UserType::Superman)
+                        ->where('id', '!=', auth()->id()) // can't edit your own permissions
+                        ->pluck('name', 'id'))
+                    ->searchable()
+                    ->required(),
 
-            CheckboxList::make('permissions')
-                ->label('Grant these KYC Permissions')
-                ->options(KycPermission::class)
-                ->columns(3)
-                ->helperText('Checked = granted. Unchecked = revoked. If ALL are unchecked, the admin becomes a Super Admin (all permissions implicitly).'),
-        ];
+                CheckboxList::make('permissions')
+                    ->label('Grant these KYC Permissions')
+                    ->options(KycPermission::class)
+                    ->columns(3)
+                    ->helperText('Checked = granted. Unchecked = revoked. If ALL are unchecked, the admin becomes a Super Admin (all permissions implicitly).'),
+            ]);
     }
 
     public function grantPermissions(): void
@@ -154,7 +155,7 @@ class KycPermissionsPage extends Page implements HasForms, HasTable
                     ->sortable(),
             ])
             ->recordActions([
-                TableAction::make('revoke_all')
+                Action::make('revoke_all')
                     ->label('Make Super Admin')
                     ->icon(Heroicon::OutlinedShieldCheck)
                     ->color('success')
@@ -173,7 +174,7 @@ class KycPermissionsPage extends Page implements HasForms, HasTable
                             ->send();
                     }),
 
-                TableAction::make('edit_permissions')
+                Action::make('edit_permissions')
                     ->label('Edit Permissions')
                     ->icon(Heroicon::OutlinedPencil)
                     ->color('warning')
@@ -181,7 +182,7 @@ class KycPermissionsPage extends Page implements HasForms, HasTable
                         'admin_user_id' => $record->user_id,
                         'permissions'   => $record->permissions ?? [],
                     ])
-                    ->form([
+                    ->schema([
                         CheckboxList::make('permissions')
                             ->label('Permissions')
                             ->options(KycPermission::class)

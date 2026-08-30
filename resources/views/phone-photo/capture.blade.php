@@ -67,6 +67,7 @@
                         x-ref="video"
                         autoplay
                         playsinline
+                        webkit-playsinline
                         muted
                         class="w-full h-full object-cover"
                     ></video>
@@ -207,19 +208,37 @@
                             throw new Error('Camera is not supported on this browser. Please use a modern browser on your phone.');
                         }
 
-                        this.stream = await navigator.mediaDevices.getUserMedia({
-                            video: {
-                                facingMode: 'user',
-                                width: { ideal: 1280 },
-                                height: { ideal: 720 }
-                            },
-                            audio: false
-                        });
+                        // iOS Safari requires simplified constraints — try progressively simpler configs
+                        let stream = null;
+                        const constraintFallbacks = [
+                            { video: { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+                            { video: { facingMode: 'user' }, audio: false },
+                            { video: true, audio: false },
+                        ];
+                        let lastErr = null;
+                        for (const constraints of constraintFallbacks) {
+                            try {
+                                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                                break;
+                            } catch (e) {
+                                lastErr = e;
+                            }
+                        }
+                        if (!stream) throw lastErr;
+                        this.stream = stream;
 
                         const video = this.$refs.video;
                         if (video) {
-                            video.srcObject = this.stream;
-                            await video.play();
+                            video.srcObject = stream;
+                            // iOS Safari requires these set programmatically
+                            video.setAttribute('playsinline', true);
+                            video.setAttribute('webkit-playsinline', true);
+                            video.muted = true;
+                            try {
+                                await video.play();
+                            } catch (playErr) {
+                                console.warn('video.play() rejected:', playErr.message);
+                            }
                         }
 
                         this.loading = false;

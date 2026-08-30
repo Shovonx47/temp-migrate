@@ -35,19 +35,38 @@
                     throw new Error('Camera access is not supported on this browser or connection is not secure (HTTPS required).');
                 }
 
-                this.stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: 'user',
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    },
-                    audio: false
-                });
+                // iOS Safari requires simplified constraints — try progressively simpler configs
+                let stream = null;
+                const constraintFallbacks = [
+                    { video: { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+                    { video: { facingMode: 'user' }, audio: false },
+                    { video: true, audio: false },
+                ];
+                let lastErr = null;
+                for (const constraints of constraintFallbacks) {
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia(constraints);
+                        break;
+                    } catch (e) {
+                        lastErr = e;
+                    }
+                }
+                if (!stream) throw lastErr;
+                this.stream = stream;
 
                 const video = this.$refs.video;
                 if (video) {
-                    video.srcObject = this.stream;
-                    await video.play();
+                    video.srcObject = stream;
+                    // iOS Safari needs these attributes set programmatically
+                    video.setAttribute('playsinline', true);
+                    video.setAttribute('webkit-playsinline', true);
+                    video.muted = true;
+                    try {
+                        await video.play();
+                    } catch (playErr) {
+                        // Some browsers require user gesture — the video may still show frames
+                        console.warn('video.play() rejected:', playErr.message);
+                    }
                 }
             } catch (err) {
                 this.cameraError = err.message || 'Unable to access camera. Please allow camera permissions.';
@@ -80,13 +99,15 @@
                 this.qrSessionToken = data.session_token;
                 this.qrCaptureUrl = data.capture_url;
 
-                await this.$nextTick();
-                this.renderQrCode();
-
                 const expDate = new Date(data.expires_at);
                 this.qrExpiresSeconds = Math.max(1, Math.floor((expDate - new Date()) / 1000));
                 this.startQrExpireCountdown();
                 this.startQrPolling();
+
+                // Wait for DOM, then wait for QRCode library to load, then render
+                await this.$nextTick();
+                await this.waitForQrLib();
+                this.renderQrCode();
 
             } catch (err) {
                 console.error('QR session error:', err);
@@ -94,6 +115,27 @@
             } finally {
                 this.qrIsLoading = false;
             }
+        },
+
+        /**
+         * Polls until window.QRCode is available (CDN script fully loaded).
+         * Resolves immediately if already loaded. Rejects after 10s.
+         */
+        waitForQrLib() {
+            return new Promise((resolve, reject) => {
+                if (typeof QRCode !== 'undefined') { resolve(); return; }
+                let attempts = 0;
+                const timer = setInterval(() => {
+                    attempts++;
+                    if (typeof QRCode !== 'undefined') {
+                        clearInterval(timer);
+                        resolve();
+                    } else if (attempts >= 100) {
+                        clearInterval(timer);
+                        reject(new Error('QR code library failed to load. Please check your internet connection and try again.'));
+                    }
+                }, 100);
+            });
         },
 
         renderQrCode() {
@@ -526,6 +568,7 @@
                         x-ref="video"
                         autoplay
                         playsinline
+                        webkit-playsinline
                         muted
                         class="w-full h-full object-cover transform -scale-x-100"
                     ></video>
@@ -647,11 +690,31 @@
 <script>
 (function() {
     const libScriptId = 'qrcode_lib_sms';
-    if (!document.getElementById(libScriptId)) {
+    if (document.getElementById(libScriptId)) return;
+
+    function loadScript(src, onSuccess, onError) {
         const s = document.createElement('script');
-        s.id = libScriptId;
-        s.src = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
+        s.src = src;
+        s.crossOrigin = 'anonymous';
+        s.onload = onSuccess;
+        s.onerror = onError;
         document.head.appendChild(s);
     }
+
+    const primaryCdn = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+    const fallbackCdn = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
+
+    const primaryScript = document.createElement('script');
+    primaryScript.id = libScriptId;
+    primaryScript.src = primaryCdn;
+    primaryScript.crossOrigin = 'anonymous';
+    primaryScript.onerror = function() {
+        // Primary CDN failed — try fallback
+        const fb = document.createElement('script');
+        fb.id = libScriptId + '_fb';
+        fb.src = fallbackCdn;
+        document.head.appendChild(fb);
+    };
+    document.head.appendChild(primaryScript);
 })();
 </script>

@@ -169,7 +169,7 @@ class IpWhitelistRequestsTable
                                         ->formatStateUsing(fn (string $state) => ucfirst($state)),
                                     \Filament\Infolists\Components\TextEntry::make('actor_name')
                                         ->label('Actor')
-                                        ->description(fn (IpWhitelistAuditLog $r) => ucfirst($r->actor_type)),
+                                        ->formatStateUsing(fn ($state, IpWhitelistAuditLog $r) => "{$state} (" . ucfirst($r->actor_type) . ")"),
                                     \Filament\Infolists\Components\TextEntry::make('note')
                                         ->label('Note / Reason')
                                         ->placeholder('—'),

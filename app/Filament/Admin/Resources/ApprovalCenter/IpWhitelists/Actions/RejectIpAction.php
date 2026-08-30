@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Admin\Resources\ApprovalCenter\IpWhitelists\Actions;
 
 use App\Enums\IpWhitelistStatus;
+use App\Models\IpWhitelistAuditLog;
 use App\Models\IpWhitelistRequest;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -28,17 +29,30 @@ class RejectIpAction
             ->schema([
                 Textarea::make('admin_note')
                     ->label('Rejection Reason / Remark')
-                    ->placeholder('e.g. Invalid IP format or verification failed. Please provide your official static IP.')
+                    ->placeholder('e.g. Invalid IP format or verification failed. Please provide your official static public IP.')
                     ->required()
                     ->rows(3),
             ])
             ->action(function (array $data, IpWhitelistRequest $record) {
+                $oldStatus = $record->status;
+
                 $record->update([
-                    'status' => IpWhitelistStatus::Rejected,
-                    'admin_note' => $data['admin_note'],
+                    'status'      => IpWhitelistStatus::Rejected,
+                    'admin_note'  => $data['admin_note'],
                     'reviewed_by' => Filament::auth()->id(),
                     'reviewed_at' => now(),
                 ]);
+
+                // Audit Log
+                IpWhitelistAuditLog::record(
+                    userId: $record->user_id,
+                    action: 'rejected',
+                    ipAddress: $record->ip_address,
+                    requestId: $record->id,
+                    oldValues: ['status' => $oldStatus?->value],
+                    newValues: ['status' => IpWhitelistStatus::Rejected->value],
+                    note: 'Reason: '.$data['admin_note'],
+                );
 
                 if ($record->user) {
                     Notification::make()

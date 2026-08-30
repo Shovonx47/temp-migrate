@@ -4,6 +4,8 @@ namespace App\Filament\Customer\Resources\Developer\IpWhitelists\Pages;
 
 use App\Enums\IpWhitelistStatus;
 use App\Filament\Customer\Resources\Developer\IpWhitelists\IpWhitelistResource;
+use App\Models\IpWhitelistAuditLog;
+use App\Models\IpWhitelistRequest;
 use Filament\Actions\CreateAction;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
@@ -25,9 +27,24 @@ class ListIpWhitelists extends ListRecords
                 ->createAnother(false)
                 ->mutateFormDataUsing(function (array $data): array {
                     $data['user_id'] = Filament::auth()->id();
-                    $data['status'] = IpWhitelistStatus::Pending;
+                    $data['status']  = IpWhitelistStatus::Pending;
 
                     return $data;
+                })
+                ->after(function (IpWhitelistRequest $record): void {
+                    IpWhitelistAuditLog::record(
+                        userId: $record->user_id,
+                        action: 'created',
+                        ipAddress: $record->ip_address,
+                        requestId: $record->id,
+                        oldValues: null,
+                        newValues: [
+                            'ip_address' => $record->ip_address,
+                            'label'      => $record->label,
+                            'status'     => $record->status->value,
+                        ],
+                        note: 'Requested by customer',
+                    );
                 })
                 ->successNotification(
                     Notification::make()

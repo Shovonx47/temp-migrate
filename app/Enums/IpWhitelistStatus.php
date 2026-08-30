@@ -14,6 +14,7 @@ enum IpWhitelistStatus: string implements HasColor, HasIcon, HasLabel
     case Pending  = 'pending';
     case Approved = 'approved';
     case Rejected = 'rejected';
+    case Disabled = 'disabled';
 
     public function getLabel(): string|Htmlable|null
     {
@@ -21,6 +22,7 @@ enum IpWhitelistStatus: string implements HasColor, HasIcon, HasLabel
             self::Pending  => 'Pending Review',
             self::Approved => 'Approved',
             self::Rejected => 'Rejected',
+            self::Disabled => 'Disabled',
         };
     }
 
@@ -30,6 +32,7 @@ enum IpWhitelistStatus: string implements HasColor, HasIcon, HasLabel
             self::Pending  => 'warning',
             self::Approved => 'success',
             self::Rejected => 'danger',
+            self::Disabled => 'gray',
         };
     }
 
@@ -39,6 +42,7 @@ enum IpWhitelistStatus: string implements HasColor, HasIcon, HasLabel
             self::Pending  => Heroicon::OutlinedClock,
             self::Approved => Heroicon::OutlinedCheckCircle,
             self::Rejected => Heroicon::OutlinedXCircle,
+            self::Disabled => Heroicon::OutlinedNoSymbol,
         };
     }
 
@@ -50,5 +54,15 @@ enum IpWhitelistStatus: string implements HasColor, HasIcon, HasLabel
     public function isApproved(): bool
     {
         return $this === self::Approved;
+    }
+
+    public function isRejected(): bool
+    {
+        return $this === self::Rejected;
+    }
+
+    public function isDisabled(): bool
+    {
+        return $this === self::Disabled;
     }
 }

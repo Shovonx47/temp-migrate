@@ -6,6 +6,7 @@ use App\Enums\IpWhitelistStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class IpWhitelistRequest extends Model
 {
@@ -39,6 +40,11 @@ class IpWhitelistRequest extends Model
         return $this->belongsTo(User::class, 'reviewed_by');
     }
 
+    public function auditLogs(): HasMany
+    {
+        return $this->hasMany(IpWhitelistAuditLog::class, 'ip_whitelist_request_id')->latest();
+    }
+
     // ─── Scopes ───────────────────────────────────────────────────────────────
 
     public function scopeApproved(Builder $query): Builder
@@ -49,5 +55,10 @@ class IpWhitelistRequest extends Model
     public function scopePending(Builder $query): Builder
     {
         return $query->where('status', IpWhitelistStatus::Pending);
+    }
+
+    public function scopeDisabled(Builder $query): Builder
+    {
+        return $query->where('status', IpWhitelistStatus::Disabled);
     }
 }

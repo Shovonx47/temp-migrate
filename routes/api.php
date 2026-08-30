@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\BalanceController;
+use App\Http\Controllers\Api\V1\IpWhitelistController;
 use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\MessageController;
 use App\Http\Controllers\Api\V1\SenderController;
@@ -14,10 +15,18 @@ Route::middleware(['auth:sanctum', 'api.access'])
         Route::get('/balance', BalanceController::class)->name('balance');
         Route::get('/senders', SenderController::class)->name('senders');
 
+        // Messaging
         Route::get('/messages', [MessageController::class, 'send'])->name('messages.send.get');
         Route::post('/messages', [MessageController::class, 'send'])->name('messages.send');
 
         Route::get('/batches/{batch}', [MessageController::class, 'showBatch'])
             ->whereNumber('batch')
             ->name('batches.show');
+
+        // IP Whitelisting (Developer API)
+        Route::get('/ip-whitelists', [IpWhitelistController::class, 'index'])->name('ip-whitelists.index');
+        Route::post('/ip-whitelists', [IpWhitelistController::class, 'store'])->name('ip-whitelists.store');
+        Route::delete('/ip-whitelists/{id}', [IpWhitelistController::class, 'destroy'])
+            ->whereNumber('id')
+            ->name('ip-whitelists.destroy');
     });

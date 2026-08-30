@@ -30,6 +30,9 @@ use Propaganistas\LaravelPhone\Casts\E164PhoneNumberCast;
 
 use App\Enums\KycStatus;
 use App\Models\IpWhitelistRequest;
+use App\Models\KycAdminNote;
+use App\Models\KycAuditLog;
+use App\Models\KycRolePermission;
 
 #[Fillable([
     'name',
@@ -59,6 +62,7 @@ use App\Models\IpWhitelistRequest;
     'phone_verified_at',
     'kyc_submitted_at',
     'kyc_verified_at',
+    'kyc_resubmit_fields',
 ])]
 #[Hidden(['type', 'password', 'remember_token', 'front_nid', 'back_nid', 'live_photo', 'trade_license_file'])]
 #[ScopedBy(ScopedBySp::class)]
@@ -98,6 +102,9 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
             'phone_verified_at' => 'datetime',
             'kyc_submitted_at' => 'datetime',
             'kyc_verified_at' => 'datetime',
+
+            // Stores which fields admin requested to be resubmitted
+            'kyc_resubmit_fields' => 'array',
         ];
     }
 
@@ -200,6 +207,30 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     public function ipWhitelistRequests(): HasMany
     {
         return $this->hasMany(IpWhitelistRequest::class);
+    }
+
+    public function ipWhitelistAuditLogs(): HasMany
+    {
+        return $this->hasMany(IpWhitelistAuditLog::class)->latest();
+    }
+
+    public function kycAuditLogs(): HasMany
+    {
+        return $this->hasMany(KycAuditLog::class, 'user_id')->latest();
+    }
+
+    public function kycAdminNotes(): HasMany
+    {
+        return $this->hasMany(KycAdminNote::class, 'user_id')->latest();
+    }
+
+    /**
+     * The KYC permission grant for this admin user.
+     * Null means this user is a Super Admin (all KYC permissions implicitly granted).
+     */
+    public function kycRolePermission(): HasOne
+    {
+        return $this->hasOne(KycRolePermission::class, 'user_id');
     }
 
     public function deposits(): HasMany

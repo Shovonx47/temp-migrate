@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Admin\Pages\Kyc;
 
+use App\Enums\KycPermission;
 use App\Enums\KycStatus;
 use App\Enums\SupermanNavigationGroup;
 use App\Enums\UserStatus;
@@ -11,6 +12,7 @@ use App\Filament\Admin\Resources\Users\Customers\Actions\ApproveKycAction;
 use App\Filament\Admin\Resources\Users\Customers\Actions\RejectKycAction;
 use App\Filament\Admin\Resources\Users\Customers\Actions\RequestKycResubmissionAction;
 use App\Models\User;
+use App\Services\KycGate;
 use BackedEnum;
 use Filament\Actions\ActionGroup;
 use Filament\Pages\Page;
@@ -39,6 +41,11 @@ class VerificationRequestsPage extends Page implements HasTable
     protected static ?string $slug = 'kyc/requests';
 
     protected string $view = 'filament.admin.pages.kyc.verification-requests';
+
+    public static function canAccess(): bool
+    {
+        return KycGate::allows(KycPermission::Review);
+    }
 
     public function table(Table $table): Table
     {

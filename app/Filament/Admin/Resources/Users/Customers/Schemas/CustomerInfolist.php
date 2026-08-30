@@ -173,10 +173,21 @@ class CustomerInfolist
                                     ->label('API IP Whitelist')
                                     ->state(function ($record) {
                                         $approved = $record->ipWhitelistRequests()->approved()->pluck('ip_address')->toArray();
-                                        return empty($approved) ? 'No restriction (All IPs allowed)' : implode(', ', $approved);
+                                        if (! empty($approved)) {
+                                            return implode(', ', $approved);
+                                        }
+
+                                        $settings = app(\App\Settings\SecuritySettings::class);
+                                        return $settings->allow_all_when_whitelist_empty
+                                            ? 'Permissive: All IPs permitted'
+                                            : 'Strict: No active IPs (Direct API blocked)';
                                     })
-                                    ->badge(fn ($state) => $state !== 'No restriction (All IPs allowed)')
-                                    ->color(fn ($state) => $state !== 'No restriction (All IPs allowed)' ? 'success' : 'gray'),
+                                    ->badge()
+                                    ->color(fn ($state) => match (true) {
+                                        str_contains((string) $state, 'Strict') => 'danger',
+                                        str_contains((string) $state, 'Permissive') => 'warning',
+                                        default => 'success',
+                                    }),
                             ]),
                     ]),
             ]);

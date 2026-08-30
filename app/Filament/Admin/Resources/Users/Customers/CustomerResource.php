@@ -6,7 +6,9 @@ use App\Enums\SupermanNavigationGroup;
 use App\Filament\Admin\Resources\Users\Customers\Pages\CreateCustomer;
 use App\Filament\Admin\Resources\Users\Customers\Pages\EditCustomer;
 use App\Filament\Admin\Resources\Users\Customers\Pages\ListCustomers;
+use App\Filament\Admin\Resources\Users\Customers\Pages\ManageKyc;
 use App\Filament\Admin\Resources\Users\Customers\Pages\ViewCustomer;
+use App\Filament\Admin\Resources\Users\Customers\RelationManagers\KycAdminNotesRelationManager;
 use App\Filament\Admin\Resources\Users\Customers\Schemas\CustomerForm;
 use App\Filament\Admin\Resources\Users\Customers\Schemas\CustomerInfolist;
 use App\Filament\Admin\Resources\Users\Customers\Tables\CustomersTable;
@@ -53,17 +55,18 @@ class CustomerResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            KycAdminNotesRelationManager::class,
         ];
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => ListCustomers::route('/'),
-            'create' => CreateCustomer::route('/create'),
-            'view' => ViewCustomer::route('/{record}'),
-            'edit' => EditCustomer::route('/{record}/edit'),
+            'index'      => ListCustomers::route('/'),
+            'create'     => CreateCustomer::route('/create'),
+            'view'       => ViewCustomer::route('/{record}'),
+            'edit'       => EditCustomer::route('/{record}/edit'),
+            'manage-kyc' => ManageKyc::route('/{record}/kyc'),
         ];
     }
 

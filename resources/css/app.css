@@ -19,11 +19,13 @@
    Register / Auth pages — full cross-device responsiveness
    ============================================================ */
 
-/* Prevent any horizontal scroll on auth pages */
+/* Prevent any horizontal scroll on auth pages while preserving container sizing */
+.fi-simple-layout {
+    overflow-x: clip;
+}
+
 .fi-simple-page,
-.fi-simple-page-content,
-.fi-simple-main {
-    overflow-x: hidden;
+.fi-simple-page-content {
     max-width: 100%;
 }
 

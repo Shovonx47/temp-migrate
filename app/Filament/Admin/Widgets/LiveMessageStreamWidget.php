@@ -14,13 +14,13 @@ class LiveMessageStreamWidget extends Widget
 
     protected static ?int $sort = 1;
 
-    public int $limit = 20;
+    public int $limit = 30;
 
-    public ?string $statusFilter = null;
+    public ?string $statusFilter = null; // 'pending', 'sending', 'dispatched'
 
-    public ?string $sourceFilter = null;
+    public ?string $sourceFilter = null; // 'api', 'web'
 
-    public ?string $typeFilter = null; // 'quick' or 'bulk'
+    public ?string $typeFilter = null; // 'quick', 'bulk'
 
     public string $search = '';
 
@@ -40,6 +40,8 @@ class LiveMessageStreamWidget extends Widget
 
     public function getMessages(): Collection
     {
+        $recentThreshold = now()->subSeconds(10);
+
         $query = Message::withoutGlobalScopes()
             ->with([
                 'user:id,name,email,business_name',
@@ -49,20 +51,25 @@ class LiveMessageStreamWidget extends Widget
                 'tariffRate.tariffPlan:id,name',
                 'tariffRate.operator:id,name',
                 'messageBatch:id,total_recipients,status',
-            ])
-            ->latest('id')
-            ->limit($this->limit);
+            ]);
 
-        if ($this->statusFilter) {
-            if ($this->statusFilter === 'active') {
-                $query->whereIn('status', ['pending', 'sending']);
-            } elseif ($this->statusFilter === 'successful') {
-                $query->whereIn('status', ['sent', 'delivered']);
-            } elseif ($this->statusFilter === 'failed') {
-                $query->whereIn('status', ['failed', 'dlr_failed']);
-            } else {
-                $query->where('status', $this->statusFilter);
-            }
+        // Strictly filter to live queue / in-flight / immediate actions happening within 5-10 seconds
+        if ($this->statusFilter === 'pending') {
+            $query->where('status', 'pending');
+        } elseif ($this->statusFilter === 'sending') {
+            $query->where('status', 'sending');
+        } elseif ($this->statusFilter === 'dispatched') {
+            $query->whereIn('status', ['sent', 'delivered'])
+                ->where('updated_at', '>=', $recentThreshold);
+        } else {
+            // Default: In queue right now (pending, sending) OR dispatched in the last 10 seconds
+            $query->where(function ($q) use ($recentThreshold) {
+                $q->whereIn('status', ['pending', 'sending'])
+                    ->orWhere(function ($sub) use ($recentThreshold) {
+                        $sub->whereIn('status', ['sent', 'delivered', 'failed', 'dlr_failed'])
+                            ->where('updated_at', '>=', $recentThreshold);
+                    });
+            });
         }
 
         if ($this->sourceFilter) {
@@ -87,46 +94,53 @@ class LiveMessageStreamWidget extends Widget
             });
         }
 
-        return $query->get()->map(function ($message) {
-            $recipient = (string) $message->to;
-            $operator = $message->tariffRate?->operator?->name ?: $this->detectOperatorFromPhone($recipient);
-            $tariffPlan = $message->tariffRate?->tariffPlan?->name ?: 'Standard Rate';
+        return $query->latest('updated_at')
+            ->limit($this->limit)
+            ->get()
+            ->map(function ($message) {
+                $recipient = (string) $message->to;
+                $operator = $message->tariffRate?->operator?->name ?: $this->detectOperatorFromPhone($recipient);
+                $tariffPlan = $message->tariffRate?->tariffPlan?->name ?: 'Standard Rate';
 
-            $isBulk = (bool) $message->batch_id;
-            $senderId = $message->sender?->sender_id ?: 'Default CLI';
-            $isMasking = $message->sender?->type?->value !== 'numeric';
+                $isBulk = (bool) $message->batch_id;
+                $senderId = $message->sender?->sender_id ?: 'Default CLI';
+                $isMasking = $message->sender?->type?->value !== 'numeric';
 
-            return [
-                'id' => $message->id,
-                'customer_name' => $message->user?->name ?: 'Customer #' . $message->user_id,
-                'customer_business' => $message->user?->business_name,
-                'customer_email' => $message->user?->email ?: '',
-                'is_bulk' => $isBulk,
-                'batch_id' => $message->batch_id,
-                'batch_total' => $message->messageBatch?->total_recipients,
-                'action_type' => $isBulk ? 'Bulk SMS' : 'Quick SMS',
-                'sender_id' => $senderId,
-                'is_masking' => $isMasking,
-                'recipient' => $recipient,
-                'body' => (string) $message->body,
-                'status' => $message->status?->value ?: 'pending',
-                'source' => $message->source?->value ?: 'web',
-                'source_ip' => $message->source_ip ?: null,
-                'gateway_name' => $message->gateway?->name ?: 'Unassigned',
-                'gateway_driver' => $message->gateway?->driver?->value ?: 'default',
-                'operator' => $operator,
-                'operator_color' => $this->getOperatorColor($operator),
-                'tariff_plan' => $tariffPlan,
-                'cost' => (float) ($message->cost ?? 0),
-                'rate' => (float) ($message->rate ?? 0),
-                'parts' => (int) ($message->parts ?: 1),
-                'is_unicode' => (bool) ($message->is_unicode ?? false),
-                'failed_reason' => $message->failed_reason,
-                'time_ago' => $message->created_at ? $message->created_at->diffForHumans(short: true) : 'just now',
-                'timestamp' => $message->created_at ? $message->created_at->format('H:i:s') : now()->format('H:i:s'),
-                'created_at_formatted' => $message->created_at ? $message->created_at->format('M d, H:i:s') : '',
-            ];
-        });
+                $statusVal = $message->status?->value ?: (string) $message->status;
+                $timeDiff = $message->updated_at ? $message->updated_at->diffInSeconds(now()) : 0;
+                $timeAgo = $timeDiff <= 5 ? 'Just now (< 5s)' : ($message->updated_at ? $message->updated_at->diffForHumans(short: true) : 'just now');
+
+                return [
+                    'id' => $message->id,
+                    'customer_name' => $message->user?->name ?: 'Customer #' . $message->user_id,
+                    'customer_business' => $message->user?->business_name,
+                    'customer_email' => $message->user?->email ?: '',
+                    'is_bulk' => $isBulk,
+                    'batch_id' => $message->batch_id,
+                    'batch_total' => $message->messageBatch?->total_recipients,
+                    'action_type' => $isBulk ? 'Bulk SMS' : 'Quick SMS',
+                    'sender_id' => $senderId,
+                    'is_masking' => $isMasking,
+                    'recipient' => $recipient,
+                    'body' => (string) $message->body,
+                    'status' => $statusVal,
+                    'source' => $message->source?->value ?: (string) $message->source,
+                    'source_ip' => $message->source_ip ?? null,
+                    'gateway_name' => $message->gateway?->name ?: 'System Routing Engine',
+                    'gateway_driver' => $message->gateway?->driver?->value ?? ($message->gateway?->driver ?: 'default'),
+                    'operator' => $operator,
+                    'operator_color' => $this->getOperatorColor($operator),
+                    'tariff_plan' => $tariffPlan,
+                    'cost' => (float) ($message->cost ?? 0),
+                    'rate' => (float) ($message->rate ?? 0),
+                    'parts' => (int) ($message->parts ?: 1),
+                    'is_unicode' => (bool) ($message->is_unicode ?? false),
+                    'failed_reason' => $message->failed_reason,
+                    'time_ago' => $timeAgo,
+                    'timestamp' => $message->updated_at ? $message->updated_at->format('H:i:s') : now()->format('H:i:s'),
+                    'updated_at_formatted' => $message->updated_at ? $message->updated_at->format('H:i:s') : '',
+                ];
+            });
     }
 
     private function detectOperatorFromPhone(string $phone): string
@@ -146,7 +160,7 @@ class LiveMessageStreamWidget extends Widget
             '16' => 'Airtel',
             '19', '14' => 'Banglalink',
             '15' => 'Teletalk',
-            default => 'Unknown Operator',
+            default => 'Mobile Operator',
         };
     }
 
@@ -182,3 +196,4 @@ class LiveMessageStreamWidget extends Widget
         $this->limit = min(max($limit, 10), 100);
     }
 }
+

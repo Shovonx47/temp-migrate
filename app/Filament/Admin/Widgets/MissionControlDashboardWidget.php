@@ -10,7 +10,6 @@ use App\Services\Health\SystemHealthChecker;
 use Filament\Notifications\Notification;
 use Filament\Widgets\Widget;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 class MissionControlDashboardWidget extends Widget
 {
@@ -42,10 +41,9 @@ class MissionControlDashboardWidget extends Widget
 
     public function retryFailed(): void
     {
-        // Atomically retry failed messages
         $affected = Message::withoutGlobalScopes()
             ->whereIn('status', ['failed', 'dlr_failed'])
-            ->where('created_at', '>=', now()->subHours(24))
+            ->where('updated_at', '>=', now()->subHours(24))
             ->limit(500)
             ->update([
                 'status' => 'pending',
@@ -54,7 +52,7 @@ class MissionControlDashboardWidget extends Widget
             ]);
 
         Notification::make()
-            ->title("Queued {$affected} failed messages for retry")
+            ->title("Queued {$affected} failed messages for live retry")
             ->success()
             ->duration(3000)
             ->send();
@@ -66,111 +64,122 @@ class MissionControlDashboardWidget extends Widget
         $healthChecker = app(SystemHealthChecker::class);
         $health = $healthChecker->runAllChecks();
 
-        // 1. Core aggregates
-        $today = now()->startOfDay();
-        $stats = Message::withoutGlobalScopes()
-            ->selectRaw('
-                COUNT(*) as total,
-                SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as total_today,
-                SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending,
-                SUM(CASE WHEN status = "sending" THEN 1 ELSE 0 END) as processing,
-                SUM(CASE WHEN status IN ("sent", "delivered") THEN 1 ELSE 0 END) as sent,
-                SUM(CASE WHEN status IN ("failed", "dlr_failed") THEN 1 ELSE 0 END) as failed,
-                SUM(CASE WHEN status = "delivered" THEN 1 ELSE 0 END) as delivered,
-                SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as last_minute
-            ', [$today, now()->subMinutes(1)])
-            ->first();
-
-        $total = (int) ($stats->total ?? 0);
-        $totalToday = (int) ($stats->total_today ?? 0);
-        $pending = (int) ($stats->pending ?? 0);
-        $processing = (int) ($stats->processing ?? 0);
-        $sent = (int) ($stats->sent ?? 0);
-        $failed = (int) ($stats->failed ?? 0);
-        $delivered = (int) ($stats->delivered ?? 0);
-        $lastMinute = (int) ($stats->last_minute ?? 0);
-
+        // 1. Live Active In-Queue & Processing right now
+        $pending = Message::withoutGlobalScopes()->where('status', 'pending')->count();
+        $processing = Message::withoutGlobalScopes()->where('status', 'sending')->count();
         $activeBatches = Batch::withoutGlobalScopes()->where('status', 'processing')->count();
         $processingTotal = $processing + $activeBatches;
+        $totalInQueue = $pending + $processingTotal;
 
-        $dlrSuccess = ($sent > 0) ? round(($delivered / $sent) * 100, 2) : 98.62;
-        $currentTps = max(1, round($lastMinute / 60, 1));
-        $dbLatency = $health['database']['latency_ms'] ?? 0.36;
-        $queueDelay = round(max(0.2, ($dbLatency / 100) + ($pending > 100 ? 1.2 : 0.4)), 1);
+        // 2. Recent live activity (Last 15 minutes)
+        $sub15m = now()->subMinutes(15);
+        $sub1m = now()->subMinutes(1);
 
-        // 2. Trend curves for Real-time Queue Overview (15 data points)
-        $chartPoints = $this->generateQueueChartPoints($pending, $processingTotal, $sent, $failed);
+        $recentStats = Message::withoutGlobalScopes()
+            ->where('updated_at', '>=', $sub15m)
+            ->selectRaw('
+                SUM(CASE WHEN status IN ("sent", "delivered") THEN 1 ELSE 0 END) as sent_15m,
+                SUM(CASE WHEN status IN ("failed", "dlr_failed") THEN 1 ELSE 0 END) as failed_15m,
+                SUM(CASE WHEN updated_at >= ? AND status IN ("sent", "delivered") THEN 1 ELSE 0 END) as sent_1m
+            ', [$sub1m])
+            ->first();
 
-        // 3. TPS Trend points
-        $tpsPoints = $this->generateTpsChartPoints($currentTps);
+        $recentSent = (int) ($recentStats->sent_15m ?? 0);
+        $recentFailed = (int) ($recentStats->failed_15m ?? 0);
+        $recentTotal = $recentSent + $recentFailed;
+        $dlrSuccess = $recentTotal > 0 ? round(($recentSent / $recentTotal) * 100, 1) : 100.0;
 
-        // 4. Gateway Status
+        $lastMinute = (int) ($recentStats->sent_1m ?? 0);
+        $currentTps = round($lastMinute / 60, 2);
+
+        $dbLatency = (float) ($health['database']['latency_ms'] ?? 0.36);
+        $queueDelay = $pending > 0 ? round(max(0.1, ($dbLatency / 100) + ($pending * 0.005)), 2) : 0.0;
+
+        // 3. Queue Breakdown by Type (Quick SMS vs Bulk Batch)
+        $quickInQueue = Message::withoutGlobalScopes()->whereIn('status', ['pending', 'sending'])->whereNull('batch_id')->count();
+        $bulkInQueue = Message::withoutGlobalScopes()->whereIn('status', ['pending', 'sending'])->whereNotNull('batch_id')->count();
+        $apiInQueue = Message::withoutGlobalScopes()->whereIn('status', ['pending', 'sending'])->where('source', 'api')->count();
+        $webInQueue = Message::withoutGlobalScopes()->whereIn('status', ['pending', 'sending'])->where('source', 'web')->count();
+
+        // 4. Minute-by-minute trend points for the last 15 minutes (Strictly real dynamic DB data)
+        $chartData = $this->generateRealQueueChartPoints();
+
+        // 5. Gateways with real status and TPS
         $gateways = Gateway::query()
             ->select('id', 'name', 'driver', 'is_enabled', 'last_health_latency_ms')
             ->get()
             ->map(function ($gw) {
                 $recentMsgs = Message::withoutGlobalScopes()
                     ->where('gateway_id', $gw->id)
-                    ->where('created_at', '>=', now()->subMinutes(15));
+                    ->where('updated_at', '>=', now()->subMinutes(15));
 
-                $totalG = (clone $recentMsgs)->count();
                 $sentG = (clone $recentMsgs)->whereIn('status', ['sent', 'delivered'])->count();
                 $failedG = (clone $recentMsgs)->whereIn('status', ['failed', 'dlr_failed'])->count();
+                $totalG = $sentG + $failedG;
 
                 $lastMin = Message::withoutGlobalScopes()
                     ->where('gateway_id', $gw->id)
-                    ->where('created_at', '>=', now()->subMinutes(1))
+                    ->where('updated_at', '>=', now()->subMinutes(1))
+                    ->whereIn('status', ['sent', 'delivered'])
                     ->count();
 
-                $successRate = $totalG > 0 ? round(($sentG / $totalG) * 100, 2) : 99.10;
-                $status = ! $gw->is_enabled ? 'Offline' : ($failedG > 5 ? 'Degraded' : 'Online');
+                $successRate = $totalG > 0 ? round(($sentG / $totalG) * 100, 1) : 100.0;
+                $status = ! $gw->is_enabled ? 'Offline' : ($failedG > 10 ? 'Degraded' : 'Online');
 
                 return [
                     'name' => $gw->name,
-                    'driver' => $gw->driver?->value ?? 'default',
+                    'driver' => $gw->driver?->value ?? ($gw->driver ?: 'default'),
                     'status' => $status,
-                    'tps' => round($lastMin / 60, 1) ?: rand(15, 120),
+                    'tps' => round($lastMin / 60, 2),
                     'success_rate' => $successRate,
                 ];
             });
 
-        // 5. Top 5 Customers
+        // 6. Active Customers in Queue right now
         $topCustomers = User::withoutGlobalScopes()
-            ->customers()
+            ->whereHas('messages', function ($q) {
+                $q->whereIn('status', ['pending', 'sending']);
+            })
+            ->withCount([
+                'messages as pending_count' => fn ($q) => $q->where('status', 'pending'),
+                'messages as processing_count' => fn ($q) => $q->where('status', 'sending'),
+                'messages as dispatched_count' => fn ($q) => $q->whereIn('status', ['sent', 'delivered'])->where('updated_at', '>=', now()->subMinutes(15)),
+                'messages as failed_count' => fn ($q) => $q->whereIn('status', ['failed', 'dlr_failed'])->where('updated_at', '>=', now()->subMinutes(15)),
+            ])
+            ->orderByDesc('pending_count')
             ->limit(5)
             ->get()
             ->map(function ($u) {
-                $userMsgs = Message::withoutGlobalScopes()->where('user_id', $u->id);
-                $p = (clone $userMsgs)->where('status', 'pending')->count();
-                $pr = (clone $userMsgs)->where('status', 'sending')->count();
-                $s = (clone $userMsgs)->whereIn('status', ['sent', 'delivered'])->count();
-                $f = (clone $userMsgs)->whereIn('status', ['failed', 'dlr_failed'])->count();
-
                 return [
                     'name' => $u->name,
-                    'pending' => $p ?: rand(1200, 25000),
-                    'processing' => $pr ?: rand(150, 2100),
-                    'sent' => $s ?: rand(50000, 2500000),
-                    'failed' => $f ?: rand(50, 5200),
+                    'pending' => (int) $u->pending_count,
+                    'processing' => (int) $u->processing_count,
+                    'sent' => (int) $u->dispatched_count,
+                    'failed' => (int) $u->failed_count,
                 ];
             });
 
-        // 6. System Alerts
+        // 7. System alerts based on actual health
         $alerts = $this->generateAlerts($health, $gateways);
 
         return [
             'kpis' => [
-                'total_sms' => number_format(max($total, 12458893)),
-                'pending_queue' => number_format(max($pending, 125430)),
-                'processing' => number_format(max($processingTotal, 8620)),
-                'sent' => number_format(max($sent, 11987320)),
-                'failed' => number_format(max($failed, 24853)),
+                'total_queue' => number_format($totalInQueue),
+                'pending_queue' => number_format($pending),
+                'processing' => number_format($processingTotal),
+                'recent_sent' => number_format($recentSent),
+                'recent_failed' => number_format($recentFailed),
                 'dlr_success' => $dlrSuccess,
-                'current_tps' => max($currentTps, 185),
-                'queue_delay' => $queueDelay ?: 1.8,
+                'current_tps' => $currentTps,
+                'queue_delay' => $queueDelay,
+                'db_latency' => round($dbLatency, 2),
+                'quick_queue' => $quickInQueue,
+                'bulk_queue' => $bulkInQueue,
+                'api_queue' => $apiInQueue,
+                'web_queue' => $webInQueue,
             ],
-            'queue_chart' => $chartPoints,
-            'tps_chart' => $tpsPoints,
+            'queue_chart' => $chartData['queue_chart'],
+            'tps_chart' => $chartData['tps_chart'],
             'gateways' => $gateways,
             'top_customers' => $topCustomers,
             'health' => $health,
@@ -179,51 +188,99 @@ class MissionControlDashboardWidget extends Widget
         ];
     }
 
-    private function generateQueueChartPoints(int $pending, int $processing, int $sent, int $failed): array
+    private function generateRealQueueChartPoints(): array
     {
-        $timestamps = [];
+        $minuteBuckets = Message::withoutGlobalScopes()
+            ->where('updated_at', '>=', now()->subMinutes(15))
+            ->selectRaw('
+                DATE_FORMAT(updated_at, "%H:%i") as minute_key,
+                SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_cnt,
+                SUM(CASE WHEN status = "sending" THEN 1 ELSE 0 END) as sending_cnt,
+                SUM(CASE WHEN status IN ("sent", "delivered") THEN 1 ELSE 0 END) as sent_cnt,
+                SUM(CASE WHEN status IN ("failed", "dlr_failed") THEN 1 ELSE 0 END) as failed_cnt
+            ')
+            ->groupBy('minute_key')
+            ->get()
+            ->keyBy('minute_key');
+
+        $labels = [];
         $pPoints = [];
         $prPoints = [];
         $sPoints = [];
         $fPoints = [];
+        $tpsValues = [];
 
         for ($i = 14; $i >= 0; $i--) {
-            $t = now()->subMinutes($i);
-            $timestamps[] = $t->format('H:i');
+            $timeKey = now()->subMinutes($i)->format('H:i');
+            $labels[] = $timeKey;
 
-            // Generate representative wave curves
-            $baseS = 140 + sin($i * 0.5) * 20 + rand(-5, 5);
-            $baseP = 100 + cos($i * 0.4) * 15 + rand(-4, 4);
-            $basePr = 30 + sin($i * 0.7) * 5 + rand(-2, 2);
-            $baseF = 18 + cos($i * 0.3) * 3 + rand(-1, 1);
+            $bucket = $minuteBuckets->get($timeKey);
+            $p = (int) ($bucket->pending_cnt ?? 0);
+            $pr = (int) ($bucket->sending_cnt ?? 0);
+            $s = (int) ($bucket->sent_cnt ?? 0);
+            $f = (int) ($bucket->failed_cnt ?? 0);
 
-            $sPoints[] = max(20, round($baseS, 1));
-            $pPoints[] = max(15, round($baseP, 1));
-            $prPoints[] = max(5, round($basePr, 1));
-            $fPoints[] = max(2, round($baseF, 1));
+            $pPoints[] = $p;
+            $prPoints[] = $pr;
+            $sPoints[] = $s;
+            $fPoints[] = $f;
+            $tpsValues[] = round($s / 60, 2);
         }
 
-        return [
-            'labels' => $timestamps,
-            'sent' => $sPoints,
-            'pending' => $pPoints,
-            'processing' => $prPoints,
-            'failed' => $fPoints,
-        ];
-    }
+        $maxVal = max(10, max($pPoints), max($prPoints), max($sPoints), max($fPoints));
+        $maxTps = max(1.0, max($tpsValues));
 
-    private function generateTpsChartPoints(float $currentTps): array
-    {
-        $points = [];
-        $labels = [];
-        for ($i = 14; $i >= 0; $i--) {
-            $labels[] = now()->subMinutes($i)->format('H:i');
-            $points[] = max(40, round(160 + sin($i * 0.8) * 30 + rand(-10, 15), 1));
-        }
+        // Generate SVG polyline coordinates
+        $width = 460;
+        $height = 120;
+        $step = $width / 14;
+
+        $buildPolyline = function (array $values, float $max) use ($step, $height) {
+            $points = [];
+            foreach ($values as $index => $val) {
+                $x = 40 + ($index * $step);
+                $y = 140 - (($val / $max) * $height);
+                $points[] = "{$x},{$y}";
+            }
+
+            return implode(' ', $points);
+        };
+
+        $buildAreaPath = function (array $values, float $max) use ($step, $height) {
+            $points = [];
+            foreach ($values as $index => $val) {
+                $x = 40 + ($index * $step);
+                $y = 140 - (($val / $max) * $height);
+                $points[] = "L {$x} {$y}";
+            }
+
+            $firstX = 40;
+            $lastX = 40 + (14 * $step);
+
+            return "M {$firstX} 140 " . implode(' ', $points) . " L {$lastX} 140 Z";
+        };
 
         return [
-            'labels' => $labels,
-            'values' => $points,
+            'queue_chart' => [
+                'labels' => $labels,
+                'sent' => $sPoints,
+                'pending' => $pPoints,
+                'processing' => $prPoints,
+                'failed' => $fPoints,
+                'max_val' => $maxVal,
+                'sent_line' => $buildPolyline($sPoints, $maxVal),
+                'sent_area' => $buildAreaPath($sPoints, $maxVal),
+                'pending_line' => $buildPolyline($pPoints, $maxVal),
+                'processing_line' => $buildPolyline($prPoints, $maxVal),
+                'failed_line' => $buildPolyline($fPoints, $maxVal),
+            ],
+            'tps_chart' => [
+                'labels' => $labels,
+                'values' => $tpsValues,
+                'max_val' => $maxTps,
+                'tps_line' => $buildPolyline($tpsValues, $maxTps),
+                'tps_area' => $buildAreaPath($tpsValues, $maxTps),
+            ],
         ];
     }
 
@@ -232,45 +289,27 @@ class MissionControlDashboardWidget extends Widget
         $alerts = [];
         $now = now();
 
-        // Check for degraded gateways
         foreach ($gateways as $gw) {
             if ($gw['status'] === 'Offline') {
                 $alerts[] = [
                     'type' => 'critical',
-                    'title' => "{$gw['name']} is offline",
-                    'time' => $now->subMinutes(rand(1, 10))->format('h:i A'),
+                    'title' => "Gateway {$gw['name']} is offline",
+                    'time' => $now->format('h:i A'),
                 ];
             } elseif ($gw['status'] === 'Degraded') {
                 $alerts[] = [
                     'type' => 'warning',
-                    'title' => "High failure rate on {$gw['name']}",
-                    'time' => $now->subMinutes(rand(1, 15))->format('h:i A'),
+                    'title' => "Failure rate elevated on {$gw['name']}",
+                    'time' => $now->format('h:i A'),
                 ];
             }
         }
 
         if (empty($alerts)) {
-            $alerts = [
-                [
-                    'type' => 'critical',
-                    'title' => 'Gateway Infozillion status verified',
-                    'time' => $now->subMinutes(1)->format('h:i A'),
-                ],
-                [
-                    'type' => 'warning',
-                    'title' => 'Queue delay is optimal (0.36 sec)',
-                    'time' => $now->subMinutes(3)->format('h:i A'),
-                ],
-                [
-                    'type' => 'info',
-                    'title' => 'Worker pool running at normal capacity',
-                    'time' => $now->subMinutes(6)->format('h:i A'),
-                ],
-                [
-                    'type' => 'success',
-                    'title' => 'DLR delivery webhook synchronized',
-                    'time' => $now->subMinutes(8)->format('h:i A'),
-                ],
+            $alerts[] = [
+                'type' => 'success',
+                'title' => 'All SMS dispatch engines and database systems running with nominal queue latency',
+                'time' => $now->format('h:i A'),
             ];
         }
 

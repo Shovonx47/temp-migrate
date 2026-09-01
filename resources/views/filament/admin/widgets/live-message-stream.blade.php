@@ -1,6 +1,6 @@
 @php
     $messages = $this->getMessages();
-    $pollInterval = $isPaused ? null : '2s';
+    $pollInterval = $isPaused ? null : '3s';
 @endphp
 
 <div @if($pollInterval) wire:poll.{{ $pollInterval }}="getMessages" @endif class="w-full">
@@ -15,14 +15,14 @@
                     </div>
                     <div>
                         <div class="flex items-center gap-2">
-                            <h2 class="text-base font-bold text-gray-900 dark:text-white tracking-tight">Live Action Stream</h2>
+                            <h2 class="text-base font-bold text-gray-900 dark:text-white tracking-tight">Live Queue & Action Stream</h2>
                             @if(!$isPaused)
                                 <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                                     <span class="relative flex h-2 w-2">
                                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                         <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                                     </span>
-                                    LIVE STREAMING
+                                    LIVE PIPELINE (5s)
                                 </span>
                             @else
                                 <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
@@ -32,7 +32,7 @@
                             @endif
                         </div>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                            Real-time monitor of every customer action, message dispatched, gateway route, and carrier status
+                            Real-time monitor of live SMS currently in queue, on the verge of being processed, and in-flight gateway dispatches
                         </p>
                     </div>
                 </div>
@@ -44,7 +44,7 @@
                         <input
                             type="text"
                             wire:model.live.debounce.300ms="search"
-                            placeholder="Filter by customer, phone, text..."
+                            placeholder="Filter live: customer, phone, text..."
                             class="w-full text-xs rounded-lg border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-white py-1.5 pl-8 pr-3 focus:border-emerald-500 focus:ring-emerald-500"
                         />
                         <x-heroicon-o-magnifying-glass class="w-4 h-4 text-gray-400 absolute left-2.5 top-2" />
@@ -59,7 +59,7 @@
                         >
                             <span class="flex items-center gap-1">
                                 <x-heroicon-o-list-bullet class="w-3.5 h-3.5" />
-                                Stream
+                                Live Stream
                             </span>
                         </button>
                         <button
@@ -98,26 +98,22 @@
             <div class="flex flex-wrap items-center justify-between gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 text-xs">
                 {{-- Status Pills --}}
                 <div class="flex flex-wrap items-center gap-1.5">
-                    <span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mr-1">Status:</span>
+                    <span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mr-1">Live Queue:</span>
                     <button wire:click="setStatusFilter(null)"
                         class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors {{ !$statusFilter ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400' }}">
-                        All
+                        All Live
                     </button>
-                    <button wire:click="setStatusFilter('active')"
-                        class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors {{ $statusFilter === 'active' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300' }}">
-                        ⚡ Active / In-Transit
+                    <button wire:click="setStatusFilter('pending')"
+                        class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors {{ $statusFilter === 'pending' ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300' }}">
+                        ⏳ In Queue / Pending
                     </button>
-                    <button wire:click="setStatusFilter('delivered')"
-                        class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors {{ $statusFilter === 'delivered' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300' }}">
-                        ✓ Delivered
+                    <button wire:click="setStatusFilter('sending')"
+                        class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors {{ $statusFilter === 'sending' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300' }}">
+                        ⚡ In-Flight / Sending
                     </button>
-                    <button wire:click="setStatusFilter('sent')"
-                        class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors {{ $statusFilter === 'sent' ? 'bg-cyan-600 text-white' : 'bg-cyan-50 text-cyan-700 hover:bg-cyan-100 dark:bg-cyan-950/40 dark:text-cyan-300' }}">
-                        📤 Sent
-                    </button>
-                    <button wire:click="setStatusFilter('failed')"
-                        class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors {{ $statusFilter === 'failed' ? 'bg-red-600 text-white' : 'bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-300' }}">
-                        ✗ Failed
+                    <button wire:click="setStatusFilter('dispatched')"
+                        class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors {{ $statusFilter === 'dispatched' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300' }}">
+                        ✓ Dispatched (&lt; 10s)
                     </button>
                 </div>
 
@@ -126,7 +122,7 @@
                     <span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mr-1">Type:</span>
                     <button wire:click="setTypeFilter(null)"
                         class="px-2 py-0.5 rounded text-[11px] font-medium transition-colors {{ !$typeFilter ? 'bg-gray-800 text-white dark:bg-gray-200 dark:text-gray-900' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
-                        All Types
+                        All
                     </button>
                     <button wire:click="setTypeFilter('quick')"
                         class="px-2 py-0.5 rounded text-[11px] font-medium transition-colors {{ $typeFilter === 'quick' ? 'bg-amber-600 text-white' : 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30' }}">
@@ -158,18 +154,18 @@
                 @forelse($messages as $msg)
                     @php
                         $statusBadge = match($msg['status']) {
-                            'pending' => ['bg' => 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800', 'dot' => 'bg-amber-500', 'label' => 'PENDING', 'pulse' => true],
-                            'sending' => ['bg' => 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800', 'dot' => 'bg-blue-500', 'label' => 'SENDING', 'pulse' => true],
-                            'sent' => ['bg' => 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-400 dark:border-cyan-800', 'dot' => 'bg-cyan-500', 'label' => 'SENT', 'pulse' => false],
+                            'pending' => ['bg' => 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800', 'dot' => 'bg-amber-500', 'label' => 'IN QUEUE', 'pulse' => true],
+                            'sending' => ['bg' => 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800', 'dot' => 'bg-blue-500', 'label' => 'SENDING NOW', 'pulse' => true],
+                            'sent' => ['bg' => 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-400 dark:border-cyan-800', 'dot' => 'bg-cyan-500', 'label' => 'DISPATCHED', 'pulse' => false],
                             'delivered' => ['bg' => 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800', 'dot' => 'bg-emerald-500', 'label' => 'DELIVERED', 'pulse' => false],
                             'failed' => ['bg' => 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800', 'dot' => 'bg-red-500', 'label' => 'FAILED', 'pulse' => false],
-                            'dlr_failed' => ['bg' => 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-800', 'dot' => 'bg-orange-500', 'label' => 'DLR FAILED', 'pulse' => false],
+                            'dlr_failed' => ['bg' => 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-800', 'dot' => 'bg-orange-500', 'label' => 'DLR FAIL', 'pulse' => false],
                             default => ['bg' => 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700', 'dot' => 'bg-gray-400', 'label' => strtoupper($msg['status']), 'pulse' => false],
                         };
                         $isSendingOrPending = in_array($msg['status'], ['pending', 'sending']);
                     @endphp
 
-                    <div class="p-4 hover:bg-gray-50/70 dark:hover:bg-gray-800/40 transition-colors {{ $isSendingOrPending ? 'bg-blue-50/20 dark:bg-blue-950/10' : '' }}"
+                    <div class="p-4 hover:bg-gray-50/70 dark:hover:bg-gray-800/40 transition-colors {{ $isSendingOrPending ? 'bg-amber-50/20 dark:bg-amber-950/10' : '' }}"
                          x-data="{ expanded: false }">
                         <div class="flex flex-col md:flex-row md:items-start justify-between gap-3">
                             {{-- Left Action & Narrative --}}
@@ -192,7 +188,7 @@
 
                                         <span class="text-xs px-1.5 py-0.5 rounded font-medium {{ $msg['is_bulk'] ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' }}">
                                             {{ $msg['action_type'] }}
-                                            @if($msg['is_bulk'])
+                                            @if($msg['is_bulk'] && $msg['batch_id'])
                                                 #{{ $msg['batch_id'] }}
                                             @endif
                                         </span>
@@ -217,7 +213,7 @@
                                         <div class="flex items-start justify-between gap-2">
                                             <p class="leading-relaxed cursor-pointer"
                                                x-on:click="expanded = !expanded"
-                                               x-text="expanded ? @js($msg['body']) : @js(mb_substr($msg['body'], 0, 150) . (mb_strlen($msg['body']) > 150 ? ' ... (click to read more)' : ''))">
+                                               x-text="expanded ? @js($msg['body']) : @js(mb_substr($msg['body'], 0, 150) . (mb_strlen($msg['body']) > 150 ? ' ... (click to expand)' : ''))">
                                             </p>
                                         </div>
 
@@ -304,16 +300,29 @@
 
                                 <div class="text-right">
                                     <span class="block text-xs font-mono font-medium text-gray-900 dark:text-white">{{ $msg['timestamp'] }}</span>
-                                    <span class="block text-[10px] text-gray-400">{{ $msg['time_ago'] }}</span>
+                                    <span class="block text-[10px] text-gray-400 font-medium">{{ $msg['time_ago'] }}</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 @empty
-                    <div class="p-12 text-center text-gray-400 dark:text-gray-500">
-                        <x-heroicon-o-inbox class="w-10 h-10 mx-auto mb-2 opacity-50" />
-                        <p class="text-sm font-medium">No live actions found</p>
-                        <p class="text-xs mt-1">Waiting for incoming SMS traffic or check your active filters...</p>
+                    {{-- High-tech Active Radar Scanner Empty State --}}
+                    <div class="py-16 px-6 text-center">
+                        <div class="relative w-20 h-20 mx-auto mb-4 flex items-center justify-center">
+                            <span class="absolute w-full h-full rounded-full bg-emerald-500/10 animate-ping opacity-75"></span>
+                            <span class="absolute w-14 h-14 rounded-full bg-emerald-500/20 animate-pulse"></span>
+                            <div class="relative w-10 h-10 rounded-full bg-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                                <x-heroicon-o-signal class="w-5 h-5 animate-pulse" />
+                            </div>
+                        </div>
+                        <h3 class="text-sm font-bold text-gray-900 dark:text-white tracking-tight">Queue is Idle & Ready</h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 max-w-md mx-auto mt-1">
+                            No messages are currently waiting in queue or in-flight right now. System is actively listening for live incoming SMS traffic (polling every 5 seconds).
+                        </p>
+                        <div class="inline-flex items-center gap-2 mt-4 px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-[11px] text-gray-600 dark:text-gray-300 font-mono">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                            <span>Live dispatch pipeline active & listening</span>
+                        </div>
                     </div>
                 @endforelse
             </div>
@@ -324,7 +333,7 @@
                     <thead class="sticky top-0 bg-gray-50 dark:bg-gray-800/90 backdrop-blur border-b border-gray-200 dark:border-gray-700 z-10">
                         <tr>
                             <th class="px-3 py-2.5 font-semibold text-gray-600 dark:text-gray-300">Time</th>
-                            <th class="px-3 py-2.5 font-semibold text-gray-600 dark:text-gray-300">Status</th>
+                            <th class="px-3 py-2.5 font-semibold text-gray-600 dark:text-gray-300">Live Status</th>
                             <th class="px-3 py-2.5 font-semibold text-gray-600 dark:text-gray-300">Customer</th>
                             <th class="px-3 py-2.5 font-semibold text-gray-600 dark:text-gray-300">Type</th>
                             <th class="px-3 py-2.5 font-semibold text-gray-600 dark:text-gray-300">Sender / CLI</th>
@@ -342,66 +351,67 @@
                         @forelse($messages as $msg)
                             @php
                                 $statusBadge = match($msg['status']) {
-                                    'pending' => ['bg' => 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400', 'label' => 'PENDING'],
+                                    'pending' => ['bg' => 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400', 'label' => 'IN QUEUE'],
                                     'sending' => ['bg' => 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400', 'label' => 'SENDING'],
-                                    'sent' => ['bg' => 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-400', 'label' => 'SENT'],
+                                    'sent' => ['bg' => 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-400', 'label' => 'DISPATCHED'],
                                     'delivered' => ['bg' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400', 'label' => 'DELIVERED'],
                                     'failed' => ['bg' => 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400', 'label' => 'FAILED'],
                                     'dlr_failed' => ['bg' => 'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400', 'label' => 'DLR FAIL'],
                                     default => ['bg' => 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300', 'label' => strtoupper($msg['status'])],
                                 };
                             @endphp
-                            <tr class="hover:bg-gray-50/70 dark:hover:bg-gray-800/40 transition-colors">
-                                <td class="px-3 py-2 whitespace-nowrap font-mono text-gray-500">
+                            <tr class="hover:bg-gray-50/70 dark:hover:bg-gray-800/50 transition-colors">
+                                <td class="px-3 py-2.5 font-mono text-[11px] text-gray-500 dark:text-gray-400 whitespace-nowrap">
                                     {{ $msg['timestamp'] }}
                                 </td>
-                                <td class="px-3 py-2 whitespace-nowrap">
-                                    <span class="inline-flex px-2 py-0.5 rounded text-[10px] font-bold {{ $statusBadge['bg'] }}">
+                                <td class="px-3 py-2.5 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold {{ $statusBadge['bg'] }}">
                                         {{ $statusBadge['label'] }}
                                     </span>
                                 </td>
-                                <td class="px-3 py-2 whitespace-nowrap font-medium text-gray-900 dark:text-white">
+                                <td class="px-3 py-2.5 font-medium text-gray-900 dark:text-white max-w-[120px] truncate">
                                     {{ $msg['customer_name'] }}
                                 </td>
-                                <td class="px-3 py-2 whitespace-nowrap">
-                                    <span class="text-[10px] px-1.5 py-0.5 rounded font-medium {{ $msg['is_bulk'] ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' }}">
+                                <td class="px-3 py-2.5 whitespace-nowrap">
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-medium {{ $msg['is_bulk'] ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' }}">
                                         {{ $msg['action_type'] }}
                                     </span>
                                 </td>
-                                <td class="px-3 py-2 whitespace-nowrap font-mono">
+                                <td class="px-3 py-2.5 font-mono text-gray-700 dark:text-gray-300 whitespace-nowrap">
                                     {{ $msg['sender_id'] }}
                                 </td>
-                                <td class="px-3 py-2 whitespace-nowrap font-mono font-medium text-gray-900 dark:text-white">
+                                <td class="px-3 py-2.5 font-mono font-semibold text-gray-900 dark:text-white whitespace-nowrap">
                                     {{ $msg['recipient'] }}
                                 </td>
-                                <td class="px-3 py-2 max-w-xs truncate text-gray-600 dark:text-gray-300" title="{{ $msg['body'] }}">
+                                <td class="px-3 py-2.5 max-w-[200px] truncate text-gray-600 dark:text-gray-300 font-sans" title="{{ $msg['body'] }}">
                                     {{ $msg['body'] }}
                                 </td>
-                                <td class="px-3 py-2 whitespace-nowrap font-medium text-emerald-600 dark:text-emerald-400">
+                                <td class="px-3 py-2.5 text-gray-700 dark:text-gray-300 whitespace-nowrap">
                                     {{ $msg['gateway_name'] }}
                                 </td>
-                                <td class="px-3 py-2 whitespace-nowrap">
-                                    <span class="inline-flex px-1.5 py-0.5 rounded text-[10px] border {{ $msg['operator_color'] }}">
+                                <td class="px-3 py-2.5 whitespace-nowrap">
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-medium border {{ $msg['operator_color'] }}">
                                         {{ $msg['operator'] }}
                                     </span>
                                 </td>
-                                <td class="px-3 py-2 whitespace-nowrap text-gray-500">
+                                <td class="px-3 py-2.5 text-gray-600 dark:text-gray-400 whitespace-nowrap">
                                     {{ $msg['tariff_plan'] }}
                                 </td>
-                                <td class="px-3 py-2 whitespace-nowrap font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                                <td class="px-3 py-2.5 font-mono font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                                     ৳{{ number_format($msg['cost'], 4) }}
                                 </td>
-                                <td class="px-3 py-2 whitespace-nowrap text-center font-mono">
+                                <td class="px-3 py-2.5 font-mono text-gray-600 dark:text-gray-400 whitespace-nowrap">
                                     {{ $msg['parts'] }}
                                 </td>
-                                <td class="px-3 py-2 whitespace-nowrap uppercase text-gray-500">
+                                <td class="px-3 py-2.5 text-gray-500 dark:text-gray-400 uppercase font-mono text-[10px] whitespace-nowrap">
                                     {{ $msg['source'] }}
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="13" class="p-8 text-center text-gray-400">
-                                    No records found
+                                <td colspan="13" class="px-4 py-12 text-center text-gray-400 dark:text-gray-500">
+                                    <x-heroicon-o-signal class="w-8 h-8 mx-auto mb-2 opacity-50 animate-pulse" />
+                                    <p class="text-xs font-semibold">Live Queue is clear. No active messages waiting in queue.</p>
                                 </td>
                             </tr>
                         @endforelse
@@ -409,29 +419,5 @@
                 </table>
             </div>
         @endif
-
-        {{-- Footer Status Bar --}}
-        <div class="px-4 py-2.5 border-t border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/40 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400">
-            <div class="flex items-center gap-2">
-                <span>Showing latest {{ count($messages) }} actions</span>
-                <span class="text-gray-300 dark:text-gray-700">•</span>
-                <span class="font-medium text-emerald-600 dark:text-emerald-400">
-                    Live poll: 2s
-                </span>
-            </div>
-
-            <div class="flex items-center gap-2">
-                <span class="text-[11px] text-gray-400">Max limit:</span>
-                @foreach([10, 20, 50, 100] as $lim)
-                    <button
-                        type="button"
-                        wire:click="setLimit({{ $lim }})"
-                        class="px-2 py-0.5 rounded text-xs font-mono transition-colors {{ $limit === $lim ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900' : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400' }}"
-                    >
-                        {{ $lim }}
-                    </button>
-                @endforeach
-            </div>
-        </div>
     </div>
 </div>

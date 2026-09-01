@@ -28,7 +28,9 @@
 }
 
 /* Tighten outer page padding on phones */
-@media (max-width: 39.9375rem) { /* < 640 px */
+@media (max-width: 39.9375rem) {
+
+    /* < 640 px */
     .fi-simple-main {
         padding-left: 0.75rem !important;
         padding-right: 0.75rem !important;
@@ -76,8 +78,8 @@
     overflow: visible;
 }
 
-#field-wrap-email > .flex,
-#field-wrap-phone > .flex {
+#field-wrap-email>.flex,
+#field-wrap-phone>.flex {
     flex-wrap: wrap;
 }
 

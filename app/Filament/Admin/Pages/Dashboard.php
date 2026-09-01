@@ -2,10 +2,8 @@
 
 namespace App\Filament\Admin\Pages;
 
-use App\Filament\Admin\Widgets\MessageStatsWidget;
-use App\Filament\Admin\Widgets\PendingApprovalsWidget;
-use App\Filament\Admin\Widgets\RecentActivityWidget;
-use App\Filament\Admin\Widgets\SystemStatsWidget;
+use App\Filament\Admin\Widgets\LiveMessageStreamWidget;
+use App\Filament\Admin\Widgets\MissionControlDashboardWidget;
 use Filament\Pages\Dashboard as BasePage;
 
 class Dashboard extends BasePage
@@ -15,10 +13,13 @@ class Dashboard extends BasePage
     public function getWidgets(): array
     {
         return [
-            SystemStatsWidget::class,
-            MessageStatsWidget::class,
-            PendingApprovalsWidget::class,
-            RecentActivityWidget::class,
+            MissionControlDashboardWidget::class,
+            LiveMessageStreamWidget::class,
         ];
+    }
+
+    public function getColumns(): int|array
+    {
+        return 1;
     }
 }

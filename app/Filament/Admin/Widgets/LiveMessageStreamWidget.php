@@ -3,8 +3,10 @@
 namespace App\Filament\Admin\Widgets;
 
 use App\Models\Message;
+use Filament\Notifications\Notification;
 use Filament\Widgets\Widget;
 use Illuminate\Support\Collection;
+use Livewire\Attributes\On;
 
 class LiveMessageStreamWidget extends Widget
 {
@@ -28,6 +30,12 @@ class LiveMessageStreamWidget extends Widget
 
     public string $viewMode = 'stream'; // 'stream' or 'table'
 
+    #[On('refreshStream')]
+    public function refresh(): void
+    {
+        // Triggers livewire re-render
+    }
+
     public function togglePause(): void
     {
         $this->isPaused = ! $this->isPaused;
@@ -36,6 +44,60 @@ class LiveMessageStreamWidget extends Widget
     public function setViewMode(string $mode): void
     {
         $this->viewMode = in_array($mode, ['stream', 'table']) ? $mode : 'stream';
+    }
+
+    public function deleteMessage(int $id): void
+    {
+        $msg = Message::withoutGlobalScopes()->find($id);
+        if ($msg) {
+            $msg->update([
+                'status' => 'failed',
+                'failed_reason' => 'Manually cancelled & deleted from queue by Admin',
+                'updated_at' => now(),
+            ]);
+
+            Notification::make()
+                ->title("SMS Action #{$id} removed from queue")
+                ->success()
+                ->duration(3000)
+                ->send();
+        }
+    }
+
+    public function retrySingleMessage(int $id): void
+    {
+        $msg = Message::withoutGlobalScopes()->find($id);
+        if ($msg) {
+            $msg->update([
+                'status' => 'pending',
+                'failed_reason' => null,
+                'updated_at' => now(),
+            ]);
+
+            Notification::make()
+                ->title("SMS Action #{$id} requeued for live send")
+                ->success()
+                ->duration(3000)
+                ->send();
+        }
+    }
+
+    public function purgeStaleQueue(): void
+    {
+        $affected = Message::withoutGlobalScopes()
+            ->whereIn('status', ['pending', 'sending'])
+            ->update([
+                'status' => 'failed',
+                'failed_reason' => 'Purged from live queue by Administrator',
+                'updated_at' => now(),
+            ]);
+
+        Notification::make()
+            ->title("Purged {$affected} stuck queue actions")
+            ->success()
+            ->body('Queue is now clear.')
+            ->duration(4000)
+            ->send();
     }
 
     public function getMessages(): Collection
@@ -53,7 +115,7 @@ class LiveMessageStreamWidget extends Widget
                 'messageBatch:id,total_recipients,status',
             ]);
 
-        // Strictly filter to live queue / in-flight / immediate actions happening within 5-10 seconds
+        // Strictly filter to live queue / in-flight / immediate actions
         if ($this->statusFilter === 'pending') {
             $query->where('status', 'pending');
         } elseif ($this->statusFilter === 'sending') {
@@ -196,4 +258,3 @@ class LiveMessageStreamWidget extends Widget
         $this->limit = min(max($limit, 10), 100);
     }
 }
-

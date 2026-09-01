@@ -10,6 +10,7 @@ use App\Services\Health\SystemHealthChecker;
 use Filament\Notifications\Notification;
 use Filament\Widgets\Widget;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class MissionControlDashboardWidget extends Widget
 {
@@ -28,15 +29,63 @@ class MissionControlDashboardWidget extends Widget
         $this->isPaused = ! $this->isPaused;
 
         Notification::make()
-            ->title($this->isPaused ? 'Live queue stream paused' : 'Live queue stream resumed')
+            ->title($this->isPaused ? 'Live queue auto-refresh paused' : 'Live queue auto-refresh resumed')
             ->info()
             ->duration(2000)
             ->send();
     }
 
-    public function setTimeRange(string $range): void
+    public function pauseAllQueues(): void
     {
-        $this->timeRange = in_array($range, ['15m', '1h', '24h']) ? $range : '15m';
+        Cache::put('sms_queue_paused_by_admin', true, now()->addHours(24));
+
+        Notification::make()
+            ->title('All SMS dispatch queues paused')
+            ->warning()
+            ->body('Worker processing has been temporarily suspended by Admin.')
+            ->duration(3000)
+            ->send();
+    }
+
+    public function resumeAllQueues(): void
+    {
+        Cache::forget('sms_queue_paused_by_admin');
+
+        Notification::make()
+            ->title('All SMS dispatch queues resumed')
+            ->success()
+            ->body('Workers actively processing queued dispatches.')
+            ->duration(3000)
+            ->send();
+    }
+
+    public function clearQueue(): void
+    {
+        $affectedMessages = Message::withoutGlobalScopes()
+            ->whereIn('status', ['pending', 'sending'])
+            ->update([
+                'status' => 'failed',
+                'failed_reason' => 'Queue purged by Administrator',
+                'updated_at' => now(),
+            ]);
+
+        $affectedBatches = Batch::withoutGlobalScopes()
+            ->whereIn('status', ['pending', 'processing'])
+            ->update([
+                'status' => 'failed',
+                'updated_at' => now(),
+            ]);
+
+        $totalAffected = $affectedMessages + $affectedBatches;
+
+        Notification::make()
+            ->title("Queue Purged: {$totalAffected} items cleared")
+            ->success()
+            ->body("All stuck pending and in-flight SMS items have been purged to zero.")
+            ->duration(5000)
+            ->send();
+
+        $this->dispatch('refreshStream');
     }
 
     public function retryFailed(): void
@@ -55,6 +104,36 @@ class MissionControlDashboardWidget extends Widget
             ->title("Queued {$affected} failed messages for live retry")
             ->success()
             ->duration(3000)
+            ->send();
+
+        $this->dispatch('refreshStream');
+    }
+
+    public function requeueStuck(): void
+    {
+        $affected = Message::withoutGlobalScopes()
+            ->where('status', 'sending')
+            ->where('updated_at', '<=', now()->subMinutes(2))
+            ->update([
+                'status' => 'pending',
+                'updated_at' => now(),
+            ]);
+
+        Notification::make()
+            ->title("Requeued {$affected} stuck in-flight message(s)")
+            ->info()
+            ->duration(3000)
+            ->send();
+
+        $this->dispatch('refreshStream');
+    }
+
+    public function checkHealthNow(): void
+    {
+        Notification::make()
+            ->title('Infrastructure health diagnostics refreshed')
+            ->success()
+            ->duration(2500)
             ->send();
     }
 
@@ -101,7 +180,7 @@ class MissionControlDashboardWidget extends Widget
         $apiInQueue = Message::withoutGlobalScopes()->whereIn('status', ['pending', 'sending'])->where('source', 'api')->count();
         $webInQueue = Message::withoutGlobalScopes()->whereIn('status', ['pending', 'sending'])->where('source', 'web')->count();
 
-        // 4. Minute-by-minute trend points for the last 15 minutes (Strictly real dynamic DB data)
+        // 4. Minute-by-minute trend points for the last 15 minutes
         $chartData = $this->generateRealQueueChartPoints();
 
         // 5. Gateways with real status and TPS

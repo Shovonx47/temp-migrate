@@ -95,3 +95,82 @@
     width: auto;
     object-fit: contain;
 }
+
+/* ============================================================
+   Enhanced User Menu Dropdown
+   ============================================================ */
+
+.fi-user-menu .fi-dropdown-panel {
+    border-radius: 1rem !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(229, 231, 235, 0.9) !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.03) !important;
+    min-width: 290px !important;
+    max-width: 340px !important;
+}
+
+:is(.dark) .fi-user-menu .fi-dropdown-panel {
+    border: 1px solid rgba(55, 65, 81, 0.8) !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Dropdown list items inside user menu */
+.fi-user-menu .fi-dropdown-list-item {
+    border-radius: 0.625rem !important;
+    margin: 0.125rem 0.25rem !important;
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.8125rem !important;
+    font-weight: 500 !important;
+    transition: all 0.15s ease-in-out !important;
+}
+
+/* Profile button styling */
+.fi-user-menu .fi-user-menu-item-profile .fi-dropdown-list-item:hover,
+.fi-user-menu .fi-dropdown-list-item:hover:not(.fi-color-danger) {
+    background-color: rgba(13, 148, 136, 0.08) !important;
+    color: #0f766e !important;
+}
+
+:is(.dark) .fi-user-menu .fi-user-menu-item-profile .fi-dropdown-list-item:hover,
+:is(.dark) .fi-user-menu .fi-dropdown-list-item:hover:not(.fi-color-danger) {
+    background-color: rgba(20, 184, 166, 0.15) !important;
+    color: #2dd4bf !important;
+}
+
+/* Logout button styling */
+.fi-user-menu .fi-user-menu-item-logout .fi-dropdown-list-item,
+.fi-user-menu .fi-dropdown-list-item.fi-color-danger {
+    color: #ef4444 !important;
+}
+
+.fi-user-menu .fi-user-menu-item-logout .fi-dropdown-list-item:hover,
+.fi-user-menu .fi-dropdown-list-item.fi-color-danger:hover {
+    background-color: rgba(239, 68, 68, 0.08) !important;
+    color: #dc2626 !important;
+}
+
+:is(.dark) .fi-user-menu .fi-user-menu-item-logout .fi-dropdown-list-item:hover,
+:is(.dark) .fi-user-menu .fi-dropdown-list-item.fi-color-danger:hover {
+    background-color: rgba(239, 68, 68, 0.15) !important;
+    color: #f87171 !important;
+}
+
+/* Theme Switcher within User Menu */
+.fi-user-menu .fi-theme-switcher {
+    padding: 0.2rem !important;
+    border-radius: 0.5rem !important;
+    background-color: rgba(243, 244, 246, 0.9) !important;
+    border: 1px solid rgba(229, 231, 235, 0.8) !important;
+    gap: 0.25rem !important;
+}
+
+:is(.dark) .fi-user-menu .fi-theme-switcher {
+    background-color: rgba(31, 41, 55, 0.8) !important;
+    border-color: rgba(55, 65, 81, 0.7) !important;
+}
+
+.fi-user-menu .fi-theme-switcher-btn {
+    border-radius: 0.375rem !important;
+    padding: 0.25rem 0.5rem !important;
+    transition: all 0.15s ease-in-out !important;
+}

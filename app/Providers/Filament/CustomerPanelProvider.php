@@ -162,10 +162,6 @@ class CustomerPanelProvider extends PanelProvider
                 name: PanelsRenderHook::GLOBAL_SEARCH_AFTER,
                 hook: fn () => Blade::render("@livewire('balance-button')"),
             )
-            ->renderHook(
-                name: PanelsRenderHook::USER_MENU_BEFORE,
-                hook: fn () => view('filament.components.user-menu-card')->render(),
-            )
             ->spa()
             ->unsavedChangesAlerts();
     }

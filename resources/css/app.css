@@ -14,3 +14,82 @@
         row-gap: calc(var(--spacing) * 1);
     }
 }
+
+/* ============================================================
+   Register / Auth pages — full cross-device responsiveness
+   ============================================================ */
+
+/* Prevent any horizontal scroll on auth pages */
+.fi-simple-page,
+.fi-simple-page-content,
+.fi-simple-main {
+    overflow-x: hidden;
+    max-width: 100%;
+}
+
+/* Tighten outer page padding on phones */
+@media (max-width: 39.9375rem) { /* < 640 px */
+    .fi-simple-main {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+    }
+
+    /* Reduce inner section padding so content fits */
+    .fi-section-content-ctn,
+    .fi-section-content {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+    }
+
+    /* Section header wraps on narrow screens */
+    .fi-section-header-ctn {
+        flex-wrap: wrap;
+        gap: 0.25rem;
+    }
+}
+
+/* Extra-small phones (< 400 px) */
+@media (max-width: 24.9375rem) {
+    .fi-simple-main {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+
+    .fi-section-content-ctn,
+    .fi-section-content {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+}
+
+/* Keep FileUpload (Filepond) within bounds on all screen sizes */
+.filepond--root,
+.filepond--panel-root,
+.fi-fo-file-upload {
+    max-width: 100% !important;
+    overflow: hidden;
+}
+
+/* Ensure OTP rows never overflow on very small screens */
+#field-wrap-email,
+#field-wrap-phone {
+    overflow: visible;
+}
+
+#field-wrap-email > .flex,
+#field-wrap-phone > .flex {
+    flex-wrap: wrap;
+}
+
+/* The live-photo-capture dashed upload box stays within bounds */
+#field-wrap-live-photo .border-dashed {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+/* Brand logo scales correctly on all devices */
+.fi-logo img {
+    max-height: 50px;
+    width: auto;
+    object-fit: contain;
+}

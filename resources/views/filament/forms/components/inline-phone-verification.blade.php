@@ -7,7 +7,7 @@
     $hasFieldError = $errors->has($statePath);
 @endphp
 
-<div class="space-y-2" x-data="{
+<div id="field-wrap-phone" class="space-y-2" x-data="{
     cooldown: @entangle('phone_cooldown').live,
     timer: null,
     startTimer() {

@@ -198,19 +198,32 @@ final class Register extends BaseRegister
     protected function processRegistration(): ?RegistrationResponse
     {
         $otpService = app(OtpVerificationService::class);
-        $data = $this->form->getState();
+
+        // Validate all Filament form fields first.
+        // On failure, scroll to the first failing field in sequential form order, then re-throw.
+        try {
+            $data = $this->form->getState();
+        } catch (ValidationException $e) {
+            $this->dispatchScrollForFirstError($e->errors());
+
+            throw $e;
+        }
 
         // 1. Strict Backend Email Verification Enforcement
+        // Scroll to the email OTP area when the field is filled but OTP not yet verified.
         if (! $otpService->isVerified($data['email'], 'email', $this->email_verification_token)) {
             $this->email_error = 'Email verification is mandatory. Please verify your email with OTP.';
+            $this->dispatch('scroll-to-first-error', fieldId: 'field-wrap-email');
             throw ValidationException::withMessages([
                 'data.email' => 'Please verify your email address using the Send OTP button before creating an account.',
             ]);
         }
 
         // 2. Strict Backend SMS Verification Enforcement
+        // Scroll to the phone OTP area when the field is filled but OTP not yet verified.
         if (! $otpService->isVerified($data['phone'], 'sms', $this->phone_verification_token)) {
             $this->phone_error = 'Mobile verification is mandatory. Please verify your mobile with OTP.';
+            $this->dispatch('scroll-to-first-error', fieldId: 'field-wrap-phone');
             throw ValidationException::withMessages([
                 'data.phone' => 'Please verify your mobile number using the Send OTP button before creating an account.',
             ]);
@@ -219,18 +232,21 @@ final class Register extends BaseRegister
         // 3. Strict Backend Duplicate Checks (Email, Phone, NID Number)
         $normalizedPhone = $otpService->normalizePhoneNumber($data['phone']);
         if (User::where('email', strtolower(trim($data['email'])))->exists()) {
+            $this->dispatch('scroll-to-first-error', fieldId: 'field-wrap-email');
             throw ValidationException::withMessages([
                 'data.email' => 'This email address is already registered.',
             ]);
         }
 
         if ($normalizedPhone && User::where('phone', $normalizedPhone)->exists()) {
+            $this->dispatch('scroll-to-first-error', fieldId: 'field-wrap-phone');
             throw ValidationException::withMessages([
                 'data.phone' => 'This mobile number is already registered.',
             ]);
         }
 
         if (! empty($data['nid_number']) && User::where('nid_number', trim($data['nid_number']))->exists()) {
+            $this->dispatch('scroll-to-first-error', fieldId: 'data.nid_number');
             throw ValidationException::withMessages([
                 'data.nid_number' => 'This NID Number is already registered.',
             ]);
@@ -269,24 +285,83 @@ final class Register extends BaseRegister
      * Guarantees the user always sees a clear, unmissable toast whenever
      * registration is blocked for any reason — missing required fields,
      * unverified email/phone, or duplicate email/phone/NID.
+     * Shows the error message for the FIRST failing field in sequential form order.
      */
     protected function notifyValidationFailure(ValidationException $exception): void
     {
-        $messages = collect($exception->errors())
-            ->flatten()
-            ->unique()
-            ->values();
+        $errors = $exception->errors();
+
+        // Walk fields in the exact order they appear in the form.
+        // The first field with an error determines the notification body.
+        $fieldOrder = [
+            'data.name',
+            'data.email',
+            'data.phone',
+            'data.password',
+            'data.passwordConfirmation',
+            'data.nid_number',
+            'data.front_nid',
+            'data.back_nid',
+            'data.live_photo',
+            'data.business_name',
+            'data.trade_license_number',
+            'data.business_address',
+            'data.trade_license_file',
+            'data.terms',
+        ];
+
+        $firstMessage = null;
+        foreach ($fieldOrder as $key) {
+            if (! empty($errors[$key])) {
+                $msgs = $errors[$key];
+                $firstMessage = is_array($msgs) ? $msgs[0] : (string) $msgs;
+                break;
+            }
+        }
 
         Notification::make()
             ->title('Registration incomplete')
-            ->body(
-                $messages->isNotEmpty()
-                    ? $messages->take(6)->implode(' ')
-                    : 'Please go back, review the form, and fill in every required field before creating your account.'
-            )
+            ->body($firstMessage ?? 'Please go back, review the form, and fill in every required field before creating your account.')
             ->danger()
             ->persistent()
             ->send();
+    }
+
+    /**
+     * Dispatches a browser event that the page JS listener uses to smooth-scroll
+     * to the first failing field in sequential form order.
+     *
+     * Custom blade wrappers expose an explicit HTML id (e.g. "field-wrap-email").
+     * Standard Filament inputs use their statePath as the HTML id (e.g. "data.name").
+     * Section containers are used for FileUpload fields (e.g. "section-nid-kyc").
+     */
+    protected function dispatchScrollForFirstError(array $errors): void
+    {
+        // Map: Filament error key → HTML element id to scroll to, in exact form order.
+        $fieldScrollMap = [
+            'data.name'                 => 'data.name',
+            'data.email'                => 'field-wrap-email',
+            'data.phone'                => 'field-wrap-phone',
+            'data.password'             => 'data.password',
+            'data.passwordConfirmation' => 'data.passwordConfirmation',
+            'data.nid_number'           => 'data.nid_number',
+            'data.front_nid'            => 'section-nid-kyc',
+            'data.back_nid'             => 'section-nid-kyc',
+            'data.live_photo'           => 'field-wrap-live-photo',
+            'data.business_name'        => 'data.business_name',
+            'data.trade_license_number' => 'data.trade_license_number',
+            'data.business_address'     => 'data.business_address',
+            'data.trade_license_file'   => 'section-business',
+            'data.terms'                => 'data.terms',
+        ];
+
+        foreach ($fieldScrollMap as $errorKey => $scrollId) {
+            if (! empty($errors[$errorKey])) {
+                $this->dispatch('scroll-to-first-error', fieldId: $scrollId);
+
+                return;
+            }
+        }
     }
 
     protected function mutateFormDataBeforeRegister(array $data): array
@@ -310,19 +385,13 @@ final class Register extends BaseRegister
             $data['live_photo'] = $filename;
         }
 
-        $hasTradeLicense = filled($data['trade_license_number'] ?? null) || filled($data['trade_license_file'] ?? null);
-
+        // Trade license is now mandatory — always mark as submitted.
         $data['status'] = UserStatus::Pending;
         $data['kyc_status'] = KycStatus::UnderReview;
         $data['email_verified_at'] = now();
         $data['phone_verified_at'] = now();
         $data['kyc_submitted_at'] = now();
-        $data['trade_license_submitted'] = $hasTradeLicense;
-
-        if (! $hasTradeLicense) {
-            $data['trade_license_number'] = null;
-            $data['trade_license_file'] = null;
-        }
+        $data['trade_license_submitted'] = true;
 
         return $data;
     }
@@ -340,6 +409,9 @@ final class Register extends BaseRegister
                         TextInput::make('name')
                             ->label('Full Name')
                             ->validationAttribute('Full Name')
+                            ->validationMessages([
+                                'required' => 'Your full name is required. Please enter your first and last name to proceed.',
+                            ])
                             ->placeholder('Enter your full name')
                             ->prefixIcon(Heroicon::OutlinedUser)
                             ->required()
@@ -353,6 +425,10 @@ final class Register extends BaseRegister
                             TextInput::make('email')
                                 ->label('Email Address')
                                 ->validationAttribute('Email Address')
+                                ->validationMessages([
+                                    'required' => 'An email address is required. Your OTP verification code will be sent to this email.',
+                                    'email'    => 'Please enter a valid email address (e.g. you@example.com).',
+                                ])
                                 ->email()
                                 ->required()
                                 ->view('filament.forms.components.inline-email-verification')
@@ -361,6 +437,9 @@ final class Register extends BaseRegister
                             TextInput::make('phone')
                                 ->label('Mobile Number')
                                 ->validationAttribute('Mobile Number')
+                                ->validationMessages([
+                                    'required' => 'A mobile number is required. Your SMS OTP verification code will be sent to this number.',
+                                ])
                                 ->required()
                                 ->view('filament.forms.components.inline-phone-verification')
                                 ->columnSpan(1),
@@ -372,6 +451,10 @@ final class Register extends BaseRegister
                         ])->schema([
                             TextInput::make('password')
                                 ->label('Password')
+                                ->validationMessages([
+                                    'required' => 'A password is required to secure your account. Please create a strong password.',
+                                    'same'     => 'The password and confirmation password do not match. Please re-enter them.',
+                                ])
                                 ->placeholder('Create a strong password')
                                 ->prefixIcon(Heroicon::OutlinedLockClosed)
                                 ->password()
@@ -385,6 +468,9 @@ final class Register extends BaseRegister
 
                             TextInput::make('passwordConfirmation')
                                 ->label('Confirm Password')
+                                ->validationMessages([
+                                    'required' => 'Please re-enter your password in this field to confirm they match.',
+                                ])
                                 ->placeholder('Re-enter your password')
                                 ->prefixIcon(Heroicon::OutlinedLockClosed)
                                 ->password()
@@ -398,10 +484,15 @@ final class Register extends BaseRegister
                 Section::make('NID / KYC Verification')
                     ->description('Provide your National ID number and official document photos for KYC review.')
                     ->icon(Heroicon::OutlinedIdentification)
+                    ->extraAttributes(['id' => 'section-nid-kyc'])
                     ->schema([
                         TextInput::make('nid_number')
                             ->label('NID Number')
                             ->validationAttribute('NID Number')
+                            ->validationMessages([
+                                'required' => 'Your National ID (NID) number is required for KYC identity verification. Please enter your 10, 13, or 17-digit NID number.',
+                                'unique'   => 'This NID number is already registered to another account.',
+                            ])
                             ->placeholder('Enter your 10, 13, or 17-digit NID Number')
                             ->prefixIcon(Heroicon::OutlinedCreditCard)
                             ->required()
@@ -415,6 +506,9 @@ final class Register extends BaseRegister
                             FileUpload::make('front_nid')
                                 ->label('NID Front Side')
                                 ->validationAttribute('NID Front Side')
+                                ->validationMessages([
+                                    'required' => 'Please upload a clear photo of the FRONT side of your NID card. This is required for KYC verification.',
+                                ])
                                 ->image()
                                 ->required()
                                 ->maxSize(4096) // 4MB
@@ -425,6 +519,9 @@ final class Register extends BaseRegister
                             FileUpload::make('back_nid')
                                 ->label('NID Back Side')
                                 ->validationAttribute('NID Back Side')
+                                ->validationMessages([
+                                    'required' => 'Please upload a clear photo of the BACK side of your NID card. Both sides are required for KYC verification.',
+                                ])
                                 ->image()
                                 ->required()
                                 ->maxSize(4096) // 4MB
@@ -442,15 +539,19 @@ final class Register extends BaseRegister
                         LivePhotoCapture::make('live_photo')
                             ->label('Live Camera Photo')
                             ->validationAttribute('Live Camera Photo')
+                            ->validationMessages([
+                                'required' => 'A live selfie photo is required for identity verification. Please click "Open Webcam" or "Use Phone Camera" to capture your photo.',
+                            ])
                             ->required(),
                     ]),
 
-                // 4. Business Information & Trade License (Optional)
-                Section::make('Business Information (Optional)')
-                    ->description('Trade License is optional. You can create your account and submit trade license details anytime.')
+                // 4. Business Information & Trade License
+                Section::make('Business Information')
+                    ->description('Provide your business details and trade license. All fields in this section are required.')
                     ->icon(Heroicon::OutlinedBuildingOffice2)
                     ->collapsible()
                     ->collapsed(false)
+                    ->extraAttributes(['id' => 'section-business'])
                     ->schema([
                         Grid::make([
                             'default' => 1,
@@ -458,38 +559,62 @@ final class Register extends BaseRegister
                         ])->schema([
                             TextInput::make('business_name')
                                 ->label('Business / Company Name')
-                                ->placeholder('Optional business name')
+                                ->validationAttribute('Business / Company Name')
+                                ->validationMessages([
+                                    'required' => 'Your business or company name is required. Please enter the registered name of your business.',
+                                ])
+                                ->placeholder('Enter your business or company name')
                                 ->prefixIcon(Heroicon::OutlinedBuildingOffice)
+                                ->required()
                                 ->maxLength(255),
 
                             TextInput::make('trade_license_number')
                                 ->label('Trade License Number')
-                                ->placeholder('Optional trade license number')
+                                ->validationAttribute('Trade License Number')
+                                ->validationMessages([
+                                    'required' => 'Your trade license number is required. Please enter the official number printed on your trade license document.',
+                                ])
+                                ->placeholder('Enter your trade license number')
                                 ->prefixIcon(Heroicon::OutlinedDocumentText)
+                                ->required()
                                 ->maxLength(100),
                         ]),
 
                         Textarea::make('business_address')
                             ->label('Business Address')
-                            ->placeholder('Optional business address')
+                            ->validationAttribute('Business Address')
+                            ->validationMessages([
+                                'required' => 'Your business address is required. Please enter the full address of your business premises.',
+                            ])
+                            ->placeholder('Enter your business address')
                             ->rows(2)
+                            ->required()
                             ->maxLength(500),
 
                         FileUpload::make('trade_license_file')
                             ->label('Trade License Document')
+                            ->validationAttribute('Trade License Document')
+                            ->validationMessages([
+                                'required' => 'Please upload your Trade License document. Accepted formats are PDF or image (JPG, PNG). Max size 5MB.',
+                            ])
                             ->acceptedFileTypes(['image/*', 'application/pdf'])
                             ->maxSize(5120) // 5MB
+                            ->required()
                             ->directory('trade_licenses')
                             ->visibility('private')
-                            ->helperText('Optional. PDF or image of your Trade License document.'),
+                            ->helperText('PDF or image of your Trade License document.'),
                     ]),
 
                 // 5. Terms and Agreement
                 Section::make()
                     ->schema([
                         Checkbox::make('terms')
-                            ->label(new HtmlString('I agree to the <a href="'.route('terms').'" target="_blank" class="underline text-teal-600 hover:text-teal-700 dark:text-teal-400">Terms & Conditions</a> and <a href="'.route('terms').'" target="_blank" class="underline text-teal-600 hover:text-teal-700 dark:text-teal-400">Privacy Policy</a>'))
+                            ->label(new HtmlString('I agree to the <a href="'.route('terms').'" target="_blank" class="underline text-teal-600 hover:text-teal-700 dark:text-teal-400">Terms &amp; Conditions</a> and <a href="'.route('terms').'" target="_blank" class="underline text-teal-600 hover:text-teal-700 dark:text-teal-400">Privacy Policy</a>'))
                             ->validationAttribute('Terms & Conditions')
+                            ->validationMessages([
+                                'required' => 'You must read and agree to the Terms & Conditions and Privacy Policy before creating your account.',
+                                'accepted' => 'You must read and agree to the Terms & Conditions and Privacy Policy before creating your account.',
+                            ])
                             ->required()
                             ->dehydrated(false),
                     ]),

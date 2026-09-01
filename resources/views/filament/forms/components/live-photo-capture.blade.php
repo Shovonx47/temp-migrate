@@ -15,6 +15,7 @@
         isQrMode: false,
         qrSessionToken: null,
         qrCaptureUrl: null,
+        qrDataUri: null,
         qrIsLoading: false,
         qrError: null,
         qrPollTimer: null,
@@ -35,7 +36,6 @@
                     throw new Error('Camera access is not supported on this browser or connection is not secure (HTTPS required).');
                 }
 
-                // iOS Safari requires simplified constraints — try progressively simpler configs
                 let stream = null;
                 const constraintFallbacks = [
                     { video: { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
@@ -56,16 +56,17 @@
 
                 const video = this.$refs.video;
                 if (video) {
-                    video.srcObject = stream;
-                    // iOS Safari needs these attributes set programmatically
+                    video.muted = true;
+                    video.setAttribute('muted', '');
                     video.setAttribute('playsinline', true);
                     video.setAttribute('webkit-playsinline', true);
-                    video.muted = true;
+                    video.srcObject = stream;
+                    video.load();
                     try {
                         await video.play();
                     } catch (playErr) {
-                        // Some browsers require user gesture — the video may still show frames
-                        console.warn('video.play() rejected:', playErr.message);
+                        this.cameraError = 'play() failed: ' + playErr.name + ' — ' + playErr.message;
+                        console.warn('video.play() rejected:', playErr.name, playErr.message);
                     }
                 }
             } catch (err) {
@@ -98,16 +99,12 @@
                 }
                 this.qrSessionToken = data.session_token;
                 this.qrCaptureUrl = data.capture_url;
+                this.qrDataUri = data.qr_data_uri;
 
                 const expDate = new Date(data.expires_at);
                 this.qrExpiresSeconds = Math.max(1, Math.floor((expDate - new Date()) / 1000));
                 this.startQrExpireCountdown();
                 this.startQrPolling();
-
-                // Wait for DOM, then wait for QRCode library to load, then render
-                await this.$nextTick();
-                await this.waitForQrLib();
-                this.renderQrCode();
 
             } catch (err) {
                 console.error('QR session error:', err);
@@ -115,43 +112,6 @@
             } finally {
                 this.qrIsLoading = false;
             }
-        },
-
-        /**
-         * Polls until window.QRCode is available (CDN script fully loaded).
-         * Resolves immediately if already loaded. Rejects after 10s.
-         */
-        waitForQrLib() {
-            return new Promise((resolve, reject) => {
-                if (typeof QRCode !== 'undefined') { resolve(); return; }
-                let attempts = 0;
-                const timer = setInterval(() => {
-                    attempts++;
-                    if (typeof QRCode !== 'undefined') {
-                        clearInterval(timer);
-                        resolve();
-                    } else if (attempts >= 100) {
-                        clearInterval(timer);
-                        reject(new Error('QR code library failed to load. Please check your internet connection and try again.'));
-                    }
-                }, 100);
-            });
-        },
-
-        renderQrCode() {
-            const container = document.getElementById('qrCodeContainer_' + '{{ $statePath }}'.replace(/[^a-zA-Z0-9]/g, '_'));
-            if (!container || !this.qrCaptureUrl || typeof QRCode === 'undefined') {
-                return;
-            }
-            container.innerHTML = '';
-            new QRCode(container, {
-                text: this.qrCaptureUrl,
-                width: 220,
-                height: 220,
-                colorDark: '#0f172a',
-                colorLight: '#ffffff',
-                correctLevel: QRCode.CorrectLevel.M,
-            });
         },
 
         startQrPolling() {
@@ -224,6 +184,7 @@
             this.isQrMode = false;
             this.qrSessionToken = null;
             this.qrCaptureUrl = null;
+            this.qrDataUri = null;
             this.qrError = null;
             this.openCamera();
         },
@@ -243,7 +204,6 @@
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, width, height);
 
-            // Future face detection / liveness hooks can be called here
             this.capturedImage = canvas.toDataURL('image/jpeg', 0.9);
             this.stopCamera();
             this.stopQrPolling();
@@ -291,39 +251,21 @@
             this.isQrMode = false;
             this.qrSessionToken = null;
             this.qrCaptureUrl = null;
+            this.qrDataUri = null;
             this.qrError = null;
         },
 
-        /**
-         * Client-side pre-submit guard for the WHOLE registration form.
-         * Runs the instant Sign up is clicked, before Livewire even sends
-         * the request. If anything required is empty, it cancels the
-         * submission, smooth-scrolls to the first missing field, lets the
-         * browser show its native 'please fill this out' prompt there,
-         * and gives the Sign up button a quick shake.
-         */
         initSubmitGuard() {
+            // Browser native HTML5 validation is intentionally disabled (novalidate is applied
+            // by the script block below). All validation goes through Livewire + PHP so the
+            // custom descriptive per-field messages and sequential auto-scroll work correctly.
+            //
+            // We keep a submit-button shake animation for tactile feedback only.
             const formEl = this.$el.closest('form');
-            if (!formEl || formEl.dataset.clientValidationGuard) {
-                return;
-            }
+            if (!formEl || formEl.dataset.clientValidationGuard) return;
             formEl.dataset.clientValidationGuard = '1';
 
-            formEl.addEventListener('submit', (event) => {
-                if (formEl.reportValidity()) {
-                    return; // everything required is filled — let it submit normally
-                }
-
-                event.preventDefault();
-                event.stopImmediatePropagation();
-
-                const firstInvalid = Array.from(formEl.querySelectorAll('[required]'))
-                    .find((el) => !el.checkValidity());
-
-                if (firstInvalid) {
-                    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-
+            formEl.addEventListener('submit', () => {
                 const submitBtn = formEl.querySelector('[type=submit]');
                 submitBtn?.animate(
                     [
@@ -336,14 +278,11 @@
                     ],
                     { duration: 350, easing: 'ease-in-out' }
                 );
-
-                // Give the smooth scroll a moment to settle before the
-                // native tooltip appears, so it lands in the right spot.
-                setTimeout(() => formEl.reportValidity(), 300);
-            }, true); // capture phase — runs before Livewire's own submit handler
+            }, true);
         }
     }"
     x-init="initSubmitGuard()"
+    id="field-wrap-live-photo"
     class="fi-fo-live-photo-capture space-y-2"
 >
     <label class="flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-200">
@@ -353,10 +292,8 @@
         @endif
     </label>
 
-    <!-- Hidden Canvas for frame extraction -->
     <canvas x-ref="canvas" class="hidden"></canvas>
 
-    <!-- Confirmed Photo Preview (When Photo is already confirmed) -->
     <template x-if="state">
         <div class="relative inline-block border-2 border-teal-500 rounded-xl overflow-hidden shadow-sm bg-gray-50 dark:bg-gray-900 p-2">
             <div class="relative w-48 h-48 rounded-lg overflow-hidden bg-black/5 flex items-center justify-center">
@@ -381,7 +318,6 @@
         </div>
     </template>
 
-    <!-- Initial Button Trigger (When no photo confirmed yet) -->
     <template x-if="!state && !isCameraOpen">
         <div class="border-2 border-dashed {{ $errors->has($statePath) ? 'border-red-400 dark:border-red-700' : 'border-gray-300 dark:border-gray-700' }} rounded-2xl p-6 text-center bg-gray-50/50 dark:bg-gray-900/30 hover:border-teal-500 transition">
             <div class="w-14 h-14 mx-auto rounded-full bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800 flex items-center justify-center text-teal-600 dark:text-teal-400 mb-3 shadow-xs">
@@ -410,9 +346,6 @@
                 </button>
             </div>
 
-            <!-- Invisible proxy input: lets the browser's native required-field
-                 validation "see" this field, since `state` above is just an
-                 Alpine variable with no real form control behind it. -->
             <input
                 type="text"
                 :value="state ?? ''"
@@ -424,8 +357,8 @@
         </div>
     </template>
 
-    <!-- Live Camera Capture Modal / Viewfinder Container -->
     <div
+        wire:ignore
         x-cloak
         x-show="isCameraOpen"
         x-transition.opacity
@@ -435,7 +368,6 @@
             x-on:click.outside="closeModal()"
             class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-gray-200 dark:border-gray-800"
         >
-            <!-- Modal Header -->
             <div class="px-5 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <x-filament::icon icon="heroicon-m-camera" class="w-5 h-5 text-teal-600" />
@@ -471,7 +403,6 @@
                 </div>
             </div>
 
-            <!-- Modal Body: Video Stream / QR Code / Captured Preview -->
             <div class="p-5 space-y-4">
                 <template x-if="cameraError">
                     <div class="p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-xs text-red-700 dark:text-red-300">
@@ -491,7 +422,6 @@
                     </div>
                 </template>
 
-                <!-- QR Code Mode View -->
                 <template x-if="isQrMode && !capturedImage && !qrIsLoading">
                     <div class="space-y-4">
                         <template x-if="qrError">
@@ -502,9 +432,13 @@
 
                         <div class="flex flex-col items-center justify-center py-3">
                             <div class="bg-white rounded-2xl p-4 border border-gray-200 dark:border-gray-700 shadow-md">
-                                <div id="qrCodeContainer_{{ str_replace(['.', '[', ']', '-', '_', ' '], '_', $statePath) }}">
-                                    <div class="w-[220px] h-[220px] flex items-center justify-center text-gray-400 text-xs">Loading...</div>
-                                </div>
+                                <img
+                                    :src="qrDataUri"
+                                    width="220"
+                                    height="220"
+                                    alt="Scan to open camera on phone"
+                                    class="w-[220px] h-[220px]"
+                                />
                             </div>
 
                             <div class="mt-4 text-center max-w-xs">
@@ -554,7 +488,6 @@
                     </div>
                 </template>
 
-                <!-- QR Loading -->
                 <template x-if="isQrMode && qrIsLoading && !capturedImage">
                     <div class="py-16 flex flex-col items-center justify-center">
                         <div class="w-12 h-12 border-4 border-teal-500/30 border-t-teal-500 rounded-full animate-spin mb-3"></div>
@@ -562,7 +495,6 @@
                     </div>
                 </template>
 
-                <!-- Active Video Stream -->
                 <div x-show="!capturedImage && !cameraError && !isQrMode" class="relative aspect-4/3 w-full rounded-xl overflow-hidden bg-black shadow-inner flex items-center justify-center">
                     <video
                         x-ref="video"
@@ -572,7 +504,6 @@
                         muted
                         class="w-full h-full object-cover transform -scale-x-100"
                     ></video>
-                    <!-- Face Guide Oval Overlay -->
                     <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
                         <div class="w-48 h-60 border-2 border-dashed border-white/70 rounded-full shadow-lg"></div>
                     </div>
@@ -583,7 +514,6 @@
                     </div>
                 </div>
 
-                <!-- Captured Image Preview -->
                 <div x-show="capturedImage" class="relative aspect-4/3 w-full rounded-xl overflow-hidden bg-black shadow-inner flex items-center justify-center">
                     <img :src="capturedImage" alt="Captured Selfie" class="w-full h-full object-cover transform -scale-x-100" />
                     <div class="absolute top-3 left-3 bg-teal-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md flex items-center gap-1">
@@ -593,7 +523,6 @@
                 </div>
             </div>
 
-            <!-- Modal Footer Controls -->
             <div class="px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between">
                 <template x-if="!capturedImage && !cameraError && !isQrMode">
                     <div class="w-full flex items-center justify-between">
@@ -686,35 +615,61 @@
     @enderror
 </div>
 
-<!-- QR Code Generator (client-side, no external API calls) -->
+{{--
+    Sequential scroll-to-first-error listener.
+    Registered @once so it loads a single time even if Livewire re-renders this component.
+    The PHP Register::dispatchScrollForFirstError() dispatches the 'scroll-to-first-error'
+    browser event via Livewire's $this->dispatch(), which Livewire ships as a window CustomEvent.
+--}}
+@once
 <script>
-(function() {
-    const libScriptId = 'qrcode_lib_sms';
-    if (document.getElementById(libScriptId)) return;
+    (function () {
+        if (window.__scrollToFirstErrorRegistered) return;
+        window.__scrollToFirstErrorRegistered = true;
 
-    function loadScript(src, onSuccess, onError) {
-        const s = document.createElement('script');
-        s.src = src;
-        s.crossOrigin = 'anonymous';
-        s.onload = onSuccess;
-        s.onerror = onError;
-        document.head.appendChild(s);
-    }
+        // ── 1. Disable browser-native HTML5 validation on all Filament forms ──────
+        // Removes "Please fill out this field." browser tooltips entirely.
+        // All validation is handled by Livewire + PHP which shows our custom
+        // descriptive per-field messages and sequential auto-scroll.
+        function applyNoValidate() {
+            document.querySelectorAll('form').forEach(function (f) {
+                if (!f.hasAttribute('novalidate')) f.setAttribute('novalidate', '');
+            });
+        }
+        applyNoValidate();
+        // Re-apply after Livewire SPA navigation
+        document.addEventListener('livewire:navigated', applyNoValidate);
 
-    const primaryCdn = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
-    const fallbackCdn = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
+        // ── 2. Sequential scroll-to-first-error listener ─────────────────────────
+        // The PHP Register::dispatchScrollForFirstError() dispatches 'scroll-to-first-error'
+        // as a Livewire browser event (window CustomEvent).
+        window.addEventListener('scroll-to-first-error', function (e) {
+            var fieldId = e.detail && e.detail.fieldId;
+            if (!fieldId) return;
 
-    const primaryScript = document.createElement('script');
-    primaryScript.id = libScriptId;
-    primaryScript.src = primaryCdn;
-    primaryScript.crossOrigin = 'anonymous';
-    primaryScript.onerror = function() {
-        // Primary CDN failed — try fallback
-        const fb = document.createElement('script');
-        fb.id = libScriptId + '_fb';
-        fb.src = fallbackCdn;
-        document.head.appendChild(fb);
-    };
-    document.head.appendChild(primaryScript);
-})();
+            // getElementById handles dots in id attributes correctly (unlike CSS querySelector).
+            var el = document.getElementById(fieldId);
+            if (!el) return;
+
+            // Prefer scrolling to the field wrapper so the label + error message are both visible.
+            var target =
+                el.closest('.fi-fo-field-wrp') ||
+                el.closest('.fi-section-content-ctn') ||
+                el.closest('[id^="section-"]') ||
+                el;
+
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            // Focus the input after the scroll animation settles.
+            setTimeout(function () {
+                try {
+                    var inp = (el.matches && el.matches('input, textarea, select'))
+                        ? el
+                        : (el.querySelector ? el.querySelector('input:not([type=hidden]), textarea, select') : null);
+                    if (inp && !inp.disabled && !inp.readOnly) inp.focus();
+                } catch (ex) { /* ignore */ }
+            }, 500);
+        });
+    })();
 </script>
+@endonce

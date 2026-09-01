@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\PhonePhotoSession;
+use Endroid\QrCode\Builder\Builder;
+use Endroid\QrCode\Writer\PngWriter;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,10 +20,20 @@ final class PhonePhotoController extends Controller
 
         $captureUrl = route('phone-photo.capture', ['token' => $session->session_token]);
 
+        $qrResult = new Builder(
+            writer: new PngWriter(),
+            data: $captureUrl,
+            size: 220,
+            margin: 8,
+        );
+
+        $qrDataUri = $qrResult->build()->getDataUri();
+
         return response()->json([
             'success' => true,
             'session_token' => $session->session_token,
             'capture_url' => $captureUrl,
+            'qr_data_uri' => $qrDataUri,
             'expires_at' => $session->expires_at->toIso8601String(),
         ]);
     }

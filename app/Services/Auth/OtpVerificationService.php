@@ -50,7 +50,7 @@ class OtpVerificationService
             ];
         }
 
-        if (User::where('email', $email)->exists()) {
+        if (User::withoutGlobalScopes()->whereNull('deleted_at')->where('email', $email)->exists()) {
             return [
                 'success' => false,
                 'message' => 'This email address is already registered.',
@@ -183,7 +183,7 @@ class OtpVerificationService
             ];
         }
 
-        if (User::where('phone', $normalizedPhone)->exists()) {
+        if (User::withoutGlobalScopes()->whereNull('deleted_at')->where('phone', $normalizedPhone)->exists()) {
             return [
                 'success' => false,
                 'message' => 'This mobile number is already registered.',

@@ -230,27 +230,49 @@ final class Register extends BaseRegister
         }
 
         // 3. Strict Backend Duplicate Checks (Email, Phone, NID Number)
+        // Use withoutGlobalScopes() to bypass SoftDeletes + ScopedBySp for accurate checks.
         $normalizedPhone = $otpService->normalizePhoneNumber($data['phone']);
-        if (User::where('email', strtolower(trim($data['email'])))->exists()) {
+        $normalizedEmail = strtolower(trim($data['email']));
+        $normalizedNid = trim($data['nid_number'] ?? '');
+
+        // Check active (non-soft-deleted) users first — these are real duplicates.
+        if (User::withoutGlobalScopes()->whereNull('deleted_at')->where('email', $normalizedEmail)->exists()) {
             $this->dispatch('scroll-to-first-error', fieldId: 'field-wrap-email');
             throw ValidationException::withMessages([
                 'data.email' => 'This email address is already registered.',
             ]);
         }
 
-        if ($normalizedPhone && User::where('phone', $normalizedPhone)->exists()) {
+        if ($normalizedPhone && User::withoutGlobalScopes()->whereNull('deleted_at')->where('phone', $normalizedPhone)->exists()) {
             $this->dispatch('scroll-to-first-error', fieldId: 'field-wrap-phone');
             throw ValidationException::withMessages([
                 'data.phone' => 'This mobile number is already registered.',
             ]);
         }
 
-        if (! empty($data['nid_number']) && User::where('nid_number', trim($data['nid_number']))->exists()) {
+        if ($normalizedNid !== '' && User::withoutGlobalScopes()->whereNull('deleted_at')->where('nid_number', $normalizedNid)->exists()) {
             $this->dispatch('scroll-to-first-error', fieldId: 'data.nid_number');
             throw ValidationException::withMessages([
                 'data.nid_number' => 'This NID Number is already registered.',
             ]);
         }
+
+        // Purge soft-deleted users that would clash with DB unique constraints.
+        // These records were intentionally deleted by an admin, so force-deleting
+        // them is safe and allows the same person (or credentials) to re-register.
+        User::withoutGlobalScopes()->onlyTrashed()
+            ->where(function ($query) use ($normalizedEmail, $normalizedPhone, $normalizedNid) {
+                $query->where('email', $normalizedEmail);
+                if ($normalizedPhone) {
+                    $query->orWhere('phone', $normalizedPhone);
+                }
+                if ($normalizedNid !== '') {
+                    $query->orWhere('nid_number', $normalizedNid);
+                }
+            })
+            ->each(function (User $trashedUser): void {
+                $trashedUser->forceDelete();
+            });
 
         $user = $this->wrapInDatabaseTransaction(function () use ($data, $normalizedPhone): Model {
             $this->callHook('beforeValidate');
@@ -339,20 +361,20 @@ final class Register extends BaseRegister
     {
         // Map: Filament error key → HTML element id to scroll to, in exact form order.
         $fieldScrollMap = [
-            'data.name'                 => 'data.name',
-            'data.email'                => 'field-wrap-email',
-            'data.phone'                => 'field-wrap-phone',
-            'data.password'             => 'data.password',
+            'data.name' => 'data.name',
+            'data.email' => 'field-wrap-email',
+            'data.phone' => 'field-wrap-phone',
+            'data.password' => 'data.password',
             'data.passwordConfirmation' => 'data.passwordConfirmation',
-            'data.nid_number'           => 'data.nid_number',
-            'data.front_nid'            => 'section-nid-kyc',
-            'data.back_nid'             => 'section-nid-kyc',
-            'data.live_photo'           => 'field-wrap-live-photo',
-            'data.business_name'        => 'data.business_name',
+            'data.nid_number' => 'data.nid_number',
+            'data.front_nid' => 'section-nid-kyc',
+            'data.back_nid' => 'section-nid-kyc',
+            'data.live_photo' => 'field-wrap-live-photo',
+            'data.business_name' => 'data.business_name',
             'data.trade_license_number' => 'data.trade_license_number',
-            'data.business_address'     => 'data.business_address',
-            'data.trade_license_file'   => 'section-business',
-            'data.terms'                => 'data.terms',
+            'data.business_address' => 'data.business_address',
+            'data.trade_license_file' => 'section-business',
+            'data.terms' => 'data.terms',
         ];
 
         foreach ($fieldScrollMap as $errorKey => $scrollId) {
@@ -427,7 +449,7 @@ final class Register extends BaseRegister
                                 ->validationAttribute('Email Address')
                                 ->validationMessages([
                                     'required' => 'An email address is required. Your OTP verification code will be sent to this email.',
-                                    'email'    => 'Please enter a valid email address (e.g. you@example.com).',
+                                    'email' => 'Please enter a valid email address (e.g. you@example.com).',
                                 ])
                                 ->email()
                                 ->required()
@@ -453,7 +475,7 @@ final class Register extends BaseRegister
                                 ->label('Password')
                                 ->validationMessages([
                                     'required' => 'A password is required to secure your account. Please create a strong password.',
-                                    'same'     => 'The password and confirmation password do not match. Please re-enter them.',
+                                    'same' => 'The password and confirmation password do not match. Please re-enter them.',
                                 ])
                                 ->placeholder('Create a strong password')
                                 ->prefixIcon(Heroicon::OutlinedLockClosed)
@@ -491,12 +513,16 @@ final class Register extends BaseRegister
                             ->validationAttribute('NID Number')
                             ->validationMessages([
                                 'required' => 'Your National ID (NID) number is required for KYC identity verification. Please enter your 10, 13, or 17-digit NID number.',
-                                'unique'   => 'This NID number is already registered to another account.',
+                                'unique' => 'This NID number is already registered to another account.',
                             ])
                             ->placeholder('Enter your 10, 13, or 17-digit NID Number')
                             ->prefixIcon(Heroicon::OutlinedCreditCard)
                             ->required()
-                            ->unique(table: 'users', column: 'nid_number')
+                            ->unique(
+                                table: 'users',
+                                column: 'nid_number',
+                                modifyRuleUsing: fn ($rule) => $rule->withoutTrashed(),
+                            )
                             ->maxLength(30),
 
                         Grid::make([

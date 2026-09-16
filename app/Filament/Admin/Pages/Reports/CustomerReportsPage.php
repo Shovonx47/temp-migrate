@@ -4,11 +4,10 @@ namespace App\Filament\Admin\Pages\Reports;
 
 use App\Enums\SupermanNavigationGroup;
 use BackedEnum;
-use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use UnitEnum;
 
-class CustomerReportsPage extends Page
+class CustomerReportsPage extends AbstractReportPage
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUser;
 
@@ -22,5 +21,8 @@ class CustomerReportsPage extends Page
 
     protected static ?string $slug = 'reports/customer';
 
-    protected string $view = 'filament.admin.blank';
+    protected function reportType(): string
+    {
+        return 'customer';
+    }
 }

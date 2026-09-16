@@ -2,7 +2,9 @@
 
 namespace App\Providers\Filament;
 
+use App\Enums\SupermanNavigationGroup;
 use App\Filament\Admin\Pages\Dashboard;
+use App\Filament\Admin\Search\AdminGlobalSearchProvider;
 use App\Settings\GeneralSettings;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Http\Middleware\Authenticate;
@@ -46,8 +48,13 @@ class SupermanPanelProvider extends PanelProvider
             ->colors(['primary' => Color::Emerald])
             ->sidebarCollapsibleOnDesktop()
             ->collapsibleNavigationGroups()
+            ->navigationGroups(SupermanNavigationGroup::class)
             ->sidebarWidth('300px')
             ->maxContentWidth(Width::Full)
+
+            // Search
+            ->globalSearch(AdminGlobalSearchProvider::class)
+            ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
 
             // Branding — resolved lazily so service providers do not query the DB at boot time.
             ->brandName(fn () => $generalSettings->appName)
@@ -97,6 +104,10 @@ class SupermanPanelProvider extends PanelProvider
             ->renderHook(
                 name: PanelsRenderHook::GLOBAL_SEARCH_AFTER,
                 hook: fn () => Blade::render("@livewire('server-actions')")
+            )
+            ->renderHook(
+                name: PanelsRenderHook::BODY_START,
+                hook: fn () => Blade::render('<script>if (!localStorage.getItem("fi_nav_collapsed_init_v2")) { localStorage.removeItem("collapsedGroups"); localStorage.setItem("fi_nav_collapsed_init_v2", "1"); }</script>')
             )
             ->plugins($this->plugins())
             ->spa()

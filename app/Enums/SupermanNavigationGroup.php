@@ -3,28 +3,30 @@
 namespace App\Enums;
 
 use BackedEnum;
+use Filament\Support\Contracts\Collapsible;
 use Filament\Support\Contracts\HasIcon;
 use Filament\Support\Contracts\HasLabel;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
 
-enum SupermanNavigationGroup: string implements HasIcon, HasLabel
+enum SupermanNavigationGroup: string implements Collapsible, HasIcon, HasLabel
 {
-    // Existing groups
-    case Analytics = 'analytics';
+    // Top priority groups
+    case Kyc = 'kyc';
     case User = 'user';
+    case Analytics = 'analytics';
     case Messaging = 'messaging';
     case Audience = 'audience';
     case Billing = 'billing';
+    case SenderCli = 'sender_cli';
     case Settings = 'settings';
 
-    // New groups
+    // Other groups
     case Resellers = 'resellers';
     case Affiliates = 'affiliates';
     case SmsManagement = 'sms_management';
     case Providers = 'providers';
     case Routing = 'routing';
-    case SenderCli = 'sender_cli';
     case BangladeshNetwork = 'bangladesh_network';
     case Campaigns = 'campaigns';
     case ProfitManagement = 'profit_management';
@@ -35,7 +37,6 @@ enum SupermanNavigationGroup: string implements HasIcon, HasLabel
     case Monitoring = 'monitoring';
     case Alerts = 'alerts';
     case PaymentGateway = 'payment_gateway';
-    case Kyc = 'kyc';
     case Employees = 'employees';
     case RolesPermissions = 'roles_permissions';
     case ApprovalCenter = 'approval_center';
@@ -45,6 +46,16 @@ enum SupermanNavigationGroup: string implements HasIcon, HasLabel
     case SystemLogs = 'system_logs';
     case SystemSettings = 'system_settings';
     case ApiDocumentation = 'api_documentation';
+
+    public function isCollapsible(): bool
+    {
+        return true;
+    }
+
+    public function isCollapsed(): bool
+    {
+        return true;
+    }
 
     public function getLabel(): string|Htmlable|null
     {

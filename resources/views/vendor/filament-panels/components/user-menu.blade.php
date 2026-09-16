@@ -84,7 +84,7 @@
     } else {
         $roleLabel = 'Verified Customer';
         $roleBadgeBg = 'bg-teal-500/10 text-teal-700 border-teal-500/20 dark:bg-teal-500/20 dark:text-teal-300';
-        $roleIcon = 'heroicon-m-user-check';
+        $roleIcon = 'heroicon-m-check-badge';
     }
 
     // Avatar initials

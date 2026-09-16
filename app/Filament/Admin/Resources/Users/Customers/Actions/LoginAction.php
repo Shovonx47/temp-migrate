@@ -2,7 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Users\Customers\Actions;
 
-use App\Models\User;
+use Filament\Facades\Filament;
 use STS\FilamentImpersonate\Actions\Impersonate;
 
 class LoginAction
@@ -11,7 +11,8 @@ class LoginAction
     {
         return Impersonate::make()
             ->label('Login Customer')
-            ->guard(fn (User $record) => $record->type->value)
+            ->guard('customer')
+            ->redirectTo(fn () => Filament::getPanel('customer')->getUrl())
             ->color('danger')
             ->requiresConfirmation()
             ->modalHeading('Login as Customer')

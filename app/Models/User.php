@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\KycStatus;
 use App\Enums\UserStatus;
 use App\Enums\UserType;
 use App\Models\Scopes\ScopedBySp;
@@ -27,12 +28,6 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Propaganistas\LaravelPhone\Casts\E164PhoneNumberCast;
-
-use App\Enums\KycStatus;
-use App\Models\IpWhitelistRequest;
-use App\Models\KycAdminNote;
-use App\Models\KycAuditLog;
-use App\Models\KycRolePermission;
 
 #[Fillable([
     'name',
@@ -274,6 +269,6 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 
     public function canBeImpersonated(): bool
     {
-        return $this->type->isCustomer();
+        return $this->type->isCustomer() || $this->type->isSp();
     }
 }

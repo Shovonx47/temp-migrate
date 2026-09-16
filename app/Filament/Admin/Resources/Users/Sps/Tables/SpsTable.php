@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Resources\Users\Sps\Tables;
 
 use App\Enums\UserStatus;
 use App\Filament\Admin\Resources\Users\Sps\Actions\DepositAction;
+use App\Filament\Admin\Resources\Users\Sps\Actions\LoginAction;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -61,6 +62,7 @@ class SpsTable
                     ViewAction::make()
                         ->label('View S P'),
                     DepositAction::make(),
+                    LoginAction::make(),
                     EditAction::make()
                         ->label('Edit S P'),
                 ]),

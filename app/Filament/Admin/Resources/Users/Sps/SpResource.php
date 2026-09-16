@@ -30,11 +30,11 @@ class SpResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBuildingOffice2;
 
-    protected static string|UnitEnum|null $navigationGroup = SupermanNavigationGroup::Resellers;
+    protected static string|UnitEnum|null $navigationGroup = SupermanNavigationGroup::User;
 
     protected static ?string $recordTitleAttribute = 'name';
 
-    protected static ?string $navigationLabel = 'S P List';
+    protected static ?string $navigationLabel = 'S P';
 
     protected static ?string $modelLabel = 'S P';
 
@@ -42,7 +42,7 @@ class SpResource extends Resource
 
     protected static ?string $slug = 'sps';
 
-    protected static ?int $navigationSort = 0;
+    protected static ?int $navigationSort = 2;
 
     public static function form(Schema $schema): Schema
     {

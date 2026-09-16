@@ -37,6 +37,8 @@ class CustomerResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Customers';
 
+    protected static ?int $navigationSort = 1;
+
     public static function form(Schema $schema): Schema
     {
         return CustomerForm::configure($schema);
@@ -62,10 +64,10 @@ class CustomerResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'      => ListCustomers::route('/'),
-            'create'     => CreateCustomer::route('/create'),
-            'view'       => ViewCustomer::route('/{record}'),
-            'edit'       => EditCustomer::route('/{record}/edit'),
+            'index' => ListCustomers::route('/'),
+            'create' => CreateCustomer::route('/create'),
+            'view' => ViewCustomer::route('/{record}'),
+            'edit' => EditCustomer::route('/{record}/edit'),
             'manage-kyc' => ManageKyc::route('/{record}/kyc'),
         ];
     }

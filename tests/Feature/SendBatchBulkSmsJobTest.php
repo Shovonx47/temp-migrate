@@ -162,6 +162,47 @@ test('marks all messages sent with shared batch ID when driver returns single ID
         ->and($messages->every(fn ($m) => $m->gateway_message_id === 'batch-xyz'))->toBeTrue();
 });
 
+test('marks and refunds only the fifth recipient rejected by the bulk gateway', function () {
+    $batch = makeBulkSendableBatch('No variables here');
+    $user = User::find($batch->user_id);
+    $balanceBefore = (float) $user->balance;
+    insertBulkPendingMessages($batch, 5);
+
+    $rejectedRecipient = (string) Message::where('batch_id', $batch->id)->orderByDesc('id')->value('to');
+
+    Sms::extend('log', function () use ($rejectedRecipient) {
+        return new class($rejectedRecipient) implements SmsGateway, SupportsBulkSms
+        {
+            public function __construct(private string $rejectedRecipient) {}
+
+            public function send(SmsRequest $r): SmsResponse
+            {
+                return new SmsResponse(successful: true);
+            }
+
+            public function sendBulk(BulkSmsRequest $r): BulkSmsResponse
+            {
+                return new BulkSmsResponse(
+                    successful: true,
+                    gatewayBatchId: 'batch-xyz',
+                    failedRecipients: [ltrim($this->rejectedRecipient, '+') => 'Recipient MSISDN is invalid or unsupported.'],
+                );
+            }
+        };
+    });
+
+    $allIds = Message::where('batch_id', $batch->id)->orderBy('id')->pluck('id')->all();
+    runBulkJob($batch, $allIds);
+
+    $messages = Message::where('batch_id', $batch->id)->orderBy('id')->get();
+    $user->refresh();
+
+    expect($messages->where('status', MessageStatus::Sent)->count())->toBe(4)
+        ->and($messages->where('status', MessageStatus::Failed)->count())->toBe(1)
+        ->and($messages->firstWhere('status', MessageStatus::Failed)?->failed_reason)->toBe('Recipient MSISDN is invalid or unsupported.')
+        ->and($user->balance)->toBe(round($balanceBefore + 0.30, 4));
+});
+
 // ---------------------------------------------------------------------------
 // Failure cases
 // ---------------------------------------------------------------------------

@@ -27,6 +27,17 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
 
     public function send(SmsRequest $request): SmsResponse
     {
+        if ($errorMessage = $this->invalidNumericCliError($request->from ?? '')) {
+            SmsLogger::warning('api_request_rejected', [
+                'gateway_name' => 'Infozillion',
+                'phone' => $request->to,
+                'status' => 'failed',
+                'error_message' => $errorMessage,
+            ]);
+
+            return new SmsResponse(successful: false, errorMessage: $errorMessage);
+        }
+
         $payload = $this->buildSendPayload(
             recipients: [$request->to],
             body: $request->body,
@@ -105,6 +116,17 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
 
     public function sendBulk(BulkSmsRequest $request): BulkSmsResponse
     {
+        if ($errorMessage = $this->invalidNumericCliError($request->from ?? '')) {
+            SmsLogger::warning('api_bulk_request_rejected', [
+                'gateway_name' => 'Infozillion',
+                'status' => 'failed',
+                'parts' => count($request->recipients),
+                'error_message' => $errorMessage,
+            ]);
+
+            return new BulkSmsResponse(successful: false, errorMessage: $errorMessage);
+        }
+
         $payload = $this->buildSendPayload(
             recipients: $request->recipients,
             body: $request->body,
@@ -164,6 +186,7 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
                 successful: true,
                 gatewayBatchId: $data['serverTxnId'] ?? null,
                 raw: $data,
+                failedRecipients: $this->failedRecipients($data, $request->recipients),
             );
         } catch (ConnectionException $e) {
             $durationMs = (int) ((hrtime(true) - $startMs) / 1_000_000);
@@ -421,6 +444,58 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
         }
 
         return $payload;
+    }
+
+    private function invalidNumericCliError(string $senderId): ?string
+    {
+        $cli = $this->normalizeBangladeshMsisdn($senderId);
+
+        if ($cli === null) {
+            return null;
+        }
+
+        $billMsisdn = $this->normalizeBangladeshMsisdn((string) ($this->credentials['bill_msisdn'] ?? ''));
+
+        if ($billMsisdn === null || $cli === $billMsisdn) {
+            return null;
+        }
+
+        return 'Infozillion rejected the SMS before sending: the numeric Sender CLI must match this gateway\'s Bill MSISDN. Update the sender or select its registered gateway.';
+    }
+
+    /**
+     * @param  string[]  $recipients
+     * @return array<string, string>
+     */
+    private function failedRecipients(array $data, array $recipients): array
+    {
+        $knownRecipients = collect($recipients)
+            ->mapWithKeys(fn (string $recipient): array => [$this->normalizeBangladeshMsisdn($recipient) ?? $recipient => true]);
+
+        $failedRecipients = [];
+
+        foreach (['dndMsisdn' => 'Recipient is on the DND list.', 'invalidMsisdn' => 'Recipient MSISDN is invalid or unsupported.'] as $field => $reason) {
+            foreach ((array) ($data[$field] ?? []) as $value) {
+                $recipient = $this->normalizeBangladeshMsisdn((string) $value);
+
+                if ($recipient !== null && $knownRecipients->has($recipient)) {
+                    $failedRecipients[$recipient] = $reason;
+                }
+            }
+        }
+
+        return $failedRecipients;
+    }
+
+    private function normalizeBangladeshMsisdn(string $value): ?string
+    {
+        $digits = preg_replace('/\D+/', '', $value) ?? '';
+
+        if (preg_match('/^(?:880|0)?(1[3-9]\d{8})$/', $digits, $matches)) {
+            return '880'.$matches[1];
+        }
+
+        return null;
     }
 
     private function mapDeliveryStatus(array $data): DeliveryStatusResponse

@@ -13,6 +13,8 @@ use App\Models\User;
 use App\Services\Logging\SmsLogger;
 use App\Services\Sms\Data\BulkSmsRequest;
 use App\Services\Sms\Data\BulkSmsResponse;
+use App\Services\Sms\Routing\SmsRouteResolver;
+use App\Settings\SmsSettings;
 use App\Support\Facades\Sms;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -118,14 +120,14 @@ class SendBatchBulkSmsJob implements ShouldQueue
             return;
         }
 
-        if (! app(\App\Settings\SmsSettings::class)->sms_enabled) {
+        if (! app(SmsSettings::class)->sms_enabled) {
             SmsLogger::error('sms_disabled', [
                 'user_id' => $batch->user_id,
                 'status' => 'failed',
                 'error_message' => 'SMS sending is globally disabled in SMS Settings.',
             ]);
 
-            $this->applyBulkResponse($messages, new BulkSmsResponse(false, 'SMS sending is globally disabled.'));
+            $this->applyBulkResponse($messages, new BulkSmsResponse(successful: false, errorMessage: 'SMS sending is globally disabled.'));
             $this->refundFailedMessages($batch, $messages);
 
             return;
@@ -136,7 +138,7 @@ class SendBatchBulkSmsJob implements ShouldQueue
         $isUnicode = (bool) $messages->first()->is_unicode;
 
         // Resolve priority gateways
-        $routeResolver = app(\App\Services\Sms\Routing\SmsRouteResolver::class);
+        $routeResolver = app(SmsRouteResolver::class);
         $gateways = $routeResolver->resolveGateways(
             recipient: $recipients[0] ?? null,
             trafficType: 'promotional',
@@ -211,7 +213,7 @@ class SendBatchBulkSmsJob implements ShouldQueue
 
         $finalResponse = $successfulResponse ?? new BulkSmsResponse(successful: false, errorMessage: $lastError);
 
-        $this->applyBulkResponse($messages, $finalResponse, $successfulGateway->id);
+        $failedMessages = $this->applyBulkResponse($messages, $finalResponse, $successfulGateway->id);
 
         if (! $finalResponse->successful) {
             SmsLogger::error('bulk_sms_failed_all_gateways', [
@@ -222,7 +224,19 @@ class SendBatchBulkSmsJob implements ShouldQueue
                 'job_id' => $this->job?->getJobId(),
             ]);
 
-            $this->refundFailedMessages($batch, $messages);
+            $this->refundFailedMessages($batch, $failedMessages);
+        } elseif ($failedMessages->isNotEmpty()) {
+            SmsLogger::warning('bulk_sms_recipient_rejected', [
+                'user_id' => $batch->user_id,
+                'gateway_id' => $successfulGateway->id,
+                'gateway_name' => $successfulGateway->name ?? $successfulGateway->driver->value,
+                'status' => 'partial_failure',
+                'parts' => $failedMessages->count(),
+                'error_message' => 'Infozillion rejected one or more recipients in an otherwise accepted bulk request.',
+                'job_id' => $this->job?->getJobId(),
+            ]);
+
+            $this->refundFailedMessages($batch, $failedMessages);
         }
 
         // Schedule DLR polling via DB so the command can pick it up even after a Redis flush.
@@ -278,7 +292,37 @@ class SendBatchBulkSmsJob implements ShouldQueue
             ]);
     }
 
-    private function applyBulkResponse(Collection $messages, BulkSmsResponse $response, ?int $gatewayId = null): void
+    /**
+     * @return Collection<int, Message>
+     */
+    private function applyBulkResponse(Collection $messages, BulkSmsResponse $response, ?int $gatewayId = null): Collection
+    {
+        $failedMessages = $this->failedMessages($messages, $response);
+        $acceptedMessages = $messages->reject(fn (Message $message): bool => $failedMessages->has($message->id));
+
+        foreach ($failedMessages as $message) {
+            $message->update([
+                'gateway_id' => $gatewayId,
+                'status' => MessageStatus::Failed->value,
+                'sent_at' => null,
+                'failed_at' => Carbon::now(),
+                'failed_reason' => $response->failedRecipients[$this->normalizedRecipient($message->to)] ?? $response->errorMessage,
+                'gateway_message_id' => null,
+                'poll_attempt' => null,
+                'next_poll_at' => null,
+            ]);
+        }
+
+        if ($acceptedMessages->isEmpty()) {
+            return $failedMessages;
+        }
+
+        $this->applyAcceptedBulkResponse($acceptedMessages, $response, $gatewayId);
+
+        return $failedMessages;
+    }
+
+    private function applyAcceptedBulkResponse(Collection $messages, BulkSmsResponse $response, ?int $gatewayId = null): void
     {
         $ids = $messages->pluck('id')->all();
         $now = Carbon::now();
@@ -323,5 +367,27 @@ class SendBatchBulkSmsJob implements ShouldQueue
             "UPDATE messages SET gateway_message_id = {$caseWhen} WHERE id IN ({$placeholders})",
             array_merge($caseBindings, $ids),
         );
+    }
+
+    /**
+     * @return Collection<int, Message>
+     */
+    private function failedMessages(Collection $messages, BulkSmsResponse $response): Collection
+    {
+        if (! $response->successful) {
+            return $messages->keyBy('id');
+        }
+
+        return $messages
+            ->filter(fn (Message $message): bool => array_key_exists(
+                $this->normalizedRecipient($message->to),
+                $response->failedRecipients,
+            ))
+            ->keyBy('id');
+    }
+
+    private function normalizedRecipient(string $recipient): string
+    {
+        return ltrim($recipient, '+');
     }
 }

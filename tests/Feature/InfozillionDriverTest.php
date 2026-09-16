@@ -245,6 +245,58 @@ test('send uses the credential billing MSISDN while retaining the sender as CLI'
     });
 });
 
+test('send rejects a numeric CLI that does not match the Bill MSISDN', function () {
+    Http::preventStrayRequests();
+
+    $driver = new InfozillionDriver([
+        'base_url' => 'https://a2papiintl.mnpspbd.com',
+        'api_type' => 'mno',
+        'username' => 'test_user',
+        'password' => 'test_pass',
+        'bill_msisdn' => '8801526589635',
+        'api_key' => 'test_api_key',
+    ]);
+
+    $result = $driver->send(new SmsRequest(
+        to: '8801720102673',
+        body: 'Test',
+        from: '01711000001',
+    ));
+
+    expect($result->successful)->toBeFalse()
+        ->and($result->errorMessage)->toContain('numeric Sender CLI must match');
+
+    Http::assertNothingSent();
+});
+
+test('send permits a masking CLI that differs from the Bill MSISDN', function () {
+    Http::fake([
+        '*/a2p-sms/api/v1/send-sms' => Http::response([
+            'serverTxnId' => 'masking-cli-txn',
+            'serverResponseCode' => '9000',
+        ]),
+    ]);
+
+    $driver = new InfozillionDriver([
+        'base_url' => 'https://a2papiintl.mnpspbd.com',
+        'api_type' => 'mno',
+        'username' => 'test_user',
+        'password' => 'test_pass',
+        'bill_msisdn' => '8801526589635',
+        'api_key' => 'test_api_key',
+    ]);
+
+    $result = $driver->send(new SmsRequest(
+        to: '8801720102673',
+        body: 'Test',
+        from: 'WHITEINFO',
+    ));
+
+    expect($result->successful)->toBeTrue();
+
+    Http::assertSent(fn ($request): bool => $request->data()['cli'] === 'WHITEINFO');
+});
+
 /*
 |--------------------------------------------------------------------------
 | Bulk SMS tests
@@ -282,6 +334,39 @@ test('sendBulk returns batch id on success', function () {
 
     expect($result->successful)->toBeTrue()
         ->and($result->gatewayBatchId)->toBe('bulk-batch-id-001');
+});
+
+test('sendBulk identifies recipients rejected by Infozillion', function () {
+    Http::fake([
+        '*/a2p-sms/api/v1/send-sms' => Http::response([
+            'serverTxnId' => 'bulk-batch-id-002',
+            'serverResponseCode' => '9000',
+            'serverResponseMessage' => 'Request accepted with rejected recipients.',
+            'invalidMsisdn' => ['8801720102675'],
+            'dndMsisdn' => ['8801720102674'],
+        ]),
+    ]);
+
+    $driver = new InfozillionDriver([
+        'base_url' => 'https://a2papiintl.mnpspbd.com',
+        'api_type' => 'mno',
+        'username' => 'test_user',
+        'password' => 'test_pass',
+        'bill_msisdn' => '8801526589635',
+        'api_key' => 'test_api_key',
+    ]);
+
+    $result = $driver->sendBulk(new BulkSmsRequest(
+        recipients: ['8801720102673', '8801720102674', '8801720102675'],
+        body: 'Promotional message',
+        from: '22222',
+    ));
+
+    expect($result->successful)->toBeTrue()
+        ->and($result->failedRecipients)->toBe([
+            '8801720102674' => 'Recipient is on the DND list.',
+            '8801720102675' => 'Recipient MSISDN is invalid or unsupported.',
+        ]);
 });
 
 test('sendBulk returns failure on error response', function () {

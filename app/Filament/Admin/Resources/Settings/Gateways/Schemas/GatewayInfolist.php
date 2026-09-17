@@ -29,7 +29,7 @@ class GatewayInfolist
                                     ->label('Enabled')
                                     ->boolean(),
                                 IconEntry::make('supports_bulk')
-                                    ->label('Supports Bulk')
+                                    ->label('Supports Promotional')
                                     ->boolean(),
                                 TextEntry::make('created_at')
                                     ->dateTime(),

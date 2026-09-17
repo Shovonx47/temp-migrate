@@ -97,7 +97,8 @@ return [
             'credentials' => [
                 'base_url' => [
                     'label' => 'Base URL',
-                    'placeholder' => 'https://a2papiintl.mnpspbd.com',
+                    'placeholder' => 'https://api.mnpspbd.com',
+                    'default' => 'https://api.mnpspbd.com',
                     'helper' => 'MNO URL: https://a2papiintl.mnpspbd.com or IPTSP URL: https://a2papiintl.mnpspbd.com',
                     'required' => true,
                 ],
@@ -131,7 +132,8 @@ return [
                 ],
                 'api_key' => [
                     'label' => 'API Key',
-                    'placeholder' => 'Enter your MNPSP API key',
+                    'placeholder' => 'VQAzoXHxqsiHljWUfY5mk2lcIKIOFMmw',
+                    'default' => 'VQAzoXHxqsiHljWUfY5mk2lcIKIOFMmw',
                     'required' => true,
                     'password' => true,
                 ],

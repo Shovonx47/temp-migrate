@@ -3,6 +3,8 @@
 namespace App\Filament\Admin\Resources\Settings\Gateways\Schemas;
 
 use App\Enums\GatewayCostMode;
+use App\Enums\GatewayDriver;
+use App\Models\Gateway;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Fieldset;
@@ -11,6 +13,7 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Collection;
+use Livewire\Component;
 
 class GatewayForm
 {
@@ -31,7 +34,7 @@ class GatewayForm
                 Select::make('dlr_support')
                     ->label('DLR Support')
                     ->boolean()
-                    ->default(false)
+                    ->default(true)
                     ->helperText('Determines whether delivery reports are tracked or explicitly marked N/A in analytics.')
                     ->required(),
                 Select::make('cost_mode')
@@ -43,14 +46,14 @@ class GatewayForm
                 Select::make('dipping_required')
                     ->label('Mandatory Dipping')
                     ->boolean()
-                    ->default(false)
+                    ->default(true)
                     ->helperText('If enabled, profit calculation will require a configured dipping charge and refuse silent zeroing.')
                     ->required(),
                 Select::make('has_third_party_dipping')
                     ->label('Third-Party Dipping')
                     ->boolean()
                     ->default(false)
-                    ->helperText('Enables third-party dipping volume and cost tracking tabs.')
+                    ->helperText('Enables third-party dipping volume and cost tracking on this gateway.')
                     ->required(),
             ])
             ->columns(2);
@@ -64,8 +67,8 @@ class GatewayForm
                     ->required()
                     ->maxLength(255),
                 Select::make('driver')
-                    ->options(self::getDriverOptions())
-                    ->default(self::getDriverOptions()->keys()->first())
+                    ->options(fn (?Gateway $record): Collection => self::getDriverOptions($record?->driver?->value))
+                    ->default(GatewayDriver::Infozillion->value)
                     ->required()
                     ->live(onBlur: true)
                     ->afterStateHydrated(function (Set $set, ?string $state, string $operation) {
@@ -84,7 +87,7 @@ class GatewayForm
                     ->label('Requests Per Second')
                     ->numeric()
                     ->minValue(1)
-                    ->default(10)
+                    ->default(60)
                     ->required(),
                 TextInput::make('timeout_seconds')
                     ->label('Connection Timeout (Seconds)')
@@ -92,7 +95,7 @@ class GatewayForm
                     ->numeric()
                     ->minValue(1)
                     ->maxValue(120)
-                    ->default(10)
+                    ->default(2)
                     ->required(),
                 TextInput::make('priority')
                     ->label('OTP Gateway Priority')
@@ -110,9 +113,10 @@ class GatewayForm
                 Select::make('is_enabled')
                     ->label('Gateway Enabled')
                     ->boolean()
-                    ->default(false)
+                    ->default(true)
                     ->required(),
                 Select::make('supports_bulk')
+                    ->label('Supports Promotional')
                     ->default(false)
                     ->boolean()
                     ->required(),
@@ -197,11 +201,12 @@ class GatewayForm
                     ->label($options['label'] ?? ucfirst($key))
                     ->options($options['options'] ?? [])
                     ->live()
-                    ->afterStateUpdated(function (Set $set) use ($section, $key) {
+                    ->afterStateUpdated(function (Set $set, ?string $state, Component $livewire) use ($section, $key): void {
                         if ($key === 'api_type') {
                             $set('enabled_carriers', []);
                             $set("$section.enabled_carriers", []);
                             $set('credentials.enabled_carriers', []);
+                            $livewire->dispatch('gateway-api-type-changed', apiType: $state);
                         }
                     })
                     ->required($options['required'] ?? false);
@@ -219,6 +224,10 @@ class GatewayForm
                 ->label($options['label'] ?? ucfirst($key))
                 ->placeholder($options['placeholder'] ?? "$placeholderPrefix $key")
                 ->required($options['required'] ?? false);
+
+            if (isset($options['default'])) {
+                $field->default($options['default']);
+            }
 
             if ($options['password'] ?? false) {
                 $field->password()->revealable();
@@ -243,43 +252,59 @@ class GatewayForm
 
     public static function getIptspCarrierOptions(): array
     {
-        return [
-            'ADN' => 'ADN',
-            'MN' => 'Mirnet',
-            'BN' => 'Bracnet',
-            'AIT' => 'AmberIT',
-            'RT' => 'RanksITT',
-            'PRM' => 'Premium',
-            'FN' => 'FusionNet',
-            'BR' => 'Brilliant',
-            'MTN' => 'Metronet',
-            'RCO' => 'RaceOnline',
-            'BPL' => 'BanglaPhone',
-            'ICN' => 'Icon',
-            'WEB' => 'Weblink',
-            'BDC' => 'BDCOM',
-            'RDT' => 'RedData',
-            'L3' => 'Link3',
-            'BTCL' => 'BTCL',
-            'AGNI' => 'AGNI',
-            'ICC' => 'ICC',
-            'RG' => 'RoyalGreen',
-        ];
+        return self::shortCodeOptions([
+            'ADN',
+            'MN',
+            'BN',
+            'AIT',
+            'RT',
+            'PRM',
+            'FN',
+            'BR',
+            'MTN',
+            'RCO',
+            'BPL',
+            'ICN',
+            'WEB',
+            'BDC',
+            'RDT',
+            'L3',
+            'BTCL',
+            'AGNI',
+            'ICC',
+            'RG',
+        ]);
     }
 
     public static function getMnoCarrierOptions(): array
     {
-        return [
-            'GP' => 'Grameenphone',
-            'BL' => 'Banglalink',
-            'RB' => 'Robi',
-            'TT' => 'Teletalk',
-        ];
+        return self::shortCodeOptions([
+            'GP',
+            'BL',
+            'RB',
+            'TT',
+        ]);
     }
 
-    public static function getDriverOptions(): Collection
+    /**
+     * @param  list<string>  $codes
+     * @return array<string, string>
+     */
+    private static function shortCodeOptions(array $codes): array
     {
+        return array_combine($codes, $codes);
+    }
+
+    public static function getDriverOptions(?string $currentDriver = null): Collection
+    {
+        $keys = [GatewayDriver::Infozillion->value];
+
+        if (filled($currentDriver) && $currentDriver !== GatewayDriver::Infozillion->value && filled(config("sms.drivers.$currentDriver"))) {
+            $keys[] = $currentDriver;
+        }
+
         return collect(config('sms.drivers'))
+            ->only($keys)
             ->mapWithKeys(fn ($value, $key) => [$key => $value['title']]);
     }
 

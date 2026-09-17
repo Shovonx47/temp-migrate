@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Settings\Gateways\RelationManagers;
 
+use App\Models\GatewayOperatorRate;
 use App\Models\Operator;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
@@ -15,6 +16,8 @@ use Filament\Tables\Table;
 
 class OperatorRatesRelationManager extends RelationManager
 {
+    use ResolvesGatewayApiType;
+
     protected static string $relationship = 'gatewayOperatorRates';
 
     protected static ?string $title = 'Operator Rates';
@@ -30,13 +33,14 @@ class OperatorRatesRelationManager extends RelationManager
                 TextColumn::make('operator.country.name')
                     ->label('Country')
                     ->sortable(),
-                TextColumn::make('operator.non_masking_price')
-                    ->label('Operator Base Rate')
+                TextColumn::make('masking_price')
+                    ->label('Masking Price')
                     ->prefix('৳')
                     ->numeric(decimalPlaces: 4)
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->visible(fn (): bool => $this->gatewayUsesMasking()),
                 TextColumn::make('non_masking_price')
-                    ->label('InfoZillion Rate')
+                    ->label(fn (): string => $this->operatorRateColumnLabel())
                     ->prefix('৳')
                     ->numeric(decimalPlaces: 4)
                     ->placeholder('—'),
@@ -52,10 +56,12 @@ class OperatorRatesRelationManager extends RelationManager
                     ->color('info'),
             ])
             ->headerActions([
-                CreateAction::make(),
+                CreateAction::make()
+                    ->mutateFormDataUsing(fn (array $data): array => $this->applyMaskingToFormData($data, 'masking_price')),
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()
+                    ->mutateFormDataUsing(fn (array $data): array => $this->applyMaskingToFormData($data, 'masking_price')),
                 DeleteAction::make(),
             ]);
     }
@@ -69,11 +75,24 @@ class OperatorRatesRelationManager extends RelationManager
                     fn ($op) => [$op->id => $op->name.' ('.$op->country->name.')']
                 ))
                 ->searchable()
-                ->required(),
+                ->required()
+                ->unique(
+                    table: GatewayOperatorRate::class,
+                    column: 'operator_id',
+                    ignoreRecord: true,
+                    modifyRuleUsing: function ($rule) {
+                        return $rule->where('gateway_id', $this->getOwnerRecord()->getKey());
+                    },
+                )
+                ->validationMessages([
+                    'unique' => 'A rate for this operator already exists on this gateway.',
+                ]),
             TextInput::make('masking_price')
                 ->label('Masking Price (per part)')
                 ->numeric()
-                ->nullable(),
+                ->nullable()
+                ->visible(fn (): bool => $this->gatewayUsesMasking())
+                ->dehydrated(fn (): bool => $this->gatewayUsesMasking()),
             TextInput::make('non_masking_price')
                 ->label('Non-Masking Price (per part)')
                 ->numeric()

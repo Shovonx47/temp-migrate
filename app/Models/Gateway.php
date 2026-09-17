@@ -78,6 +78,18 @@ class Gateway extends Model
         return $this->hasMany(GatewayThirdPartyDippingPeriod::class);
     }
 
+    public function smsApiType(): string
+    {
+        return strtolower(trim((string) data_get($this->credentials, 'api_type', 'iptsp'))) === 'mno'
+            ? 'mno'
+            : 'iptsp';
+    }
+
+    public function usesMaskingRates(): bool
+    {
+        return $this->smsApiType() === 'mno';
+    }
+
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class, 'gateway_id');

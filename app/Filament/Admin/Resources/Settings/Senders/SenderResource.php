@@ -30,6 +30,8 @@ class SenderResource extends Resource
 
     protected static ?int $navigationSort = 0;
 
+    protected static ?string $navigationLabel = 'Add Sender';
+
     protected static ?string $recordTitleAttribute = 'sender_id';
 
     public static function form(Schema $schema): Schema

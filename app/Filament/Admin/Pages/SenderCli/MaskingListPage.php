@@ -14,7 +14,7 @@ class MaskingListPage extends Page
 
     protected static string|UnitEnum|null $navigationGroup = SupermanNavigationGroup::SenderCli;
 
-    protected static ?string $navigationLabel = 'Masking List';
+    protected static ?string $navigationLabel = 'Masking Sender';
 
     protected static ?string $title = 'Masking Senders';
 

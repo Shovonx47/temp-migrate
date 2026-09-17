@@ -16,6 +16,7 @@ use App\Filament\Admin\Resources\Settings\Gateways\Schemas\GatewayInfolist;
 use App\Filament\Admin\Resources\Settings\Gateways\Tables\GatewaysTable;
 use App\Models\Gateway;
 use BackedEnum;
+use Filament\Resources\RelationManagers\RelationGroup;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -54,10 +55,12 @@ class GatewayResource extends Resource
     public static function getRelations(): array
     {
         return [
-            OperatorRatesRelationManager::class,
-            DippingChargesRelationManager::class,
-            OperatorCostPeriodsRelationManager::class,
-            ThirdPartyDippingRelationManager::class,
+            RelationGroup::make('Billing', [
+                OperatorRatesRelationManager::class,
+                DippingChargesRelationManager::class,
+                OperatorCostPeriodsRelationManager::class,
+                ThirdPartyDippingRelationManager::class,
+            ]),
         ];
     }
 

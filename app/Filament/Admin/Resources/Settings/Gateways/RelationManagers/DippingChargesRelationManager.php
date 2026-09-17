@@ -18,6 +18,8 @@ use Filament\Tables\Table;
 
 class DippingChargesRelationManager extends RelationManager
 {
+    use ResolvesGatewayApiType;
+
     protected static string $relationship = 'dippingCharges';
 
     protected static ?string $title = 'Dipping Charges';
@@ -39,7 +41,8 @@ class DippingChargesRelationManager extends RelationManager
                     ->numeric(decimalPlaces: 4)
                     ->prefix(fn ($record) => $record->rate_mode === DippingRateMode::Percentage ? '' : '৳')
                     ->suffix(fn ($record) => $record->rate_mode === DippingRateMode::Percentage ? '%' : '')
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->visible(fn (): bool => $this->gatewayUsesMasking()),
                 TextColumn::make('non_masking_rate')
                     ->label('Non-Masking Rate')
                     ->numeric(decimalPlaces: 4)
@@ -62,10 +65,12 @@ class DippingChargesRelationManager extends RelationManager
             ])
             ->headerActions([
                 CreateAction::make()
-                    ->modalHeading('Configure Dipping Charge'),
+                    ->modalHeading('Configure Dipping Charge')
+                    ->mutateFormDataUsing(fn (array $data): array => $this->applyMaskingToFormData($data, 'masking_rate')),
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()
+                    ->mutateFormDataUsing(fn (array $data): array => $this->applyMaskingToFormData($data, 'masking_rate')),
                 DeleteAction::make(),
             ]);
     }
@@ -91,6 +96,8 @@ class DippingChargesRelationManager extends RelationManager
                 ->numeric()
                 ->step(0.0001)
                 ->nullable()
+                ->visible(fn (): bool => $this->gatewayUsesMasking())
+                ->dehydrated(fn (): bool => $this->gatewayUsesMasking())
                 ->helperText('E.g., 0.055 for 5.5 poisha/SMS in Per-SMS mode, or 10 for 10% in Percentage mode.'),
             TextInput::make('non_masking_rate')
                 ->label('Non-Masking Rate')

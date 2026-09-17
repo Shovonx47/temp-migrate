@@ -293,9 +293,47 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
 
     public function getDashboardData(): DashboardData
     {
+        $carrierCodes = $this->dashboardCarrierCodes();
+
+        $wallet = $this->fetchBalance('check-current-balance', [
+            'apiKey' => $this->credentials['api_key'] ?? '',
+        ]);
+
+        $cards = [new StatCard(
+            label: 'Wallet Balance',
+            value: $wallet ?? 'N/A',
+            description: 'Available balance at CP end',
+            color: $wallet !== null ? 'success' : 'danger',
+            icon: 'heroicon-o-banknotes',
+        )];
+
+        foreach ($carrierCodes as $code => $name) {
+            $balance = $this->fetchBalance('check-credit-balance', [
+                'username' => $this->credentials['username'] ?? '',
+                'password' => $this->credentials['password'] ?? '',
+                'mno' => $code,
+                'apiKey' => $this->credentials['api_key'] ?? '',
+            ]);
+
+            $cards[] = new StatCard(
+                label: "{$name} Balance",
+                value: $balance ?? 'N/A',
+                description: "{$code} carrier credit",
+                icon: 'heroicon-o-device-phone-mobile',
+            );
+        }
+
+        return new DashboardData(cards: $cards);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function dashboardCarrierCodes(): array
+    {
         $type = strtolower(trim((string) ($this->credentials['api_type'] ?? 'mno')));
 
-        $carrierCodes = $type === 'iptsp'
+        $knownCarrierCodes = $type === 'iptsp'
             ? [
                 'ADN' => 'ADN',
                 'MN' => 'Mirnet',
@@ -327,39 +365,30 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
 
         $enabledCarriers = $this->credentials['enabled_carriers'] ?? [];
 
-        if (! empty($enabledCarriers) && is_array($enabledCarriers)) {
-            $carrierCodes = array_filter($carrierCodes, fn ($name, $code) => in_array($code, $enabledCarriers), ARRAY_FILTER_USE_BOTH);
+        if (is_string($enabledCarriers)) {
+            $enabledCarriers = array_values(array_filter(array_map(
+                trim(...),
+                explode(',', $enabledCarriers),
+            )));
         }
 
-        $wallet = $this->fetchBalance('check-current-balance', [
-            'apiKey' => $this->credentials['api_key'] ?? '',
-        ]);
-
-        $cards = [new StatCard(
-            label: 'Wallet Balance',
-            value: $wallet ?? 'N/A',
-            description: 'Available balance at CP end',
-            color: $wallet !== null ? 'success' : 'danger',
-            icon: 'heroicon-o-banknotes',
-        )];
-
-        foreach ($carrierCodes as $code => $name) {
-            $balance = $this->fetchBalance('check-credit-balance', [
-                'username' => $this->credentials['username'] ?? '',
-                'password' => $this->credentials['password'] ?? '',
-                'mno' => $code,
-                'apiKey' => $this->credentials['api_key'] ?? '',
-            ]);
-
-            $cards[] = new StatCard(
-                label: "{$name} Balance",
-                value: $balance ?? 'N/A',
-                description: "{$code} carrier credit",
-                icon: 'heroicon-o-device-phone-mobile',
-            );
+        if (! is_array($enabledCarriers) || $enabledCarriers === []) {
+            return $knownCarrierCodes;
         }
 
-        return new DashboardData(cards: $cards);
+        $carrierCodes = [];
+
+        foreach ($enabledCarriers as $code) {
+            $code = trim((string) $code);
+
+            if ($code === '') {
+                continue;
+            }
+
+            $carrierCodes[$code] = $knownCarrierCodes[$code] ?? $code;
+        }
+
+        return $carrierCodes;
     }
 
     private function fetchBalance(string $endpoint, array $payload): ?string

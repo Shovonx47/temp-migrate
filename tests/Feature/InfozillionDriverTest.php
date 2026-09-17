@@ -774,6 +774,41 @@ test('getDashboardData respects enabled_carriers filter for IPTSP', function () 
 
     expect($dashboard->cards)->toHaveCount(3)
         ->and($dashboard->cards[0]->label)->toBe('Wallet Balance')
-        ->and($dashboard->cards[1]->label)->toBe('Bracnet Balance')
-        ->and($dashboard->cards[2]->label)->toBe('RanksITT Balance');
+        ->and($dashboard->cards[1]->label)->toBe('RanksITT Balance')
+        ->and($dashboard->cards[2]->label)->toBe('Bracnet Balance');
+});
+
+test('getDashboardData uses typed enabled carrier short codes that are not in the known list', function () {
+    Http::fake([
+        '*/a2p-wallet/api/v1/check-current-balance' => Http::response([
+            'serverResponseCode' => '9000',
+            'availableBalance' => '1000.00',
+        ]),
+        '*/a2p-proxy-api-iptsp/api/v1/check-credit-balance' => Http::response([
+            'serverResponseCode' => '9000',
+            'availableBalance' => '300.00',
+        ]),
+    ]);
+
+    $driver = new InfozillionDriver([
+        'base_url' => 'https://a2papiintl.mnpspbd.com',
+        'api_type' => 'iptsp',
+        'username' => 'test_user',
+        'password' => 'test_pass',
+        'bill_msisdn' => '8801526589635',
+        'api_key' => 'test_api_key',
+        'enabled_carriers' => ['XX', 'ADN'],
+    ]);
+
+    $dashboard = $driver->getDashboardData();
+
+    expect($dashboard->cards)->toHaveCount(3)
+        ->and($dashboard->cards[0]->label)->toBe('Wallet Balance')
+        ->and($dashboard->cards[1]->label)->toBe('XX Balance')
+        ->and($dashboard->cards[2]->label)->toBe('ADN Balance');
+
+    Http::assertSent(function ($request) {
+        return $request->url() === 'https://a2papiintl.mnpspbd.com/a2p-proxy-api-iptsp/api/v1/check-credit-balance'
+            && $request->data()['mno'] === 'XX';
+    });
 });

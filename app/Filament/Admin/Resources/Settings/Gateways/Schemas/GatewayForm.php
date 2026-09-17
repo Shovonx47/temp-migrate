@@ -6,6 +6,7 @@ use App\Enums\GatewayCostMode;
 use App\Enums\GatewayDriver;
 use App\Models\Gateway;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Section;
@@ -179,18 +180,11 @@ class GatewayForm
                 continue;
             }
 
-            if ($type === 'multi_select') {
-                $fields[] = Select::make("$section.$key")
+            if ($type === 'tags' || $type === 'multi_select') {
+                $fields[] = TagsInput::make("$section.$key")
                     ->label($options['label'] ?? ucfirst($key))
-                    ->multiple()
-                    ->options(function (Get $get) use ($section): array {
-                        $apiType = $get("$section.api_type")
-                            ?? $get('api_type')
-                            ?? $get('credentials.api_type');
-
-                        return self::getCarrierOptionsForApiType($apiType);
-                    })
-                    ->live()
+                    ->placeholder($options['placeholder'] ?? "$placeholderPrefix $key")
+                    ->helperText($options['helper'] ?? null)
                     ->required($options['required'] ?? false);
 
                 continue;
@@ -201,11 +195,8 @@ class GatewayForm
                     ->label($options['label'] ?? ucfirst($key))
                     ->options($options['options'] ?? [])
                     ->live()
-                    ->afterStateUpdated(function (Set $set, ?string $state, Component $livewire) use ($section, $key): void {
+                    ->afterStateUpdated(function (?string $state, Component $livewire) use ($key): void {
                         if ($key === 'api_type') {
-                            $set('enabled_carriers', []);
-                            $set("$section.enabled_carriers", []);
-                            $set('credentials.enabled_carriers', []);
                             $livewire->dispatch('gateway-api-type-changed', apiType: $state);
                         }
                     })
@@ -237,62 +228,6 @@ class GatewayForm
         }
 
         return $fields;
-    }
-
-    public static function getCarrierOptionsForApiType(?string $apiType): array
-    {
-        $type = strtolower(trim((string) $apiType));
-
-        if ($type === 'mno') {
-            return self::getMnoCarrierOptions();
-        }
-
-        return self::getIptspCarrierOptions();
-    }
-
-    public static function getIptspCarrierOptions(): array
-    {
-        return self::shortCodeOptions([
-            'ADN',
-            'MN',
-            'BN',
-            'AIT',
-            'RT',
-            'PRM',
-            'FN',
-            'BR',
-            'MTN',
-            'RCO',
-            'BPL',
-            'ICN',
-            'WEB',
-            'BDC',
-            'RDT',
-            'L3',
-            'BTCL',
-            'AGNI',
-            'ICC',
-            'RG',
-        ]);
-    }
-
-    public static function getMnoCarrierOptions(): array
-    {
-        return self::shortCodeOptions([
-            'GP',
-            'BL',
-            'RB',
-            'TT',
-        ]);
-    }
-
-    /**
-     * @param  list<string>  $codes
-     * @return array<string, string>
-     */
-    private static function shortCodeOptions(array $codes): array
-    {
-        return array_combine($codes, $codes);
     }
 
     public static function getDriverOptions(?string $currentDriver = null): Collection
@@ -332,7 +267,7 @@ class GatewayForm
                 }
 
                 $default = match ($type) {
-                    'multi_select' => [],
+                    'tags', 'multi_select' => [],
                     'select' => $options['default'] ?? null,
                     default => $options['default'] ?? null,
                 };

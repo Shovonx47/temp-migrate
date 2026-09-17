@@ -139,8 +139,9 @@ return [
                 ],
                 'enabled_carriers' => [
                     'label' => 'Enabled Carriers',
-                    'type' => 'multi_select',
-                    'helper' => 'Select which carriers to check balances for. Leave empty to enable all.',
+                    'type' => 'tags',
+                    'placeholder' => 'Type a short code and press Enter',
+                    'helper' => 'Type carrier short codes (for example ADN or XX) and press Enter after each one. Whatever you type is saved and used as an enabled carrier. Leave empty to check all known carriers.',
                 ],
                 'username_secondary' => [
                     'label' => 'Secondary Username',

@@ -4,7 +4,10 @@ use App\Enums\GatewayDriver;
 use App\Enums\UserType;
 use App\Filament\Admin\Resources\Settings\Gateways\GatewayResource;
 use App\Filament\Admin\Resources\Settings\Gateways\Pages\EditGateway;
+use App\Filament\Admin\Resources\Settings\Gateways\RelationManagers\DippingChargesRelationManager;
 use App\Filament\Admin\Resources\Settings\Gateways\RelationManagers\OperatorRatesRelationManager;
+use App\Filament\Admin\Resources\Settings\Gateways\RelationManagers\ResolvesGatewayApiData;
+use App\Filament\Admin\Resources\Settings\Gateways\RelationManagers\ResolvesGatewayApiType;
 use App\Models\Gateway;
 use App\Models\GatewayOperatorRate;
 use App\Models\Operator;
@@ -43,6 +46,14 @@ beforeEach(function () {
         'phone' => '+8801711111188',
     ]);
     actingAs($admin, 'superman');
+});
+
+test('gateway relation managers can autoload the api-type trait and its live-server alias', function () {
+    expect(trait_exists(ResolvesGatewayApiType::class))->toBeTrue()
+        ->and(trait_exists(ResolvesGatewayApiData::class))->toBeTrue()
+        ->and(class_uses_recursive(OperatorRatesRelationManager::class))->toContain(ResolvesGatewayApiType::class)
+        ->and(class_uses_recursive(DippingChargesRelationManager::class))->toContain(ResolvesGatewayApiType::class)
+        ->and(class_uses_recursive(ResolvesGatewayApiData::class))->toContain(ResolvesGatewayApiType::class);
 });
 
 test('gateway sms api type treats blank values as iptsp and mno as masking-capable', function () {

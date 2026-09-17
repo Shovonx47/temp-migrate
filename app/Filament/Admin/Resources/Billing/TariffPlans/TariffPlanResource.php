@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Resources\Billing\TariffPlans;
 
 use App\Enums\SupermanNavigationGroup;
+use App\Filament\Admin\Resources\Billing\TariffPlans\Pages\AssignedCustomers;
 use App\Filament\Admin\Resources\Billing\TariffPlans\Pages\CreateTariffPlan;
 use App\Filament\Admin\Resources\Billing\TariffPlans\Pages\EditTariffPlan;
 use App\Filament\Admin\Resources\Billing\TariffPlans\Pages\ListTariffPlans;
@@ -65,6 +66,7 @@ class TariffPlanResource extends Resource
         return [
             'index' => ListTariffPlans::route('/'),
             'create' => CreateTariffPlan::route('/create'),
+            'assigned-customers' => AssignedCustomers::route('/{record}/customers'),
             'view' => ViewTariffPlan::route('/{record}'),
             'edit' => EditTariffPlan::route('/{record}/edit'),
         ];

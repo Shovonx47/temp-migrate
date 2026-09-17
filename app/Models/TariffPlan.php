@@ -40,6 +40,11 @@ class TariffPlan extends Model
         return $this->hasMany(TariffPlanAssignment::class)->where('status', 'active');
     }
 
+    public function activeCustomerAssignments(): HasMany
+    {
+        return $this->activeAssignments()->whereHas('user', fn (Builder $query) => $query->customers());
+    }
+
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

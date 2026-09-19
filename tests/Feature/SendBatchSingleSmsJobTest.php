@@ -118,6 +118,53 @@ test('marks message sent with gateway message ID', function () {
         ->and($message->next_poll_at->isFuture())->toBeTrue();
 });
 
+test('stores Infozillion transaction fields from the provider response', function () {
+    $batch = makeSingleSendableBatch('Hello {name}');
+    $gateway = $batch->sender->gateway;
+    $gateway->update([
+        'driver' => GatewayDriver::Infozillion,
+        'credentials' => [
+            'api_type' => 'mno',
+            'bill_msisdn' => '8801960000000',
+            'transaction_type' => 'T',
+        ],
+    ]);
+    $messageId = insertSinglePendingMessage($batch, body: 'Hello John');
+
+    Sms::extend('infozillion', function () {
+        return new class implements SmsGateway
+        {
+            public function send(SmsRequest $request): SmsResponse
+            {
+                return new SmsResponse(
+                    successful: true,
+                    gatewayMessageId: 'server-transaction-id',
+                    raw: [
+                        'serverTxnId' => 'server-transaction-id',
+                        'serverResponseCode' => '9000',
+                        'mnoTxnId' => 'mno-transaction-id',
+                        'mnoResponseCode' => '1000',
+                        'mnoResponseMessage' => 'Success',
+                    ],
+                );
+            }
+        };
+    });
+
+    runSingleJob($batch->fresh(), $messageId);
+
+    expect(Message::findOrFail($messageId))
+        ->bill_msisdn->toBe('8801960000000')
+        ->sms_type->toBe('T')
+        ->channel->toBe('MNO')
+        ->server_txn_id->toBe('server-transaction-id')
+        ->server_response_code->toBe('9000')
+        ->mno_txn_id->toBe('mno-transaction-id')
+        ->mno_response_code->toBe('1000')
+        ->mno_response_message->toBe('Success')
+        ->request_id->not->toBeNull();
+});
+
 test('does not set poll columns when gateway returns no message ID', function () {
     $batch = makeSingleSendableBatch('Hello {name}');
     $messageId = insertSinglePendingMessage($batch, body: 'Hello John');

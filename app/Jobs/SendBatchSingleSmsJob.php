@@ -10,13 +10,17 @@ use App\Models\Message;
 use App\Models\User;
 use App\Services\Logging\SmsLogger;
 use App\Services\Sms\Data\SmsRequest;
+use App\Services\Sms\Routing\SmsRouteResolver;
+use App\Settings\SmsSettings;
 use App\Support\Facades\Sms;
+use App\Support\InfozillionMessageSnapshot;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Sends a single pending message via an individual API request.
@@ -101,7 +105,7 @@ class SendBatchSingleSmsJob implements ShouldQueue
         }
 
         // Check global SMS sending kill-switch
-        if (! app(\App\Settings\SmsSettings::class)->sms_enabled) {
+        if (! app(SmsSettings::class)->sms_enabled) {
             SmsLogger::error('sms_disabled', [
                 'message_id' => $message->id,
                 'user_id' => $message->user_id,
@@ -119,7 +123,7 @@ class SendBatchSingleSmsJob implements ShouldQueue
         $now = Carbon::now();
 
         // Resolve priority gateway chain (Priority 1 -> Priority 2 -> Priority 3)
-        $routeResolver = app(\App\Services\Sms\Routing\SmsRouteResolver::class);
+        $routeResolver = app(SmsRouteResolver::class);
         $gateways = $routeResolver->resolveGateways(
             recipient: (string) $message->to,
             trafficType: 'transactional',
@@ -132,9 +136,13 @@ class SendBatchSingleSmsJob implements ShouldQueue
         }
 
         $lastError = 'No available gateway responded successfully.';
+        $lastGateway = $gateway;
+        $lastResponse = [];
+        $lastRequestId = (string) Str::uuid();
 
         foreach ($gateways as $attemptIndex => $currentGateway) {
             $driver = Sms::usingGateway($currentGateway)->driver($currentGateway->driver->value);
+            $requestId = (string) Str::uuid();
 
             try {
                 $response = $driver->send(new SmsRequest(
@@ -145,6 +153,13 @@ class SendBatchSingleSmsJob implements ShouldQueue
                 ));
 
                 if ($response->successful) {
+                    $providerSnapshot = InfozillionMessageSnapshot::fromResponse(
+                        gateway: $currentGateway,
+                        response: $response->raw,
+                        requestId: $requestId,
+                        defaultSmsType: 'T',
+                    );
+
                     SmsLogger::info('sms_sent', [
                         'message_id' => $message->id,
                         'user_id' => $message->user_id,
@@ -157,7 +172,7 @@ class SendBatchSingleSmsJob implements ShouldQueue
                         'queue' => $this->queue,
                     ]);
 
-                    $message->update([
+                    $message->update(array_merge([
                         'gateway_id' => $currentGateway->id,
                         'status' => MessageStatus::Sent->value,
                         'sent_at' => $now,
@@ -167,12 +182,15 @@ class SendBatchSingleSmsJob implements ShouldQueue
                         'poll_attempt' => $response->gatewayMessageId !== null ? 1 : null,
                         'next_poll_at' => $response->gatewayMessageId !== null ? $now->copy()->addMinutes(1) : null,
                         'updated_at' => $now,
-                    ]);
+                    ], $providerSnapshot));
 
                     return;
                 }
 
                 $lastError = $response->errorMessage ?? 'Gateway rejected SMS';
+                $lastGateway = $currentGateway;
+                $lastResponse = $response->raw;
+                $lastRequestId = $requestId;
 
                 SmsLogger::warning('sms_gateway_failover', [
                     'message_id' => $message->id,
@@ -186,6 +204,9 @@ class SendBatchSingleSmsJob implements ShouldQueue
                 ]);
             } catch (\Throwable $e) {
                 $lastError = $e->getMessage();
+                $lastGateway = $currentGateway;
+                $lastResponse = [];
+                $lastRequestId = $requestId;
 
                 SmsLogger::warning('sms_gateway_failover_exception', [
                     'message_id' => $message->id,
@@ -210,22 +231,35 @@ class SendBatchSingleSmsJob implements ShouldQueue
             'job_id' => $this->job?->getJobId(),
         ]);
 
-        $this->failAndRefund($message, $now, $lastError);
+        $this->failAndRefund(
+            message: $message,
+            now: $now,
+            reason: $lastError,
+            providerSnapshot: InfozillionMessageSnapshot::fromResponse(
+                gateway: $lastGateway,
+                response: $lastResponse,
+                requestId: $lastRequestId,
+                defaultSmsType: 'T',
+            ),
+        );
     }
 
     /**
      * Marks the message as Failed and refunds its cost to the user's balance in a single transaction.
      */
-    private function failAndRefund(Message $message, Carbon $now, ?string $reason): void
+    /**
+     * @param  array<string, mixed>  $providerSnapshot
+     */
+    private function failAndRefund(Message $message, Carbon $now, ?string $reason, array $providerSnapshot = []): void
     {
-        DB::transaction(function () use ($message, $now, $reason): void {
-            $message->update([
+        DB::transaction(function () use ($message, $now, $reason, $providerSnapshot): void {
+            $message->update(array_merge([
                 'status' => MessageStatus::Failed->value,
                 'failed_at' => $now,
                 'failed_reason' => $reason,
                 'sent_at' => null,
                 'updated_at' => $now,
-            ]);
+            ], $providerSnapshot));
 
             if (($message->cost ?? 0) > 0) {
                 /** @var User $user */

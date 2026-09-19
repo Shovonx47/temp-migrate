@@ -90,6 +90,11 @@ readonly class OperatorRateResolver
         return $this->planName;
     }
 
+    public function operatorNameFor(string $e164Phone): ?string
+    {
+        return $this->matchOperator($e164Phone)?->name;
+    }
+
     /**
      * Load rates from the user's active tariff plan assignment.
      *

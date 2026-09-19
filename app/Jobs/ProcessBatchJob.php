@@ -16,7 +16,6 @@ use App\Models\User;
 use App\Services\Billing\DippingChargeResolver;
 use App\Support\GatewayCostResolver;
 use App\Support\MessageMetrics;
-use App\Support\MnoCarrier;
 use App\Support\OperatorRateResolver;
 use App\Support\RecipientFileParser;
 use Filament\Actions\Action;
@@ -201,6 +200,8 @@ class ProcessBatchJob implements ShouldBeUnique, ShouldQueue
                         ? MessageSource::API->value
                         : MessageSource::Web->value,
                     'source_ip' => $batch->source_ip ?? $batch->source_config['ip'] ?? null,
+                    'operator_name' => $this->rateResolver?->operatorNameFor($formattedNumber),
+                    'tariff_name' => $this->rateResolver?->getPlanName(),
                     'parts' => $metrics->parts,
                     'is_unicode' => $metrics->encoding === MessageMetrics::UCS2,
                     'created_at' => $now,

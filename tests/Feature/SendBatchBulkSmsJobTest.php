@@ -162,6 +162,62 @@ test('marks all messages sent with shared batch ID when driver returns single ID
         ->and($messages->every(fn ($m) => $m->gateway_message_id === 'batch-xyz'))->toBeTrue();
 });
 
+test('stores Infozillion transaction fields on every message in an accepted bulk request', function () {
+    $batch = makeBulkSendableBatch('No variables here');
+    $gateway = $batch->sender->gateway;
+    $gateway->update([
+        'driver' => GatewayDriver::Infozillion,
+        'credentials' => [
+            'api_type' => 'iptsp',
+            'bill_msisdn' => '8801960000000',
+            'transaction_type' => 'P',
+        ],
+    ]);
+    insertBulkPendingMessages($batch, 2);
+
+    Sms::extend('infozillion', function () {
+        return new class implements SmsGateway, SupportsBulkSms
+        {
+            public function send(SmsRequest $request): SmsResponse
+            {
+                return new SmsResponse(successful: true);
+            }
+
+            public function sendBulk(BulkSmsRequest $request): BulkSmsResponse
+            {
+                return new BulkSmsResponse(
+                    successful: true,
+                    gatewayBatchId: 'server-bulk-transaction',
+                    raw: [
+                        'serverTxnId' => 'server-bulk-transaction',
+                        'serverResponseCode' => '9000',
+                        'mnoTxnId' => 'mno-bulk-transaction',
+                        'mnoResponseCode' => '1000',
+                        'mnoResponseMessage' => 'Success',
+                    ],
+                );
+            }
+        };
+    });
+
+    $messageIds = Message::where('batch_id', $batch->id)->pluck('id')->all();
+    runBulkJob($batch->fresh(), $messageIds);
+
+    $messages = Message::whereIn('id', $messageIds)->get();
+
+    expect($messages)->toHaveCount(2)
+        ->and($messages->every(fn (Message $message): bool => $message->bill_msisdn === '8801960000000'))
+        ->toBeTrue()
+        ->and($messages->every(fn (Message $message): bool => $message->sms_type === 'P'))
+        ->toBeTrue()
+        ->and($messages->every(fn (Message $message): bool => $message->channel === 'IPTSP'))
+        ->toBeTrue()
+        ->and($messages->every(fn (Message $message): bool => $message->server_txn_id === 'server-bulk-transaction'))
+        ->toBeTrue()
+        ->and($messages->every(fn (Message $message): bool => $message->mno_txn_id === 'mno-bulk-transaction'))
+        ->toBeTrue();
+});
+
 test('marks and refunds only the fifth recipient rejected by the bulk gateway', function () {
     $batch = makeBulkSendableBatch('No variables here');
     $user = User::find($batch->user_id);

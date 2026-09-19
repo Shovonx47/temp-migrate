@@ -87,7 +87,7 @@ abstract class AbstractReportPage extends Page implements HasTable
         return in_array($this->reportType(), ['customer', 'provider'], true) ? 'id' : 'created_at';
     }
 
-    private function reportRows(): Collection
+    protected function reportRows(): Collection
     {
         return $this->getFilteredTableQuery()->limit(1000)->get()->map(fn ($record): array => match ($this->reportType()) {
             'customer' => [$record->name, $record->email, $record->messages_count, $record->messages_sum_cost, $record->balance, $record->created_at?->format('Y-m-d')],
@@ -98,7 +98,7 @@ abstract class AbstractReportPage extends Page implements HasTable
     }
 
     /** @return array<int, string> */
-    private function headings(): array
+    protected function headings(): array
     {
         return match ($this->reportType()) {
             'customer' => ['Customer', 'Email', 'SMS', 'SMS Spend', 'Balance', 'Joined'],
@@ -108,17 +108,17 @@ abstract class AbstractReportPage extends Page implements HasTable
         };
     }
 
-    private function downloadXlsx(): BinaryFileResponse
+    protected function downloadXlsx(): BinaryFileResponse
     {
         return Excel::download(new TabularReportExport($this->headings(), $this->reportRows()), $this->reportFilename('xlsx'));
     }
 
-    private function downloadPdf(): StreamedResponse
+    protected function downloadPdf(): StreamedResponse
     {
         return ReportExportService::downloadPdf($this->reportFilename('pdf'), 'reports.pdf.tabular-report', ['title' => static::$title, 'headings' => $this->headings(), 'rows' => $this->reportRows()]);
     }
 
-    private function reportFilename(string $extension): string
+    protected function reportFilename(string $extension): string
     {
         return str($this->reportType())->replace('_', '-').'-report-'.now()->format('Y-m-d-His').'.'.$extension;
     }

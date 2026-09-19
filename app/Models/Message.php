@@ -40,6 +40,8 @@ class Message extends Model implements Transactionable
             'delivered_at' => 'datetime',
             'next_poll_at' => 'datetime',
             'is_unicode' => 'boolean',
+            'provider_response' => 'array',
+            'delivery_response' => 'array',
         ];
     }
 

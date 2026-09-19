@@ -16,6 +16,7 @@ use App\Services\Sms\Data\BulkSmsResponse;
 use App\Services\Sms\Routing\SmsRouteResolver;
 use App\Settings\SmsSettings;
 use App\Support\Facades\Sms;
+use App\Support\InfozillionMessageSnapshot;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Collection;
@@ -23,6 +24,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Sends a chunk of pending messages as a single bulk API request.
@@ -127,7 +129,12 @@ class SendBatchBulkSmsJob implements ShouldQueue
                 'error_message' => 'SMS sending is globally disabled in SMS Settings.',
             ]);
 
-            $this->applyBulkResponse($messages, new BulkSmsResponse(successful: false, errorMessage: 'SMS sending is globally disabled.'));
+            $this->applyBulkResponse(
+                messages: $messages,
+                response: new BulkSmsResponse(successful: false, errorMessage: 'SMS sending is globally disabled.'),
+                gateway: $gateway,
+                requestId: (string) Str::uuid(),
+            );
             $this->refundFailedMessages($batch, $messages);
 
             return;
@@ -153,6 +160,8 @@ class SendBatchBulkSmsJob implements ShouldQueue
         $successfulResponse = null;
         $lastError = 'No bulk provider responded successfully.';
         $successfulGateway = $gateway;
+        $lastGateway = $gateway;
+        $lastRequestId = (string) Str::uuid();
 
         foreach ($gateways as $attemptIndex => $currentGateway) {
             $driver = Sms::usingGateway($currentGateway)->driver($currentGateway->driver->value);
@@ -160,6 +169,8 @@ class SendBatchBulkSmsJob implements ShouldQueue
             if (! $driver instanceof SupportsBulkSms) {
                 continue;
             }
+
+            $requestId = (string) Str::uuid();
 
             try {
                 $response = $driver->sendBulk(new BulkSmsRequest(
@@ -172,6 +183,7 @@ class SendBatchBulkSmsJob implements ShouldQueue
                 if ($response->successful) {
                     $successfulResponse = $response;
                     $successfulGateway = $currentGateway;
+                    $lastRequestId = $requestId;
 
                     SmsLogger::info('bulk_sms_sent', [
                         'user_id' => $batch->user_id,
@@ -188,6 +200,8 @@ class SendBatchBulkSmsJob implements ShouldQueue
                 }
 
                 $lastError = $response->errorMessage ?? 'Bulk provider rejected request';
+                $lastGateway = $currentGateway;
+                $lastRequestId = $requestId;
 
                 SmsLogger::warning('bulk_sms_gateway_failover', [
                     'user_id' => $batch->user_id,
@@ -199,6 +213,8 @@ class SendBatchBulkSmsJob implements ShouldQueue
                 ]);
             } catch (\Throwable $e) {
                 $lastError = $e->getMessage();
+                $lastGateway = $currentGateway;
+                $lastRequestId = $requestId;
 
                 SmsLogger::warning('bulk_sms_gateway_failover_exception', [
                     'user_id' => $batch->user_id,
@@ -213,7 +229,12 @@ class SendBatchBulkSmsJob implements ShouldQueue
 
         $finalResponse = $successfulResponse ?? new BulkSmsResponse(successful: false, errorMessage: $lastError);
 
-        $failedMessages = $this->applyBulkResponse($messages, $finalResponse, $successfulGateway->id);
+        $failedMessages = $this->applyBulkResponse(
+            messages: $messages,
+            response: $finalResponse,
+            gateway: $successfulResponse === null ? $lastGateway : $successfulGateway,
+            requestId: $lastRequestId,
+        );
 
         if (! $finalResponse->successful) {
             SmsLogger::error('bulk_sms_failed_all_gateways', [
@@ -295,14 +316,24 @@ class SendBatchBulkSmsJob implements ShouldQueue
     /**
      * @return Collection<int, Message>
      */
-    private function applyBulkResponse(Collection $messages, BulkSmsResponse $response, ?int $gatewayId = null): Collection
-    {
+    private function applyBulkResponse(
+        Collection $messages,
+        BulkSmsResponse $response,
+        Gateway $gateway,
+        string $requestId,
+    ): Collection {
         $failedMessages = $this->failedMessages($messages, $response);
         $acceptedMessages = $messages->reject(fn (Message $message): bool => $failedMessages->has($message->id));
+        $providerSnapshot = InfozillionMessageSnapshot::fromResponse(
+            gateway: $gateway,
+            response: $response->raw,
+            requestId: $requestId,
+            defaultSmsType: 'P',
+        );
 
         foreach ($failedMessages as $message) {
-            $message->update([
-                'gateway_id' => $gatewayId,
+            $message->update(array_merge([
+                'gateway_id' => $gateway->id,
                 'status' => MessageStatus::Failed->value,
                 'sent_at' => null,
                 'failed_at' => Carbon::now(),
@@ -310,30 +341,37 @@ class SendBatchBulkSmsJob implements ShouldQueue
                 'gateway_message_id' => null,
                 'poll_attempt' => null,
                 'next_poll_at' => null,
-            ]);
+            ], $providerSnapshot));
         }
 
         if ($acceptedMessages->isEmpty()) {
             return $failedMessages;
         }
 
-        $this->applyAcceptedBulkResponse($acceptedMessages, $response, $gatewayId);
+        $this->applyAcceptedBulkResponse($acceptedMessages, $response, $gateway->id, $providerSnapshot);
 
         return $failedMessages;
     }
 
-    private function applyAcceptedBulkResponse(Collection $messages, BulkSmsResponse $response, ?int $gatewayId = null): void
-    {
+    /**
+     * @param  array<string, mixed>  $providerSnapshot
+     */
+    private function applyAcceptedBulkResponse(
+        Collection $messages,
+        BulkSmsResponse $response,
+        ?int $gatewayId = null,
+        array $providerSnapshot = [],
+    ): void {
         $ids = $messages->pluck('id')->all();
         $now = Carbon::now();
 
-        $commonUpdate = [
+        $commonUpdate = array_merge([
             'status' => $response->successful ? MessageStatus::Sent->value : MessageStatus::Failed->value,
             'sent_at' => $response->successful ? $now : null,
             'failed_at' => $response->successful ? null : $now,
             'failed_reason' => $response->errorMessage,
             'updated_at' => $now,
-        ];
+        ], $providerSnapshot);
 
         if ($gatewayId !== null) {
             $commonUpdate['gateway_id'] = $gatewayId;

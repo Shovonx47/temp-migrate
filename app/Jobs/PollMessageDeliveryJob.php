@@ -81,9 +81,7 @@ class PollMessageDeliveryJob implements ShouldQueue
         $gateway = $message->gateway ?? $message->sender?->gateway;
 
         if (! $gateway) {
-            if ($message->sent_at && $message->sent_at->diffInMinutes($now) >= 5) {
-                $this->handleDelivered($message, new DeliveryStatusResponse(outcome: DeliveryOutcome::Delivered), $now);
-            }
+            $this->stopPolling($message, $now);
 
             return;
         }
@@ -91,9 +89,7 @@ class PollMessageDeliveryJob implements ShouldQueue
         $driver = Sms::usingGateway($gateway)->driver($gateway->driver->value);
 
         if (! $driver instanceof SupportsDeliveryStatus) {
-            if ($message->sent_at && $message->sent_at->diffInMinutes($now) >= 5) {
-                $this->handleDelivered($message, new DeliveryStatusResponse(outcome: DeliveryOutcome::Delivered), $now);
-            }
+            $this->stopPolling($message, $now);
 
             return;
         }
@@ -109,25 +105,6 @@ class PollMessageDeliveryJob implements ShouldQueue
 
     private function handleInTransitOrFallback(Message $message, DeliveryStatusResponse $dlr, Carbon $now): void
     {
-        // Fallback: If 5 or more minutes have elapsed since sending and no failure was reported, mark as Delivered.
-        if ($message->sent_at && $message->sent_at->diffInMinutes($now) >= 5) {
-            SmsLogger::info('dlr_delivered_fallback', [
-                'message_id' => $message->id,
-                'user_id' => $message->user_id,
-                'phone' => (string) $message->to,
-                'gateway_message_id' => $message->gateway_message_id,
-                'status' => 'delivered',
-                'reason' => 'Auto-marked delivered after 5+ minutes fallback',
-            ]);
-
-            $this->handleDelivered($message, new DeliveryStatusResponse(
-                outcome: DeliveryOutcome::Delivered,
-                rawStatus: $dlr->rawStatus ?? 'Delivered (Fallback)',
-            ), $now);
-
-            return;
-        }
-
         $this->scheduleNextPoll($message, $now);
     }
 
@@ -144,6 +121,8 @@ class PollMessageDeliveryJob implements ShouldQueue
         $message->update([
             'status' => MessageStatus::Delivered->value,
             'delivered_at' => $dlr->deliveredAt ?? $now,
+            'delivery_status' => $dlr->rawStatus,
+            'delivery_response' => $dlr->raw === [] ? null : $dlr->raw,
             'poll_attempt' => null,
             'next_poll_at' => null,
             'updated_at' => $now,
@@ -169,6 +148,8 @@ class PollMessageDeliveryJob implements ShouldQueue
                 'status' => MessageStatus::Failed->value,
                 'failed_at' => $now,
                 'failed_reason' => $dlr->errorMessage ?? $dlr->rawStatus,
+                'delivery_status' => $dlr->rawStatus,
+                'delivery_response' => $dlr->raw === [] ? null : $dlr->raw,
                 'poll_attempt' => null,
                 'next_poll_at' => null,
                 'updated_at' => $now,
@@ -187,18 +168,15 @@ class PollMessageDeliveryJob implements ShouldQueue
 
     /**
      * Schedules the next poll by updating `poll_attempt` and `next_poll_at` on the message.
-     * When the maximum attempt count is reached, falls back to Delivered if no failure.
+     * When the maximum attempt count is reached, retain the accepted state because
+     * the gateway did not provide a conclusive delivery receipt.
      */
     private function scheduleNextPoll(Message $message, Carbon $now): void
     {
         $attempt = (int) ($message->poll_attempt ?? 1);
 
         if ($attempt >= self::MAX_ATTEMPTS) {
-            // Cap reached — apply fallback Delivered and clear poll columns
-            $this->handleDelivered($message, new DeliveryStatusResponse(
-                outcome: DeliveryOutcome::Delivered,
-                rawStatus: 'Delivered (Fallback Max Attempts)',
-            ), $now);
+            $this->stopPolling($message, $now);
 
             return;
         }
@@ -208,6 +186,15 @@ class PollMessageDeliveryJob implements ShouldQueue
         $message->update([
             'poll_attempt' => $nextAttempt,
             'next_poll_at' => $now->copy()->addSeconds($this->delayForAttempt($nextAttempt)),
+        ]);
+    }
+
+    private function stopPolling(Message $message, Carbon $now): void
+    {
+        $message->update([
+            'poll_attempt' => null,
+            'next_poll_at' => null,
+            'updated_at' => $now,
         ]);
     }
 

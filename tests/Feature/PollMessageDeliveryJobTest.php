@@ -101,6 +101,7 @@ test('marks message as Delivered and sets delivered_at when DLR returns Delivere
     expect($fresh->status)->toBe(MessageStatus::Delivered)
         ->and($fresh->delivered_at)->not->toBeNull()
         ->and($fresh->delivered_at->timestamp)->toBe($deliveredAt->timestamp)
+        ->and($fresh->delivery_status)->toBe('DELIVRD')
         ->and($fresh->poll_attempt)->toBeNull()
         ->and($fresh->next_poll_at)->toBeNull();
 });
@@ -183,7 +184,7 @@ test('increments poll_attempt and sets next_poll_at when DLR returns InTransit a
         ->and($fresh->next_poll_at->isFuture())->toBeTrue();
 });
 
-test('marks message as Delivered when max attempts reached via fallback', function () {
+test('retains the accepted status when delivery polling reaches its limit without a receipt', function () {
     $message = makeSentMessageWithDriver(
         new DeliveryStatusResponse(outcome: DeliveryOutcome::InTransit),
         ['poll_attempt' => PollMessageDeliveryJob::MAX_ATTEMPTS],
@@ -193,12 +194,12 @@ test('marks message as Delivered when max attempts reached via fallback', functi
 
     $fresh = $message->fresh();
 
-    expect($fresh->status)->toBe(MessageStatus::Delivered)
+    expect($fresh->status)->toBe(MessageStatus::Sent)
         ->and($fresh->poll_attempt)->toBeNull()
         ->and($fresh->next_poll_at)->toBeNull();
 });
 
-test('auto-marks message as Delivered when sent more than 5 minutes ago and still in transit', function () {
+test('does not auto-mark a message delivered while the provider still reports it in transit', function () {
     $message = makeSentMessageWithDriver(
         new DeliveryStatusResponse(outcome: DeliveryOutcome::InTransit),
         ['sent_at' => now()->subMinutes(6), 'poll_attempt' => 1],
@@ -208,9 +209,9 @@ test('auto-marks message as Delivered when sent more than 5 minutes ago and stil
 
     $fresh = $message->fresh();
 
-    expect($fresh->status)->toBe(MessageStatus::Delivered)
-        ->and($fresh->poll_attempt)->toBeNull()
-        ->and($fresh->next_poll_at)->toBeNull();
+    expect($fresh->status)->toBe(MessageStatus::Sent)
+        ->and($fresh->poll_attempt)->toBe(2)
+        ->and($fresh->next_poll_at)->not->toBeNull();
 });
 
 // ---------------------------------------------------------------------------

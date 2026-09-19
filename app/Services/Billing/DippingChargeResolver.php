@@ -4,6 +4,7 @@ namespace App\Services\Billing;
 
 use App\Models\Gateway;
 use App\Models\GatewayDippingCharge;
+use App\Models\GatewayOperatorRate;
 use App\Models\Operator;
 use Illuminate\Support\Carbon;
 
@@ -13,12 +14,14 @@ readonly class DippingChargeResolver
      * @param  array<int, Operator>  $operators
      * @param  array<string, int>  $codeIndex
      * @param  array<int, GatewayDippingCharge>  $chargesByOperator
+     * @param  array<int, float>  $operatorDippingCharges
      */
     public function __construct(
         private array $operators,
         private array $codeIndex,
         private array $chargesByOperator,
         private ?GatewayDippingCharge $gatewayWideCharge,
+        private array $operatorDippingCharges,
     ) {}
 
     public static function forGateway(Gateway $gateway, ?Carbon $asOf = null): self
@@ -69,14 +72,23 @@ readonly class DippingChargeResolver
             }
         }
 
-        return new self($operators, $codeIndex, $chargesByOperator, $gatewayWideCharge);
+        $operatorDippingCharges = GatewayOperatorRate::query()
+            ->where('gateway_id', $gateway->id)
+            ->whereNotNull('dipping_charge')
+            ->pluck('dipping_charge', 'operator_id')
+            ->map(fn (mixed $charge): float => (float) $charge)
+            ->all();
+
+        return new self($operators, $codeIndex, $chargesByOperator, $gatewayWideCharge, $operatorDippingCharges);
     }
 
     public static function gatewayHasConfiguration(Gateway $gateway, ?Carbon $asOf = null): bool
     {
         $resolver = self::forGateway($gateway, $asOf);
 
-        return $resolver->gatewayWideCharge !== null || $resolver->chargesByOperator !== [];
+        return $resolver->gatewayWideCharge !== null
+            || $resolver->chargesByOperator !== []
+            || $resolver->operatorDippingCharges !== [];
     }
 
     /**
@@ -84,6 +96,18 @@ readonly class DippingChargeResolver
      */
     public function resolve(string $e164Phone, bool $isMasking, float $operatorCostTotal = 0.0, int $parts = 1): array
     {
+        $operator = $this->matchOperator($e164Phone);
+
+        if ($operator !== null && array_key_exists($operator->id, $this->operatorDippingCharges)) {
+            $rate = $this->operatorDippingCharges[$operator->id];
+
+            return [
+                'charge' => null,
+                'rate' => $rate,
+                'cost' => round($rate * $parts, 4),
+            ];
+        }
+
         $charge = $this->resolveCharge($e164Phone);
 
         if ($charge === null) {

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Settings\Gateways\Tables;
 
+use App\Models\Gateway;
 use App\Services\Analytics\GatewayMetricsService;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
@@ -27,6 +28,14 @@ class GatewaysTable
                     ->searchable()
                     ->sortable()
                     ->weight('bold')
+                    ->wrap(false),
+
+                TextColumn::make('route_code')
+                    ->label('Route Code')
+                    ->state(fn (Gateway $record): ?string => $record->route_code)
+                    ->badge()
+                    ->color('info')
+                    ->placeholder('—')
                     ->wrap(false),
 
                 TextColumn::make('priority')

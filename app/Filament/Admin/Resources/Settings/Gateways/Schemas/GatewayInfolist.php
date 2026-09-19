@@ -20,6 +20,10 @@ class GatewayInfolist
                             ->schema([
                                 TextEntry::make('name')
                                     ->weight('bold'),
+                                TextEntry::make('route_code')
+                                    ->label('Route Code')
+                                    ->badge()
+                                    ->placeholder('—'),
                                 TextEntry::make('driver')
                                     ->badge(),
                                 TextEntry::make('requests_per_second')

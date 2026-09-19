@@ -141,3 +141,34 @@ test('changing api type on the gateway form broadcasts the live operator rate la
         ->set('data.credentials.api_type', 'iptsp')
         ->assertDispatched('gateway-api-type-changed', apiType: 'iptsp');
 });
+
+test('operator rates table shows Route Code from enabled_carriers and renamed cost column headers', function () {
+    $gateway = Gateway::factory()->create([
+        'driver' => GatewayDriver::Infozillion,
+        'credentials' => [
+            'api_type' => 'iptsp',
+            'enabled_carriers' => ['ICO'],
+        ],
+    ]);
+
+    $operator = Operator::factory()->create(['name' => 'Robi']);
+
+    GatewayOperatorRate::query()->create([
+        'gateway_id' => $gateway->id,
+        'operator_id' => $operator->id,
+        'non_masking_price' => 0.16,
+    ]);
+
+    expect($gateway->route_code)->toBe('ICO');
+
+    Livewire::test(OperatorRatesRelationManager::class, [
+        'ownerRecord' => $gateway,
+        'pageClass' => EditGateway::class,
+    ])
+        ->assertSee('Route Code')
+        ->assertSee('ICO')
+        ->assertSee('Operator Cost')
+        ->assertSee('Dipping Cost')
+        ->assertDontSee('Operator Spent')
+        ->assertDontSee('InfoZillion Spent');
+});

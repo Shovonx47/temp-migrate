@@ -7,8 +7,6 @@ use App\Filament\Admin\Resources\Settings\Gateways\Pages\CreateGateway;
 use App\Filament\Admin\Resources\Settings\Gateways\Pages\EditGateway;
 use App\Filament\Admin\Resources\Settings\Gateways\Pages\ListGateways;
 use App\Filament\Admin\Resources\Settings\Gateways\Pages\ViewGateway;
-use App\Filament\Admin\Resources\Settings\Gateways\RelationManagers\DippingChargesRelationManager;
-use App\Filament\Admin\Resources\Settings\Gateways\RelationManagers\OperatorCostPeriodsRelationManager;
 use App\Filament\Admin\Resources\Settings\Gateways\RelationManagers\OperatorRatesRelationManager;
 use App\Filament\Admin\Resources\Settings\Gateways\RelationManagers\ThirdPartyDippingRelationManager;
 use App\Filament\Admin\Resources\Settings\Gateways\Schemas\GatewayForm;
@@ -57,8 +55,6 @@ class GatewayResource extends Resource
         return [
             RelationGroup::make('Billing', [
                 OperatorRatesRelationManager::class,
-                DippingChargesRelationManager::class,
-                OperatorCostPeriodsRelationManager::class,
                 ThirdPartyDippingRelationManager::class,
             ]),
         ];

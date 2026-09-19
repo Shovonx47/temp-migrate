@@ -90,6 +90,21 @@ class Gateway extends Model
         return $this->smsApiType() === 'mno';
     }
 
+    public function getRouteCodeAttribute(): ?string
+    {
+        $carriers = data_get($this->credentials, 'enabled_carriers');
+
+        if (is_string($carriers)) {
+            $carriers = array_values(array_filter(array_map('trim', explode(',', $carriers))));
+        }
+
+        if (is_array($carriers) && ! empty($carriers)) {
+            return implode(', ', array_filter($carriers));
+        }
+
+        return null;
+    }
+
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class, 'gateway_id');

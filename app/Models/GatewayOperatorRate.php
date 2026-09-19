@@ -14,6 +14,7 @@ class GatewayOperatorRate extends Model
         return [
             'masking_price' => 'float',
             'non_masking_price' => 'float',
+            'dipping_charge' => 'float',
         ];
     }
 
@@ -25,6 +26,11 @@ class GatewayOperatorRate extends Model
     public function operator(): BelongsTo
     {
         return $this->belongsTo(Operator::class);
+    }
+
+    public function getRouteCodeAttribute(): ?string
+    {
+        return $this->gateway?->route_code;
     }
 
     public function getOperatorSpentAttribute(): float

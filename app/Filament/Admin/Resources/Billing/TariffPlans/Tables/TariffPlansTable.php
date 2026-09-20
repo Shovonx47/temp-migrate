@@ -4,6 +4,8 @@ namespace App\Filament\Admin\Resources\Billing\TariffPlans\Tables;
 
 use App\Enums\TariffPlanStatus;
 use App\Enums\TariffPlanType;
+use App\Filament\Actions\CopySignupLinkAction;
+use App\Filament\Actions\OpenSignupLinkAction;
 use App\Filament\Admin\Resources\Billing\TariffPlans\Actions\ClonePlanAction;
 use App\Filament\Admin\Resources\Billing\TariffPlans\TariffPlanResource;
 use App\Models\TariffPlan;
@@ -27,6 +29,9 @@ class TariffPlansTable
                     ->searchable()
                     ->sortable()
                     ->weight('semibold'),
+                TextColumn::make('slug')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('type')
                     ->badge()
                     ->sortable(),
@@ -60,6 +65,8 @@ class TariffPlansTable
             ->actions([
                 ViewAction::make(),
                 EditAction::make(),
+                CopySignupLinkAction::make(),
+                OpenSignupLinkAction::make(),
                 ClonePlanAction::make(),
                 Action::make('archive')
                     ->label('Archive')

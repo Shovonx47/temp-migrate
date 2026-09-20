@@ -27,6 +27,7 @@ class ClonePlanAction extends Action
             ->action(function (TariffPlan $record): void {
                 $newPlan = $record->replicate([
                     'created_by',
+                    'slug',
                 ]);
                 $newPlan->name = $record->name.' (Copy)';
                 $newPlan->status = 'draft';

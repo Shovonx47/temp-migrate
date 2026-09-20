@@ -4,10 +4,14 @@ namespace App\Filament\Sp\Resources\Billing\TariffPlans\Schemas;
 
 use App\Enums\TariffPlanStatus;
 use App\Enums\TariffPlanType;
+use App\Filament\Forms\Components\SignupSlugInput;
+use App\Services\TariffSlugService;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 
 class TariffPlanForm
@@ -23,7 +27,14 @@ class TariffPlanForm
                         TextInput::make('name')
                             ->placeholder('e.g. Retail Standard Plan')
                             ->required()
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(function (Set $set, Get $get, ?string $state, string $operation): void {
+                                if ($operation === 'create' && blank($get('slug')) && filled($state)) {
+                                    $set('slug', TariffSlugService::generate($state));
+                                }
+                            }),
+                        SignupSlugInput::make('slug'),
                         Select::make('type')
                             ->options(TariffPlanType::class)
                             ->default(TariffPlanType::Standard)

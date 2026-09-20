@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\Filament\Customer\Pages;
 
 use App\Enums\KycStatus;
+use App\Enums\TariffPlanAssignmentStatus;
 use App\Enums\UserStatus;
 use App\Filament\Forms\Components\LivePhotoCapture;
+use App\Models\TariffPlan;
+use App\Models\TariffPlanAssignment;
 use App\Models\User;
 use App\Services\Auth\OtpVerificationService;
+use App\Services\TariffSlugService;
 use DanHarrin\LivewireRateLimiting\Exceptions\TooManyRequestsException;
 use Filament\Auth\Events\Registered;
 use Filament\Auth\Http\Responses\Contracts\RegistrationResponse;
@@ -31,12 +35,21 @@ use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 
 final class Register extends BaseRegister
 {
     protected Width|string|null $maxContentWidth = Width::FourExtraLarge;
 
     protected ?bool $hasDatabaseTransactions = true;
+
+    // Signup-link state. #[Locked] means the browser can never change these values;
+    // they are only ever set here, on the server, from a re-validated session slug.
+    #[Locked]
+    public ?string $signupPlanSlug = null;
+
+    #[Locked]
+    public ?string $signupPlanName = null; // display only
 
     // Email OTP state
     public string $email_otp = '';
@@ -67,6 +80,36 @@ final class Register extends BaseRegister
     public ?string $phone_error = null;
 
     public ?string $phone_success = null;
+
+    public function mount(): void
+    {
+        parent::mount();
+
+        $slug = session()->get(TariffSlugService::SESSION_KEY);
+        $result = is_string($slug) ? TariffSlugService::resolve($slug) : null;
+
+        if ($result === null) {
+            // Nothing pending, or the link stopped being valid: plain registration.
+            session()->forget(TariffSlugService::SESSION_KEY);
+
+            return;
+        }
+
+        $this->signupPlanSlug = $result['canonical_slug'];
+        $this->signupPlanName = $result['plan']->name;
+    }
+
+    /**
+     * Re-resolve the plan from the locked slug. Never reads form data, query string, or request body.
+     */
+    protected function resolveSignupPlan(): ?TariffPlan
+    {
+        if (blank($this->signupPlanSlug)) {
+            return null;
+        }
+
+        return TariffSlugService::resolve($this->signupPlanSlug)['plan'] ?? null;
+    }
 
     public function sendEmailOtp(OtpVerificationService $otpService): void
     {
@@ -199,6 +242,24 @@ final class Register extends BaseRegister
     {
         $otpService = app(OtpVerificationService::class);
 
+        // Signup link: confirm the plan is still valid before doing anything (some steps below
+        // are irreversible). If it was deactivated after the page loaded, no account is created.
+        $signupPlan = null;
+
+        if (filled($this->signupPlanSlug)) {
+            $signupPlan = $this->resolveSignupPlan();
+
+            if ($signupPlan === null) {
+                Notification::make()
+                    ->title('This signup link is no longer active.')
+                    ->danger()
+                    ->persistent()
+                    ->send();
+
+                return null;
+            }
+        }
+
         // Validate all Filament form fields first.
         // On failure, scroll to the first failing field in sequential form order, then re-throw.
         try {
@@ -274,12 +335,18 @@ final class Register extends BaseRegister
                 $trashedUser->forceDelete();
             });
 
-        $user = $this->wrapInDatabaseTransaction(function () use ($data, $normalizedPhone): Model {
+        $user = $this->wrapInDatabaseTransaction(function () use ($data, $normalizedPhone, $signupPlan): Model {
             $this->callHook('beforeValidate');
 
             $data = $this->mutateFormDataBeforeRegister($data);
             if ($normalizedPhone) {
                 $data['phone'] = $normalizedPhone;
+            }
+
+            // Signup link on a reseller plan: the customer is placed under that reseller.
+            // The reseller comes ONLY from the plan's owner, never from form or request data.
+            if ($signupPlan?->sp_id) {
+                $data['sp_id'] = $signupPlan->sp_id;
             }
 
             $this->callHook('afterValidate');
@@ -288,6 +355,18 @@ final class Register extends BaseRegister
             $user = $this->handleRegistration($data);
 
             $this->form->model($user)->saveRelationships();
+
+            // Same transaction as the account: if this fails, the account is rolled back too.
+            if ($signupPlan) {
+                TariffPlanAssignment::create([
+                    'user_id' => $user->id,
+                    'tariff_plan_id' => $signupPlan->id,
+                    'assigned_by' => null,
+                    'effective_from' => now()->toDateString(),
+                    'status' => TariffPlanAssignmentStatus::Active->value,
+                    'notes' => 'Auto-assigned via signup link: /register/'.$signupPlan->slug,
+                ]);
+            }
 
             $this->callHook('afterRegister');
 
@@ -298,6 +377,7 @@ final class Register extends BaseRegister
 
         Filament::auth()->login($user);
 
+        session()->forget(TariffSlugService::SESSION_KEY);
         session()->regenerate();
 
         return app(RegistrationResponse::class);
@@ -425,7 +505,9 @@ final class Register extends BaseRegister
             ->components([
                 // 1. Personal Information Section
                 Section::make('Personal Information')
-                    ->description('Provide your personal details and verify your email and mobile number.')
+                    ->description(fn (): string => filled($this->signupPlanName)
+                        ? 'You are signing up for the "'.$this->signupPlanName.'" plan. Provide your personal details and verify your email and mobile number.'
+                        : 'Provide your personal details and verify your email and mobile number.')
                     ->icon(Heroicon::OutlinedUser)
                     ->schema([
                         TextInput::make('name')

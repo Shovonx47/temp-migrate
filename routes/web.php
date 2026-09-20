@@ -3,6 +3,7 @@
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PaymentWebhookController;
 use App\Http\Controllers\PhonePhotoController;
+use App\Http\Controllers\SignupLinkController;
 use App\Http\Controllers\SmsWebhookController;
 use App\Models\Batch;
 use Illuminate\Support\Facades\Storage;
@@ -46,3 +47,9 @@ Route::redirect('signin', 'login')->name('login');
 Route::get('terms', function () {
     return 'Comming soon...';
 })->name('terms');
+
+// Public tariff signup links: /register/{slug}. Hands off to the Filament register page.
+Route::get('register/{slug}', SignupLinkController::class)
+    ->middleware(['web', 'throttle:60,1'])
+    ->where('slug', '[A-Za-z0-9-]+')
+    ->name('register.slug');

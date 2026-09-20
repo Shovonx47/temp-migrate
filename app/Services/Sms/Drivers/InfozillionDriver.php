@@ -295,14 +295,12 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
     {
         $carrierCodes = $this->dashboardCarrierCodes();
 
-        $wallet = $this->fetchBalance('check-current-balance', [
-            'apiKey' => $this->credentials['api_key'] ?? '',
-        ]);
+        [$wallet, $walletAsOf] = $this->walletBalance();
 
         $cards = [new StatCard(
             label: 'Wallet Balance',
             value: $wallet ?? 'N/A',
-            description: 'Available balance at CP end',
+            description: $walletAsOf ? 'Available balance at CP end (last known, '.$walletAsOf.')' : 'Available balance at CP end',
             color: $wallet !== null ? 'success' : 'danger',
             icon: 'heroicon-o-banknotes',
         )];
@@ -389,6 +387,37 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
         }
 
         return $carrierCodes;
+    }
+
+    private function walletBalance(): array
+    {
+        $apiKey = (string) ($this->credentials['api_key'] ?? '');
+        $h = md5($apiKey);
+        $fresh = "infozillion:wallet:{$h}";
+        $last = "infozillion:wallet:{$h}:last";
+        $cool = "infozillion:wallet:{$h}:cooldown";
+
+        $hit = \Illuminate\Support\Facades\Cache::get($fresh);
+        if ($hit !== null) {
+            return [$hit, null];
+        }
+
+        if (! \Illuminate\Support\Facades\Cache::has($cool)) {
+            $value = $this->fetchBalance('check-current-balance', ['apiKey' => $apiKey]);
+
+            if ($value !== null) {
+                \Illuminate\Support\Facades\Cache::put($fresh, $value, 30);
+                \Illuminate\Support\Facades\Cache::put($last, ['value' => $value, 'at' => now()->format('H:i')], 604800);
+
+                return [$value, null];
+            }
+
+            \Illuminate\Support\Facades\Cache::put($cool, 1, 15);
+        }
+
+        $old = \Illuminate\Support\Facades\Cache::get($last);
+
+        return is_array($old) ? [$old['value'], $old['at']] : [null, null];
     }
 
     private function fetchBalance(string $endpoint, array $payload): ?string

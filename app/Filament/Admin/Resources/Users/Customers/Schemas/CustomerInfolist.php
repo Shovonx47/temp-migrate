@@ -99,20 +99,20 @@ class CustomerInfolist
                             ->schema([
                                 ImageEntry::make('front_nid')
                                     ->label('Front Side of NID')
-                                    ->disk('private')
-                                    ->visibility('private')
+                                    ->state(fn ($record) => filled($record->front_nid) ? route('kyc-file', [$record->getKey(), 'front_nid']) : null)
+                                    ->url(fn ($record) => filled($record->front_nid) ? route('kyc-file', [$record->getKey(), 'front_nid']) : null, shouldOpenInNewTab: true)
                                     ->placeholder('No document uploaded'),
 
                                 ImageEntry::make('back_nid')
                                     ->label('Back Side of NID')
-                                    ->disk('private')
-                                    ->visibility('private')
+                                    ->state(fn ($record) => filled($record->back_nid) ? route('kyc-file', [$record->getKey(), 'back_nid']) : null)
+                                    ->url(fn ($record) => filled($record->back_nid) ? route('kyc-file', [$record->getKey(), 'back_nid']) : null, shouldOpenInNewTab: true)
                                     ->placeholder('No document uploaded'),
 
                                 ImageEntry::make('live_photo')
                                     ->label('Live Camera Selfie')
-                                    ->disk('private')
-                                    ->visibility('private')
+                                    ->state(fn ($record) => filled($record->live_photo) ? route('kyc-file', [$record->getKey(), 'live_photo']) : null)
+                                    ->url(fn ($record) => filled($record->live_photo) ? route('kyc-file', [$record->getKey(), 'live_photo']) : null, shouldOpenInNewTab: true)
                                     ->placeholder('No live photo captured'),
                             ]),
                     ]),
@@ -145,7 +145,8 @@ class CustomerInfolist
 
                         TextEntry::make('trade_license_file')
                             ->label('Trade License Document')
-                            ->state(fn ($record) => filled($record->trade_license_file) ? 'Document Uploaded' : 'Not Submitted')
+                            ->state(fn ($record) => filled($record->trade_license_file) ? 'View Document' : 'Not Submitted')
+                            ->url(fn ($record) => filled($record->trade_license_file) ? route('kyc-file', [$record->getKey(), 'trade_license_file']) : null, shouldOpenInNewTab: true)
                             ->badge()
                             ->color(fn ($record) => filled($record->trade_license_file) ? 'success' : 'gray'),
                     ]),

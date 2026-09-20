@@ -53,3 +53,21 @@ Route::get('register/{slug}', SignupLinkController::class)
     ->middleware(['web', 'throttle:60,1'])
     ->where('slug', '[A-Za-z0-9-]+')
     ->name('register.slug');
+
+// Admin-only viewer for private KYC files (session login, no signed URLs)
+Route::middleware(['web', 'auth:superman'])
+    ->get('kyc-files/{user}/{field}', function (string $user, string $field) {
+        abort_unless(in_array($field, ['front_nid', 'back_nid', 'live_photo', 'trade_license_file'], true), 404);
+
+        $path = \App\Models\User::findOrFail($user)->{$field};
+        $disk = \Illuminate\Support\Facades\Storage::disk('private');
+
+        abort_if(blank($path) || str_contains($path, '..') || ! $disk->exists($path), 404);
+
+        return $disk->response($path, null, [
+            'Cache-Control' => 'private, no-store',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    })
+    ->whereNumber('user')
+    ->name('kyc-file');

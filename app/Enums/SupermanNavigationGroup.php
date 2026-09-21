@@ -11,21 +11,22 @@ use Illuminate\Contracts\Support\Htmlable;
 
 enum SupermanNavigationGroup: string implements Collapsible, HasIcon, HasLabel
 {
-    // Top priority groups
-    case Kyc = 'kyc';
+    // Priority groups (ordered per admin requirement)
     case User = 'user';
+    case Kyc = 'kyc';
+    case Billing = 'billing';
+    case SenderCli = 'sender_cli';
+    case Providers = 'providers';
+    case Reports = 'reports';
+
+    // Other groups
     case Analytics = 'analytics';
     case Messaging = 'messaging';
     case Audience = 'audience';
-    case Billing = 'billing';
-    case SenderCli = 'sender_cli';
     case Settings = 'settings';
-
-    // Other groups
     case Resellers = 'resellers';
     case Affiliates = 'affiliates';
     case SmsManagement = 'sms_management';
-    case Providers = 'providers';
     case Routing = 'routing';
     case BangladeshNetwork = 'bangladesh_network';
     case Campaigns = 'campaigns';
@@ -33,7 +34,6 @@ enum SupermanNavigationGroup: string implements Collapsible, HasIcon, HasLabel
     case Dlr = 'dlr';
     case MoInbound = 'mo_inbound';
     case Webhooks = 'webhooks';
-    case Reports = 'reports';
     case Monitoring = 'monitoring';
     case Alerts = 'alerts';
     case PaymentGateway = 'payment_gateway';

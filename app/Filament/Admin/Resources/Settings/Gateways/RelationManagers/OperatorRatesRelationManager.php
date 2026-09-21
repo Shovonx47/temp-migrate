@@ -57,12 +57,12 @@ class OperatorRatesRelationManager extends RelationManager
                     ->placeholder('—'),
                 TextColumn::make('operator_spent')
                     ->label('Operator Cost')
-                    ->state(fn ($record): string => number_format((float) $record->operator_spent, 2).' ৳')
+                    ->state(fn ($record): string => number_format((float) $record->operator_spent, 4).' ৳')
                     ->badge()
                     ->color('warning'),
                 TextColumn::make('gateway_spent')
-                    ->label('Dipping Spend')
-                    ->state(fn ($record): string => number_format((float) $record->gateway_spent, 2).' ৳')
+                    ->label('Dipping Charge')
+                    ->state(fn ($record): string => number_format((float) $record->gateway_spent, 4).' ৳')
                     ->badge()
                     ->color('info'),
             ])
@@ -105,15 +105,16 @@ class OperatorRatesRelationManager extends RelationManager
                 ->visible(fn (): bool => $this->gatewayUsesMasking())
                 ->dehydrated(fn (): bool => $this->gatewayUsesMasking()),
             TextInput::make('non_masking_price')
-                ->label('Non-Masking Price (per part)')
+                ->label('Non-Masking Rate (Per SMS)')
                 ->numeric()
+                ->step(0.0001)
                 ->nullable(),
             TextInput::make('dipping_charge')
-                ->label('Dipping Charge (per part)')
+                ->label('Dipping Charge (Per Number)')
                 ->numeric()
-                ->step(0.000001)
+                ->step(0.0001)
                 ->nullable()
-                ->helperText('The gateway dipping cost charged for this operator per SMS part.'),
+                ->helperText('The gateway dipping cost charged for this operator per number.'),
         ]);
     }
 }

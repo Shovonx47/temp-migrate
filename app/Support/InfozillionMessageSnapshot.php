@@ -23,6 +23,7 @@ final class InfozillionMessageSnapshot
         array $response,
         string $requestId,
         string $defaultSmsType,
+        ?string $senderCli = null,
     ): array {
         if ($gateway->driver !== GatewayDriver::Infozillion) {
             return [];
@@ -31,7 +32,7 @@ final class InfozillionMessageSnapshot
         $credentials = $gateway->credentials ?? [];
 
         return [
-            'bill_msisdn' => self::snapshotBillMsisdn($gateway, $credentials, $response),
+            'bill_msisdn' => self::snapshotBillMsisdn($credentials, $senderCli),
             'sms_type' => strtoupper((string) ($credentials['transaction_type'] ?? $defaultSmsType)),
             'channel' => strtoupper($gateway->smsApiType()),
             'request_id' => $requestId,
@@ -56,38 +57,40 @@ final class InfozillionMessageSnapshot
 
         return null;
     }
+
     /**
-     * IPTSP numeric CLI uses selected CLI as Bill MSISDN.
+     * Derives the bill_msisdn that was actually sent in the API payload.
+     *
+     * For IPTSP with a numeric CLI, the driver sets billMsisdn = CLI in the request
+     * payload (see InfozillionDriver::buildSendPayload). This snapshot must mirror
+     * that logic so the report shows the real value used — not the gateway's
+     * configured bill_msisdn which may be a different number.
+     *
+     * For masking / alphanumeric CLIs or non-IPTSP, the gateway's configured
+     * bill_msisdn is the correct value.
      */
-    private static function snapshotBillMsisdn($gateway, array $credentials, $response): ?string
+    private static function snapshotBillMsisdn(array $credentials, ?string $senderCli): ?string
     {
         $apiType = strtolower(trim((string) ($credentials['api_type'] ?? '')));
 
-        if ($apiType === 'iptsp') {
-            $cli = null;
+        // For IPTSP with a numeric sender CLI, billMsisdn must equal the CLI.
+        // This mirrors the exact logic in InfozillionDriver::buildSendPayload().
+        if ($apiType === 'iptsp' && $senderCli !== null && $senderCli !== '') {
+            $cliDigits = preg_replace('/\D+/', '', $senderCli) ?? '';
+            $isNumericCli = $cliDigits !== '' && ! preg_match('/[a-zA-Z]/', $senderCli);
 
-            if (is_object($response)) {
-                $cli = $response->cli ?? null;
-            } elseif (is_array($response)) {
-                $cli = $response['cli'] ?? null;
-            }
-
-            $cli = trim((string) $cli);
-
-            if ($cli !== '') {
-                $digits = preg_replace('/\D+/', '', $cli);
-
-                if (str_starts_with($digits, '01') && strlen($digits) === 11) {
-                    return '88' . $digits;
+            if ($isNumericCli) {
+                if (str_starts_with($cliDigits, '0')) {
+                    $cliDigits = '880' . substr($cliDigits, 1);
+                } elseif (! str_starts_with($cliDigits, '880')) {
+                    $cliDigits = '880' . $cliDigits;
                 }
 
-                if (str_starts_with($digits, '880') && strlen($digits) === 13) {
-                    return $digits;
-                }
+                return $cliDigits;
             }
         }
 
         return self::stringValue($credentials['bill_msisdn'] ?? null);
     }
-
 }
+

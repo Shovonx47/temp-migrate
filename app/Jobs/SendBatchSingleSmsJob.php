@@ -164,6 +164,7 @@ class SendBatchSingleSmsJob implements ShouldQueue
                         response: $response->raw,
                         requestId: $requestId,
                         defaultSmsType: 'T',
+                        senderCli: $from,
                     );
 
                     SmsLogger::info('sms_sent', [
@@ -246,6 +247,7 @@ class SendBatchSingleSmsJob implements ShouldQueue
                 response: $lastResponse,
                 requestId: $lastRequestId,
                 defaultSmsType: 'T',
+                senderCli: $from,
             ),
         );
     }

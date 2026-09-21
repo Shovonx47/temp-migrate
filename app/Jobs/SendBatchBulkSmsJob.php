@@ -130,11 +130,13 @@ class SendBatchBulkSmsJob implements ShouldQueue
                 'error_message' => 'SMS sending is globally disabled in SMS Settings.',
             ]);
 
+            $disabledFrom = $messages->first()->sender?->sender_id ?? $batch->sender?->sender_id;
             $this->applyBulkResponse(
                 messages: $messages,
                 response: new BulkSmsResponse(successful: false, errorMessage: 'SMS sending is globally disabled.'),
                 gateway: $gateway,
                 requestId: (string) Str::uuid(),
+                senderCli: $disabledFrom,
             );
             $this->refundFailedMessages($batch, $messages);
 
@@ -240,6 +242,7 @@ class SendBatchBulkSmsJob implements ShouldQueue
             response: $finalResponse,
             gateway: $successfulResponse === null ? $lastGateway : $successfulGateway,
             requestId: $lastRequestId,
+            senderCli: $from,
         );
 
         if (! $finalResponse->successful) {
@@ -327,6 +330,7 @@ class SendBatchBulkSmsJob implements ShouldQueue
         BulkSmsResponse $response,
         Gateway $gateway,
         string $requestId,
+        ?string $senderCli = null,
     ): Collection {
         $failedMessages = $this->failedMessages($messages, $response);
         $acceptedMessages = $messages->reject(fn (Message $message): bool => $failedMessages->has($message->id));
@@ -335,6 +339,7 @@ class SendBatchBulkSmsJob implements ShouldQueue
             response: $response->raw,
             requestId: $requestId,
             defaultSmsType: 'P',
+            senderCli: $senderCli,
         );
 
         foreach ($failedMessages as $message) {

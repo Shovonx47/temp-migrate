@@ -1,0 +1,79 @@
+<?php
+
+namespace App\Filament\Admin\Resources\Messaging\Messages\Schemas;
+
+use App\Enums\MessageStatus;
+use Filament\Infolists\Components\IconEntry;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
+
+class MessageInfolist
+{
+    public static function configure(Schema $schema): Schema
+    {
+        return $schema
+            ->components([
+                Section::make('Details')
+                    ->schema([
+                        Grid::make(2)
+                            ->schema([
+                                TextEntry::make('uid')
+                                    ->label('UID')
+                                    ->copyable(),
+                                TextEntry::make('campaign.name')
+                                    ->label('Campaign'),
+                                TextEntry::make('user.name')
+                                    ->label('User'),
+                                TextEntry::make('sender.sender_id')
+                                    ->label('Sender ID'),
+                                TextEntry::make('to')
+                                    ->label('Recipient'),
+                                TextEntry::make('status')
+                                    ->badge(),
+                                TextEntry::make('cost')
+                                    ->money('BDT'),
+                                TextEntry::make('segments')
+                                    ->numeric(),
+                                TextEntry::make('gateway.name')
+                                    ->label('Gateway')
+                                    ->placeholder('—'),
+                                TextEntry::make('gateway_message_id')
+                                    ->label('Gateway Message ID')
+                                    ->copyable()
+                                    ->placeholder('—'),
+                                TextEntry::make('sent_at')
+                                    ->dateTime()
+                                    ->placeholder('—'),
+                                TextEntry::make('failed_at')
+                                    ->label('Failed At')
+                                    ->dateTime()
+                                    ->placeholder('—')
+                                    ->color(fn ($record) => $record?->status === MessageStatus::Failed ? 'danger' : null),
+                                TextEntry::make('body')
+                                    ->columnSpanFull(),
+                                TextEntry::make('created_at')
+                                    ->dateTime(),
+                                TextEntry::make('updated_at')
+                                    ->dateTime(),
+                            ]),
+                    ]),
+
+                Section::make('Failure Details')
+                    ->description('Why this message failed to send — sourced directly from the gateway API response.')
+                    ->icon('heroicon-o-exclamation-circle')
+                    ->schema([
+                        TextEntry::make('failed_reason')
+                            ->label('Failure Reason')
+                            ->columnSpanFull()
+                            ->color('danger')
+                            ->icon('heroicon-m-x-circle')
+                            ->placeholder('No failure reason recorded.')
+                            ->formatStateUsing(fn (?string $state): string => $state ?? 'No failure reason recorded.'),
+                    ])
+                    ->visible(fn ($record) => $record?->status === MessageStatus::Failed || filled($record?->failed_reason))
+                    ->collapsible(),
+            ]);
+    }
+}

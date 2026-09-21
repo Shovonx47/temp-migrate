@@ -1,0 +1,15 @@
+[33m448b1ca[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31mwhiteinfo/main[m[33m)[m feat:Sender/CLI module and Audit,Resulotion,Error live logs
+[33m23e0425[m feat:report feature for SP panels and superman
+[33m028f314[m fix:reseller customer top-up balance payment transfer
+[33me529a91[m[33m ([m[1;31mpersonal/main[m[33m)[m feat: SP panel payment gateway (PipraPay deposits) and SP Employees in both panels
+[33mdcfc8c0[m fix:Remove hardcoded license expiry check that caused production 503
+[33me67ee4d[m fix:livewire filament create gateway error
+[33m6b0feb1[m fix:MNO and ITPSP enable carrier changes
+[33m1830872[m Merge branch 'main' of https://github.com/softcents/sms-whiteinfo-software
+[33m996ded0[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m feat:changes on MNO and IPTSP carrier types
+[33m093a35a[m Merge pull request #1 from softcents/feature/tariff-management
+[33m4bbdbb1[m[33m ([m[1;31mwhiteinfo/feature/tariff-management[m[33m, [m[1;32mfeature/tariff-management[m[33m)[m feat:frontend changes in tarif management
+[33m50870e5[m feat: implement tariff management (plans, rates, assignments, history)
+[33m2502b85[m Fix analytics charts and Infozillion billing MSISDN
+[33me226803[m feat: update InfozillionDriver to use senderId for billMsisdn and cli
+[33mdefdc7f[m feat: update InfozillionDriver to use bill_msisdn as cli and add migration for gateway_cost

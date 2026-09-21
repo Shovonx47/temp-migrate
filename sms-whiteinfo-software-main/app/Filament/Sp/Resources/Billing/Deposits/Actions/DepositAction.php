@@ -1,0 +1,86 @@
+<?php
+
+namespace App\Filament\Sp\Resources\Billing\Deposits\Actions;
+
+use App\Enums\DepositPaymentMethod;
+use App\Enums\DepositStatus;
+use App\Models\User;
+use App\Services\Payment\Data\PaymentRequest;
+use App\Services\Payment\Data\PaymentResponse;
+use App\Support\Facades\Payment;
+use Exception;
+use Filament\Actions\Action;
+use Filament\Forms\Components\TextInput;
+use Filament\Support\Enums\Width;
+use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Facades\DB;
+
+class DepositAction
+{
+    public static function make(): Action
+    {
+        return Action::make('deposit')
+            ->icon(Heroicon::OutlinedCurrencyBangladeshi)
+            ->label('Top Up')
+            ->modalWidth(Width::Medium)
+            ->modalIcon(Heroicon::CurrencyBangladeshi)
+            ->modalHeading('Add Balance')
+            ->modalDescription('Add balance to your S P wallet through the payment gateway. Minimum deposit amount is BDT 50 and maximum deposit amount is BDT 100,000.')
+            ->requiresConfirmation()
+            ->schema([
+                TextInput::make('amount')
+                    ->prefix('BDT')
+                    ->label('Amount')
+                    ->placeholder('Enter amount to deposit')
+                    ->required()
+                    ->numeric()
+                    ->minValue(50)
+                    ->maxValue(100_000),
+            ])
+            ->action(function (array $data) {
+                $response = DB::transaction(function () use ($data): PaymentResponse {
+                    /** @var User $user */
+                    $user = auth()->user();
+
+                    $gateway = 'piprapay';
+
+                    $deposit = $user->deposits()->create([
+                        'amount' => $data['amount'],
+                        'currency' => 'BDT',
+                        'payment_method' => DepositPaymentMethod::PipraPay,
+                        'status' => DepositStatus::Pending,
+                    ]);
+
+                    $response = Payment::driver($gateway)
+                        ->create(new PaymentRequest(
+                            orderId: (string) $deposit->id,
+                            amount: (int) $data['amount'],
+                            currency: 'BDT',
+                            customerName: $user->name,
+                            customerEmail: $user->email,
+                            customerPhone: $user->phone,
+                            returnUrl: route('payments.callback', ['gateway' => $gateway, 'deposit' => $deposit->id]),
+                            webhookUrl: route('payments.webhook', ['gateway' => $gateway]),
+                            metadata: ['order_id' => $deposit->id],
+                        ));
+
+                    if ($response->successful) {
+                        $deposit->update([
+                            'transaction_id' => $response->gatewayPaymentId,
+                            'meta' => $response->raw,
+                        ]);
+
+                        return $response;
+                    }
+
+                    $deposit->update([
+                        'status' => DepositStatus::Failed,
+                    ]);
+
+                    throw new Exception('Failed to initiate payment'.($response->message ? ": {$response->message}" : '.'));
+                });
+
+                return redirect()->away($response->checkoutUrl);
+            });
+    }
+}

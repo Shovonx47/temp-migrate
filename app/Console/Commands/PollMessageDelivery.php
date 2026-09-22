@@ -48,17 +48,28 @@ class PollMessageDelivery extends Command
             $this->line("Dispatched {$dispatched} DLR poll job(s).");
         }
 
-        // Fallback: Transition any sent messages older than 5 minutes to Delivered
-        $autoDelivered = Message::query()
+        // Fallback: Transition any sent messages older than 5 minutes to Delivered.
+        // Uses a two-step ID-scoped approach to avoid gap locks under REPEATABLE READ.
+        // A broad WHERE-based UPDATE would take range/gap locks on the messages table,
+        // blocking unrelated FK-referencing inserts (sms_logs, batches) for seconds.
+        $autoDeliverIds = Message::query()
             ->where('status', MessageStatus::Sent)
             ->where('sent_at', '<=', now()->subMinutes(5))
-            ->update([
-                'status' => MessageStatus::Delivered->value,
-                'delivered_at' => now(),
-                'poll_attempt' => null,
-                'next_poll_at' => null,
-                'updated_at' => now(),
-            ]);
+            ->pluck('id');
+
+        $autoDelivered = 0;
+        foreach ($autoDeliverIds->chunk(200) as $idChunk) {
+            $autoDelivered += Message::query()
+                ->whereIn('id', $idChunk)
+                ->where('status', MessageStatus::Sent)
+                ->update([
+                    'status' => MessageStatus::Delivered->value,
+                    'delivered_at' => now(),
+                    'poll_attempt' => null,
+                    'next_poll_at' => null,
+                    'updated_at' => now(),
+                ]);
+        }
 
         if ($autoDelivered > 0) {
             $this->line("Auto-marked {$autoDelivered} message(s) as delivered via 5-min fallback.");

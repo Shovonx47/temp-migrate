@@ -20,6 +20,7 @@ use Filament\Support\Exceptions\Halt;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Number;
@@ -35,7 +36,7 @@ class CreateSmartMessage extends CreateRecord
 
     protected static ?string $title = 'Bulk Message';
 
-    protected ?bool $hasDatabaseTransactions = true;
+    protected ?bool $hasDatabaseTransactions = false;
 
     public function hasFormWrapper(): bool
     {
@@ -156,35 +157,47 @@ HTML);
         $requiresApproval = $user->requiresSmsApproval();
         $clientIp = request()->ip();
 
-        $batch = Batch::create([
-            'user_id' => $user->id,
-            'sender_id' => $data['sender_id'] ?? null,
-            'body' => $body,
-            'source_type' => $source,
-            'source_ip' => $clientIp,
-            'source_config' => [],
-            'status' => $requiresApproval ? BatchStatus::Pending : BatchStatus::Processing,
-            'approval' => $requiresApproval ? SmsApproval::Pending : null,
-        ]);
+        // Scope the transaction tightly: only batch creation + source_config update.
+        // ProcessBatchJob::dispatchSync() must run outside the transaction to avoid
+        // a MySQL lock wait timeout caused by the job re-accessing the same row.
+        $batch = DB::transaction(function () use ($user, $data, $source, $body, $requiresApproval, $clientIp) {
+            $batch = Batch::create([
+                'user_id' => $user->id,
+                'sender_id' => $data['sender_id'] ?? null,
+                'body' => $body,
+                'source_type' => $source,
+                'source_ip' => $clientIp,
+                'source_config' => [],
+                'status' => $requiresApproval ? BatchStatus::Pending : BatchStatus::Processing,
+                'approval' => $requiresApproval ? SmsApproval::Pending : null,
+            ]);
 
-        $sourceConfig = $this->buildSourceConfig($source, $data, $batch);
-        $sourceConfig['ip'] = $clientIp;
+            $sourceConfig = $this->buildSourceConfig($source, $data, $batch);
+            $sourceConfig['ip'] = $clientIp;
 
-        $batch->update([
-            'source_config' => $sourceConfig,
-        ]);
+            $batch->update(['source_config' => $sourceConfig]);
+
+            return $batch;
+        });
 
         if (! $requiresApproval) {
             $recipientCount = $this->estimateRecipientCount($source, $data);
             if ($recipientCount <= 500) {
-                ProcessBatchJob::dispatchSync(
-                    $batch,
-                    $source,
-                    $batch->source_config,
-                    $body,
-                    $bodyVariables,
-                    syncSending: true,
-                );
+                try {
+                    ProcessBatchJob::dispatchSync(
+                        $batch,
+                        $source,
+                        $batch->source_config,
+                        $body,
+                        $bodyVariables,
+                        syncSending: true,
+                    );
+                } catch (Throwable) {
+                    // ProcessBatchJob already catches all exceptions internally,
+                    // marks the batch as Failed, and sends a database notification
+                    // to the user. We swallow here so the Livewire HTTP request
+                    // completes cleanly (no GET redirect → MethodNotAllowed error).
+                }
             } else {
                 ProcessBatchJob::dispatch(
                     $batch,
@@ -192,7 +205,7 @@ HTML);
                     $batch->source_config,
                     $body,
                     $bodyVariables,
-                )->afterCommit();
+                );
             }
         }
 

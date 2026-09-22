@@ -49,27 +49,28 @@ class PollMessageDelivery extends Command
         }
 
         // Fallback: Transition any sent messages older than 5 minutes to Delivered.
-        // Uses a two-step ID-scoped approach to avoid gap locks under REPEATABLE READ.
-        // A broad WHERE-based UPDATE would take range/gap locks on the messages table,
-        // blocking unrelated FK-referencing inserts (sms_logs, batches) for seconds.
-        $autoDeliverIds = Message::query()
+        // Scoped to specific primary keys (not a broad WHERE-range UPDATE) so this
+        // only takes row-level locks on the exact rows being changed, instead of
+        // gap-locking the whole matched range and blocking unrelated inserts
+        // elsewhere in the messages table (e.g. sms_logs / batches inserts).
+        $autoDelivered = 0;
+
+        Message::query()
             ->where('status', MessageStatus::Sent)
             ->where('sent_at', '<=', now()->subMinutes(5))
-            ->pluck('id');
-
-        $autoDelivered = 0;
-        foreach ($autoDeliverIds->chunk(200) as $idChunk) {
-            $autoDelivered += Message::query()
-                ->whereIn('id', $idChunk)
-                ->where('status', MessageStatus::Sent)
-                ->update([
+            ->orderBy('id')
+            ->limit(2000)
+            ->pluck('id')
+            ->chunk(200)
+            ->each(function ($ids) use (&$autoDelivered): void {
+                $autoDelivered += Message::whereIn('id', $ids)->update([
                     'status' => MessageStatus::Delivered->value,
                     'delivered_at' => now(),
                     'poll_attempt' => null,
                     'next_poll_at' => null,
                     'updated_at' => now(),
                 ]);
-        }
+            });
 
         if ($autoDelivered > 0) {
             $this->line("Auto-marked {$autoDelivered} message(s) as delivered via 5-min fallback.");

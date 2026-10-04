@@ -1,0 +1,676 @@
+<?php
+
+namespace App\Services\Sms\Drivers;
+
+use App\Contracts\SmsGateway;
+use App\Contracts\SupportsBulkSms;
+use App\Contracts\SupportsDashboard;
+use App\Contracts\SupportsDeliveryStatus;
+use App\Enums\DeliveryOutcome;
+use App\Services\Logging\SmsLogger;
+use App\Services\Sms\Data\BulkSmsRequest;
+use App\Services\Sms\Data\BulkSmsResponse;
+use App\Services\Sms\Data\DashboardData;
+use App\Services\Sms\Data\DeliveryStatusResponse;
+use App\Services\Sms\Data\SmsRequest;
+use App\Services\Sms\Data\SmsResponse;
+use App\Services\Sms\Data\StatCard;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+
+final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, SupportsDashboard, SupportsDeliveryStatus
+{
+    private const string A2P_SUCCESS_CODE = '9000';
+
+    public function __construct(private array $credentials = []) {}
+
+    public function send(SmsRequest $request): SmsResponse
+    {
+        if ($errorMessage = $this->invalidNumericCliError($request->from ?? '')) {
+            SmsLogger::warning('api_request_rejected', [
+                'gateway_name' => 'Infozillion',
+                'phone' => $request->to,
+                'status' => 'failed',
+                'error_message' => $errorMessage,
+            ]);
+
+            return new SmsResponse(successful: false, errorMessage: $errorMessage);
+        }
+
+        $payload = $this->buildSendPayload(
+            recipients: [$request->to],
+            body: $request->body,
+            senderId: $request->from ?? '',
+            isUnicode: $request->isUnicode,
+        );
+
+        SmsLogger::info('api_request', [
+            'gateway_name' => 'Infozillion',
+            'phone' => $request->to,
+            'status' => 'sending',
+            'request_payload' => $payload,
+        ]);
+
+        $startMs = hrtime(true);
+
+        try {
+            $response = $this->client()->post(
+                $this->resolveEndpoint('send-sms'),
+                $payload,
+            );
+
+            $durationMs = (int) ((hrtime(true) - $startMs) / 1_000_000);
+            $data = $response->json() ?? [];
+
+            if ($response->failed() || ((string) ($data['serverResponseCode'] ?? '')) !== self::A2P_SUCCESS_CODE) {
+                $errorMsg = $data['serverResponseMessage'] ?? 'Unknown error';
+
+                SmsLogger::error('api_response_failed', [
+                    'gateway_name' => 'Infozillion',
+                    'phone' => $request->to,
+                    'status' => 'failed',
+                    'error_message' => $errorMsg,
+                    'response_payload' => $data,
+                    'duration_ms' => $durationMs,
+                ]);
+
+                return new SmsResponse(
+                    successful: false,
+                    errorMessage: $errorMsg,
+                    raw: $data,
+                );
+            }
+
+            SmsLogger::info('api_response_success', [
+                'gateway_name' => 'Infozillion',
+                'phone' => $request->to,
+                'status' => 'sent',
+                'gateway_message_id' => $data['serverTxnId'] ?? null,
+                'response_payload' => $data,
+                'duration_ms' => $durationMs,
+            ]);
+
+            return new SmsResponse(
+                successful: true,
+                gatewayMessageId: $data['serverTxnId'] ?? null,
+                raw: $data,
+            );
+        } catch (ConnectionException $e) {
+            $durationMs = (int) ((hrtime(true) - $startMs) / 1_000_000);
+
+            SmsLogger::error('api_connection_failed', [
+                'gateway_name' => 'Infozillion',
+                'phone' => $request->to,
+                'status' => 'failed',
+                'error_message' => 'Connection failed: '.$e->getMessage(),
+                'duration_ms' => $durationMs,
+            ]);
+
+            return new SmsResponse(
+                successful: false,
+                errorMessage: 'Connection failed: '.$e->getMessage(),
+            );
+        }
+    }
+
+    public function sendBulk(BulkSmsRequest $request): BulkSmsResponse
+    {
+        if ($errorMessage = $this->invalidNumericCliError($request->from ?? '')) {
+            SmsLogger::warning('api_bulk_request_rejected', [
+                'gateway_name' => 'Infozillion',
+                'status' => 'failed',
+                'parts' => count($request->recipients),
+                'error_message' => $errorMessage,
+            ]);
+
+            return new BulkSmsResponse(successful: false, errorMessage: $errorMessage);
+        }
+
+        $payload = $this->buildSendPayload(
+            recipients: $request->recipients,
+            body: $request->body,
+            senderId: $request->from ?? '',
+            isUnicode: $request->isUnicode,
+        );
+
+        $recipientCount = count($request->recipients);
+
+        SmsLogger::info('api_bulk_request', [
+            'gateway_name' => 'Infozillion',
+            'status' => 'sending',
+            'parts' => $recipientCount,
+            'request_payload' => $payload,
+        ]);
+
+        $startMs = hrtime(true);
+
+        try {
+            $response = $this->client()->post(
+                $this->resolveEndpoint('send-sms'),
+                $payload,
+            );
+
+            $durationMs = (int) ((hrtime(true) - $startMs) / 1_000_000);
+            $data = $response->json() ?? [];
+
+            if ($response->failed() || ((string) ($data['serverResponseCode'] ?? '')) !== self::A2P_SUCCESS_CODE) {
+                $errorMsg = $data['serverResponseMessage'] ?? 'Unknown error';
+
+                SmsLogger::error('api_bulk_response_failed', [
+                    'gateway_name' => 'Infozillion',
+                    'status' => 'failed',
+                    'parts' => $recipientCount,
+                    'error_message' => $errorMsg,
+                    'response_payload' => $data,
+                    'duration_ms' => $durationMs,
+                ]);
+
+                return new BulkSmsResponse(
+                    successful: false,
+                    errorMessage: $errorMsg,
+                    raw: $data,
+                );
+            }
+
+            SmsLogger::info('api_bulk_response_success', [
+                'gateway_name' => 'Infozillion',
+                'status' => 'sent',
+                'parts' => $recipientCount,
+                'gateway_message_id' => $data['serverTxnId'] ?? null,
+                'response_payload' => $data,
+                'duration_ms' => $durationMs,
+            ]);
+
+            return new BulkSmsResponse(
+                successful: true,
+                gatewayBatchId: $data['serverTxnId'] ?? null,
+                raw: $data,
+                failedRecipients: $this->failedRecipients($data, $request->recipients),
+            );
+        } catch (ConnectionException $e) {
+            $durationMs = (int) ((hrtime(true) - $startMs) / 1_000_000);
+
+            SmsLogger::error('api_bulk_connection_failed', [
+                'gateway_name' => 'Infozillion',
+                'status' => 'failed',
+                'parts' => $recipientCount,
+                'error_message' => 'Connection failed: '.$e->getMessage(),
+                'duration_ms' => $durationMs,
+            ]);
+
+            return new BulkSmsResponse(
+                successful: false,
+                errorMessage: 'Connection failed: '.$e->getMessage(),
+            );
+        }
+    }
+
+    public function fetchDeliveryStatus(string $gatewayMessageId, ?string $recipient = null): DeliveryStatusResponse
+    {
+        $dlrPayload = [
+            'username' => $this->credentials['username'] ?? '',
+            'password' => $this->credentials['password'] ?? '',
+            'billMsisdn' => $this->credentials['bill_msisdn'] ?? '',
+            'usernameSecondary' => $this->credentials['username_secondary'] ?? '',
+            'passwordSecondary' => $this->credentials['password_secondary'] ?? '',
+            'billMsisdnSecondary' => $this->credentials['bill_msisdn_secondary'] ?? '',
+            'apiKey' => $this->credentials['api_key'] ?? '',
+            'msisdnList' => $recipient !== null ? [ltrim($recipient, '+')] : [],
+            'serverReference' => $gatewayMessageId,
+        ];
+
+        SmsLogger::debug('dlr_check_request', [
+            'gateway_name' => 'Infozillion',
+            'phone' => $recipient,
+            'gateway_message_id' => $gatewayMessageId,
+            'status' => 'polling',
+        ]);
+
+        $startMs = hrtime(true);
+
+        try {
+            $response = $this->client()->post(
+                $this->resolveEndpoint('check-delivery-report'),
+                $dlrPayload,
+            );
+
+            $durationMs = (int) ((hrtime(true) - $startMs) / 1_000_000);
+            $data = $response->json() ?? [];
+
+            if ($response->failed() || ((string) ($data['serverResponseCode'] ?? '')) !== self::A2P_SUCCESS_CODE) {
+                $errorMsg = $data['serverResponseMessage'] ?? 'Delivery check failed';
+
+                SmsLogger::warning('dlr_check_failed', [
+                    'gateway_name' => 'Infozillion',
+                    'phone' => $recipient,
+                    'gateway_message_id' => $gatewayMessageId,
+                    'status' => 'failed',
+                    'error_message' => $errorMsg,
+                    'response_payload' => $data,
+                    'duration_ms' => $durationMs,
+                ]);
+
+                return new DeliveryStatusResponse(
+                    outcome: DeliveryOutcome::InTransit,
+                    errorMessage: $errorMsg,
+                    raw: $data,
+                );
+            }
+
+            $result = $this->mapDeliveryStatus($data);
+
+            $logMethod = $result->outcome === DeliveryOutcome::Failed ? 'warning' : 'info';
+            SmsLogger::{$logMethod}('dlr_check_result', [
+                'gateway_name' => 'Infozillion',
+                'phone' => $recipient,
+                'gateway_message_id' => $gatewayMessageId,
+                'status' => strtolower($result->outcome->name),
+                'error_message' => $result->errorMessage,
+                'response_payload' => $data,
+                'duration_ms' => $durationMs,
+            ]);
+
+            return $result;
+        } catch (ConnectionException $e) {
+            $durationMs = (int) ((hrtime(true) - $startMs) / 1_000_000);
+
+            SmsLogger::error('dlr_connection_failed', [
+                'gateway_name' => 'Infozillion',
+                'phone' => $recipient,
+                'gateway_message_id' => $gatewayMessageId,
+                'status' => 'failed',
+                'error_message' => 'Connection failed: '.$e->getMessage(),
+                'duration_ms' => $durationMs,
+            ]);
+
+            return new DeliveryStatusResponse(
+                outcome: DeliveryOutcome::InTransit,
+                errorMessage: 'Connection failed: '.$e->getMessage(),
+            );
+        }
+    }
+
+    public function getDashboardData(): DashboardData
+    {
+        $carrierCodes = $this->dashboardCarrierCodes();
+
+        [$wallet, $walletAsOf] = $this->walletBalance();
+
+        $cards = [new StatCard(
+            label: 'Wallet Balance',
+            value: $wallet ?? 'N/A',
+            description: $walletAsOf ? 'Available balance at CP end (last known, '.$walletAsOf.')' : 'Available balance at CP end',
+            color: $wallet !== null ? 'success' : 'danger',
+            icon: 'heroicon-o-banknotes',
+        )];
+
+        foreach ($carrierCodes as $code => $name) {
+            $balance = $this->fetchBalance('check-credit-balance', [
+                'username' => $this->credentials['username'] ?? '',
+                'password' => $this->credentials['password'] ?? '',
+                'mno' => $code,
+                'apiKey' => $this->credentials['api_key'] ?? '',
+            ]);
+
+            $cards[] = new StatCard(
+                label: "{$name} Balance",
+                value: $balance ?? 'N/A',
+                description: "{$code} carrier credit",
+                icon: 'heroicon-o-device-phone-mobile',
+            );
+        }
+
+        return new DashboardData(cards: $cards);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function dashboardCarrierCodes(): array
+    {
+        $type = strtolower(trim((string) ($this->credentials['api_type'] ?? 'mno')));
+
+        $knownCarrierCodes = $type === 'iptsp'
+            ? [
+                'ADN' => 'ADN',
+                'MN' => 'Mirnet',
+                'BN' => 'Bracnet',
+                'AIT' => 'AmberIT',
+                'RT' => 'RanksITT',
+                'PRM' => 'Premium',
+                'FN' => 'FusionNet',
+                'BR' => 'Brilliant',
+                'MTN' => 'Metronet',
+                'RCO' => 'RaceOnline',
+                'BPL' => 'BanglaPhone',
+                'ICN' => 'Icon',
+                'WEB' => 'Weblink',
+                'BDC' => 'BDCOM',
+                'RDT' => 'RedData',
+                'L3' => 'Link3',
+                'BTCL' => 'BTCL',
+                'AGNI' => 'AGNI',
+                'ICC' => 'ICC',
+                'RG' => 'RoyalGreen',
+            ]
+            : [
+                'GP' => 'GrameenPhone',
+                'RB' => 'Robi',
+                'TT' => 'Teletalk',
+                'BL' => 'Banglalink',
+            ];
+
+        $enabledCarriers = $this->credentials['enabled_carriers'] ?? [];
+
+        if (is_string($enabledCarriers)) {
+            $enabledCarriers = array_values(array_filter(array_map(
+                trim(...),
+                explode(',', $enabledCarriers),
+            )));
+        }
+
+        if (! is_array($enabledCarriers) || $enabledCarriers === []) {
+            return $knownCarrierCodes;
+        }
+
+        $carrierCodes = [];
+
+        foreach ($enabledCarriers as $code) {
+            $code = trim((string) $code);
+
+            if ($code === '') {
+                continue;
+            }
+
+            $carrierCodes[$code] = $knownCarrierCodes[$code] ?? $code;
+        }
+
+        return $carrierCodes;
+    }
+
+    private function walletBalance(): array
+    {
+        $apiKey = (string) ($this->credentials['api_key'] ?? '');
+        $h = md5($apiKey);
+        $fresh = "infozillion:wallet:{$h}";
+        $last = "infozillion:wallet:{$h}:last";
+        $cool = "infozillion:wallet:{$h}:cooldown";
+
+        $hit = Cache::get($fresh);
+        if ($hit !== null) {
+            return [$hit, null];
+        }
+
+        if (! Cache::has($cool)) {
+            $value = $this->fetchBalance('check-current-balance', ['apiKey' => $apiKey]);
+
+            if ($value !== null) {
+                Cache::put($fresh, $value, 30);
+                Cache::put($last, ['value' => $value, 'at' => now()->format('H:i')], 604800);
+
+                return [$value, null];
+            }
+
+            Cache::put($cool, 1, 15);
+        }
+
+        $old = Cache::get($last);
+
+        return is_array($old) ? [$old['value'], $old['at']] : [null, null];
+    }
+
+    private function fetchBalance(string $endpoint, array $payload): ?string
+    {
+        $startMs = hrtime(true);
+
+        try {
+            $response = $this->client()->post($this->resolveEndpoint($endpoint), $payload);
+            $durationMs = (int) ((hrtime(true) - $startMs) / 1_000_000);
+            $data = $response->json() ?? [];
+
+            if ($response->failed() || ((string) ($data['serverResponseCode'] ?? '')) !== self::A2P_SUCCESS_CODE) {
+                SmsLogger::warning('balance_check_failed', [
+                    'gateway_name' => 'Infozillion',
+                    'error_message' => $data['serverResponseMessage'] ?? 'Balance check failed',
+                    'response_payload' => $data,
+                    'duration_ms' => $durationMs,
+                ]);
+
+                return null;
+            }
+
+            SmsLogger::debug('balance_check_ok', [
+                'gateway_name' => 'Infozillion',
+                'response_payload' => ['balance' => $data['availableBalance'] ?? null],
+                'duration_ms' => $durationMs,
+            ]);
+
+            return $data['availableBalance'] ?? null;
+        } catch (ConnectionException $e) {
+            $durationMs = (int) ((hrtime(true) - $startMs) / 1_000_000);
+
+            SmsLogger::error('balance_connection_failed', [
+                'gateway_name' => 'Infozillion',
+                'error_message' => 'Connection failed: '.$e->getMessage(),
+                'duration_ms' => $durationMs,
+            ]);
+
+            return null;
+        }
+    }
+
+    private function buildSendPayload(array $recipients, string $body, string $senderId, bool $isUnicode): array
+    {
+        $recipientCount = count($recipients);
+        $configuredType = $this->credentials['transaction_type'] ?? null;
+        $transactionType = $configuredType ?? ($recipientCount > 1 ? 'P' : 'T');
+
+        $messageType = $isUnicode
+            ? '3'
+            : ($this->credentials['message_type'] ?? '1');
+
+        $isLongSms = (bool) ($this->credentials['is_long_sms'] ?? (mb_strlen($body) > 160));
+
+        // The CLI is the selected Sender ID — it is the source of truth.
+        $cli = ! empty($senderId)
+            ? trim((string) $senderId)
+            : trim((string) ($this->credentials['cli'] ?? ''));
+
+                // Numeric CLI (digits only, no letters): CLI and billMsisdn are ALWAYS the same number.
+        $cliDigits = preg_replace('/\D+/', '', $cli) ?? '';
+        $isNumericCli = $cli !== '' && $cliDigits !== '' && ! preg_match('/[a-zA-Z]/', $cli);
+
+        if ($isNumericCli) {
+            if (str_starts_with($cliDigits, '0')) {
+                $cliDigits = '880'.substr($cliDigits, 1);
+            } elseif (! str_starts_with($cliDigits, '880')) {
+                $cliDigits = '880'.$cliDigits;
+            }
+
+            $cli = $cliDigits;
+            $billMsisdn = $cliDigits;
+        } else {
+            // Masking / alphanumeric CLI: keep the gateway's configured bill_msisdn.
+            $billMsisdn = trim((string) ($this->credentials['bill_msisdn'] ?? ''));
+        }
+
+        $payload = [
+            'username' => $this->credentials['username'] ?? '',
+            'password' => $this->credentials['password'] ?? '',
+            'billMsisdn' => $billMsisdn,
+            'apiKey' => $this->credentials['api_key'] ?? '',
+            'cli' => $cli,
+            'msisdnList' => array_map(fn (string $msisdn) => ltrim($msisdn, '+'), $recipients),
+            'transactionType' => $transactionType,
+            'messageType' => (string) $messageType,
+            'isLongSMS' => $isLongSms,
+            'message' => $body,
+        ];
+
+        $campaignId = $this->credentials['campaign_id'] ?? null;
+        if ($transactionType === 'P') {
+            $payload['campaignId'] = ! empty($campaignId) ? $campaignId : 'camp-'.date('YmdHis');
+        } elseif (! empty($campaignId)) {
+            $payload['campaignId'] = $campaignId;
+        }
+
+        if (! empty($this->credentials['username_secondary'])) {
+            $payload['usernameSecondary'] = $this->credentials['username_secondary'];
+            $payload['passwordSecondary'] = $this->credentials['password_secondary'] ?? '';
+            $payload['billMsisdnSecondary'] = $this->credentials['bill_msisdn_secondary'] ?? '';
+        }
+
+        return $payload;
+    }
+
+    private function invalidNumericCliError(string $senderId): ?string
+    {
+        // Since buildSendPayload now derives billMsisdn from the CLI for numeric
+        // senders (CLI is always the source of truth), CLI and billMsisdn are
+        // guaranteed to be identical in the payload — no pre-send blocking needed.
+        // We only keep this guard for the edge case where the gateway's bill_msisdn
+        // is a different MSISDN AND the CLI cannot be overridden (non-numeric path).
+        // For numeric CLIs, billMsisdn is set to match the CLI in buildSendPayload,
+        // so this check is now a no-op for all numeric senders.
+        return null;
+    }
+
+    /**
+     * @param  string[]  $recipients
+     * @return array<string, string>
+     */
+    private function failedRecipients(array $data, array $recipients): array
+    {
+        $knownRecipients = collect($recipients)
+            ->mapWithKeys(fn (string $recipient): array => [$this->normalizeBangladeshMsisdn($recipient) ?? $recipient => true]);
+
+        $failedRecipients = [];
+
+        foreach (['dndMsisdn' => 'Recipient is on the DND list.', 'invalidMsisdn' => 'Recipient MSISDN is invalid or unsupported.'] as $field => $reason) {
+            foreach ((array) ($data[$field] ?? []) as $value) {
+                $recipient = $this->normalizeBangladeshMsisdn((string) $value);
+
+                if ($recipient !== null && $knownRecipients->has($recipient)) {
+                    $failedRecipients[$recipient] = $reason;
+                }
+            }
+        }
+
+        return $failedRecipients;
+    }
+
+    private function normalizeBangladeshMsisdn(string $value): ?string
+    {
+        $digits = preg_replace('/\D+/', '', $value) ?? '';
+
+        if (preg_match('/^(?:880|0)?(1[3-9]\d{8})$/', $digits, $matches)) {
+            return '880'.$matches[1];
+        }
+
+        return null;
+    }
+
+    private function mapDeliveryStatus(array $data): DeliveryStatusResponse
+    {
+        // Check for DND filtered numbers
+        $dndList = $data['dndMsisdn'] ?? [];
+        if (! empty($dndList) && is_array($dndList)) {
+            return new DeliveryStatusResponse(
+                outcome: DeliveryOutcome::Failed,
+                errorMessage: 'Recipient filtered due to DND enlistment: '.implode(', ', $dndList),
+                raw: $data,
+            );
+        }
+
+        // Check for Invalid MSISDNs filtered by MNPSP
+        $invalidList = $data['invalidMsisdn'] ?? [];
+        if (! empty($invalidList) && is_array($invalidList)) {
+            return new DeliveryStatusResponse(
+                outcome: DeliveryOutcome::Failed,
+                errorMessage: 'Invalid MSISDN prefix or format: '.implode(', ', $invalidList),
+                raw: $data,
+            );
+        }
+
+        $deliveryStatuses = $data['deliveryStatus'] ?? [];
+
+        if (empty($deliveryStatuses)) {
+            $a2pStatus = (string) ($data['a2pDeliveryStatus'] ?? '');
+            $a2pLower = strtolower($a2pStatus);
+            $httpStatus = (string) ($data['ansSendSmsHttpStatus'] ?? '');
+
+            if (str_contains($a2pLower, 'failure') || str_contains($a2pLower, 'failed') || str_contains(strtolower($httpStatus), 'bad_gateway') || str_starts_with($httpStatus, '4') || str_starts_with($httpStatus, '5')) {
+                return new DeliveryStatusResponse(
+                    outcome: DeliveryOutcome::Failed,
+                    rawStatus: $a2pStatus,
+                    errorMessage: (string) ($data['serverResponseMessage'] ?? $a2pStatus),
+                    raw: $data,
+                );
+            }
+
+            return new DeliveryStatusResponse(
+                outcome: DeliveryOutcome::InTransit,
+                rawStatus: $a2pStatus,
+                raw: $data,
+            );
+        }
+
+        $firstStatus = (string) ($deliveryStatuses[0] ?? '');
+        $statusLower = strtolower($firstStatus);
+
+        if (str_contains($statusLower, 'undelivered') || str_contains($statusLower, 'failed') || str_contains($statusLower, 'rejected') || str_contains($statusLower, 'expired')) {
+            return new DeliveryStatusResponse(
+                outcome: DeliveryOutcome::Failed,
+                rawStatus: $firstStatus,
+                errorMessage: 'SMS delivery status: '.$firstStatus,
+                raw: $data,
+            );
+        }
+
+        if (str_contains($statusLower, 'delivered')) {
+            return new DeliveryStatusResponse(
+                outcome: DeliveryOutcome::Delivered,
+                rawStatus: $firstStatus,
+                raw: $data,
+            );
+        }
+
+        return new DeliveryStatusResponse(
+            outcome: DeliveryOutcome::InTransit,
+            rawStatus: $firstStatus,
+            raw: $data,
+        );
+    }
+
+    private function resolveEndpoint(string $action): string
+    {
+        $type = $this->credentials['api_type'] ?? 'mno';
+
+        return match ($action) {
+            'send-sms' => $type === 'iptsp'
+                ? 'a2p-sms-iptsp/api/v1/send-sms'
+                : 'a2p-sms/api/v1/send-sms',
+            'check-delivery-report' => $type === 'iptsp'
+                ? 'a2p-proxy-api-iptsp/api/v1/check-delivery-report'
+                : 'a2p-proxy-api/api/v1/check-delivery-report',
+            'check-credit-balance' => $type === 'iptsp'
+                ? 'a2p-proxy-api-iptsp/api/v1/check-credit-balance'
+                : 'a2p-proxy-api/api/v1/check-credit-balance',
+            'check-current-balance' => 'a2p-wallet/api/v1/check-current-balance',
+            default => $action,
+        };
+    }
+
+    private function client(): PendingRequest
+    {
+        $baseUrl = rtrim((string) ($this->credentials['base_url'] ?? ''), '/');
+
+        return Http::baseUrl($baseUrl)
+            ->withoutVerifying()
+            ->asJson()
+            ->acceptJson()
+            ->timeout(10);
+    }
+}

@@ -1,0 +1,472 @@
+@php
+    $messages = $this->getMessages();
+    $pollInterval = $isPaused ? null : '3s';
+@endphp
+
+<div @if($pollInterval) wire:poll.{{ $pollInterval }}="getMessages" @endif class="w-full">
+    <div class="rounded-xl bg-white shadow-xs ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10 overflow-hidden">
+        {{-- Header Bar --}}
+        <div class="p-3.5 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5">
+                {{-- Title & Live Beacon --}}
+                <div class="flex items-center gap-2.5">
+                    <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                        <x-heroicon-o-bolt class="w-4 h-4" />
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-sm font-bold text-gray-900 dark:text-white tracking-tight">Live Queue & Action Stream</h2>
+                            @if(!$isPaused)
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                                    <span class="relative flex h-1.5 w-1.5">
+                                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                        <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                                    </span>
+                                    LIVE STREAMING (5s)
+                                </span>
+                            @else
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                                    <x-heroicon-o-pause class="w-2.5 h-2.5" />
+                                    STREAM PAUSED
+                                </span>
+                            @endif
+                        </div>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400">
+                            Real-time monitor of live SMS currently in queue, on the verge of being processed, and in-flight gateway dispatches
+                        </p>
+                    </div>
+                </div>
+
+                {{-- Quick Actions & Controls --}}
+                <div class="flex flex-wrap items-center gap-2">
+                    {{-- Search --}}
+                    <div class="relative min-w-[180px]">
+                        <input
+                            type="text"
+                            wire:model.live.debounce.300ms="search"
+                            placeholder="Filter live: customer, phone, text..."
+                            class="w-full text-xs rounded-lg border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-white py-1 pl-7 pr-2.5 focus:border-emerald-500 focus:ring-emerald-500"
+                        />
+                        <x-heroicon-o-magnifying-glass class="w-3.5 h-3.5 text-gray-400 absolute left-2 top-2" />
+                    </div>
+
+                    {{-- View Mode Switch --}}
+                    <div class="flex items-center rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 p-0.5">
+                        <button
+                            type="button"
+                            wire:click="setViewMode('stream')"
+                            class="px-2 py-1 text-xs font-medium rounded-md transition-all {{ $viewMode === 'stream' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-xs' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300' }}"
+                        >
+                            <span class="flex items-center gap-1">
+                                <x-heroicon-o-list-bullet class="w-3.5 h-3.5" />
+                                Stream
+                            </span>
+                        </button>
+                        <button
+                            type="button"
+                            wire:click="setViewMode('table')"
+                            class="px-2 py-1 text-xs font-medium rounded-md transition-all {{ $viewMode === 'table' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-xs' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300' }}"
+                        >
+                            <span class="flex items-center gap-1">
+                                <x-heroicon-o-table-cells class="w-3.5 h-3.5" />
+                                Table
+                            </span>
+                        </button>
+                    </div>
+
+                    {{-- Purge Queue Button --}}
+                    <button
+                        type="button"
+                        wire:click="purgeStaleQueue"
+                        wire:confirm="Purge and cancel all stuck messages in the live queue?"
+                        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300 text-xs font-medium transition-colors cursor-pointer"
+                        title="Purge all stuck queue actions"
+                    >
+                        <x-heroicon-o-trash class="w-3.5 h-3.5" />
+                        <span>Purge Queue</span>
+                    </button>
+
+                    {{-- Pause / Play Stream Button --}}
+                    <button
+                        type="button"
+                        wire:click="togglePause"
+                        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-medium transition-colors
+                            {{ $isPaused
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300'
+                                : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-750' }}"
+                    >
+                        @if($isPaused)
+                            <x-heroicon-o-play class="w-3.5 h-3.5" />
+                            Resume
+                        @else
+                            <x-heroicon-o-pause class="w-3.5 h-3.5" />
+                            Pause
+                        @endif
+                    </button>
+                </div>
+            </div>
+
+            {{-- Filter Pills Bar --}}
+            <div class="flex flex-wrap items-center justify-between gap-2 mt-2 pt-2 border-t border-gray-100 dark:border-gray-800 text-xs">
+                {{-- Status Pills --}}
+                <div class="flex flex-wrap items-center gap-1">
+                    <span class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mr-1">Queue:</span>
+                    <button wire:click="setStatusFilter(null)"
+                        class="px-2 py-0.5 rounded text-[11px] font-medium transition-colors {{ !$statusFilter ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400' }}">
+                        All Live
+                    </button>
+                    <button wire:click="setStatusFilter('pending')"
+                        class="px-2 py-0.5 rounded text-[11px] font-medium transition-colors {{ $statusFilter === 'pending' ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300' }}">
+                        ⏳ In Queue / Pending
+                    </button>
+                    <button wire:click="setStatusFilter('sending')"
+                        class="px-2 py-0.5 rounded text-[11px] font-medium transition-colors {{ $statusFilter === 'sending' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300' }}">
+                        ⚡ In-Flight / Sending
+                    </button>
+                    <button wire:click="setStatusFilter('dispatched')"
+                        class="px-2 py-0.5 rounded text-[11px] font-medium transition-colors {{ $statusFilter === 'dispatched' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300' }}">
+                        ✓ Dispatched (&lt; 10s)
+                    </button>
+                </div>
+
+                {{-- Type & Source Pills --}}
+                <div class="flex flex-wrap items-center gap-1">
+                    <span class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mr-1">Type:</span>
+                    <button wire:click="setTypeFilter(null)"
+                        class="px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors {{ !$typeFilter ? 'bg-gray-800 text-white dark:bg-gray-200 dark:text-gray-900' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
+                        All
+                    </button>
+                    <button wire:click="setTypeFilter('quick')"
+                        class="px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors {{ $typeFilter === 'quick' ? 'bg-amber-600 text-white' : 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30' }}">
+                        ⚡ Quick
+                    </button>
+                    <button wire:click="setTypeFilter('bulk')"
+                        class="px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors {{ $typeFilter === 'bulk' ? 'bg-purple-600 text-white' : 'text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/30' }}">
+                        📦 Bulk
+                    </button>
+
+                    <span class="text-gray-300 dark:text-gray-700 mx-0.5">|</span>
+
+                    <button wire:click="setSourceFilter('api')"
+                        class="px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors {{ $sourceFilter === 'api' ? 'bg-indigo-600 text-white' : 'text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30' }}">
+                        API
+                    </button>
+                    <button wire:click="setSourceFilter('web')"
+                        class="px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors {{ $sourceFilter === 'web' ? 'bg-gray-600 text-white' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
+                        Web
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {{-- Main Feed Body --}}
+        @if($viewMode === 'stream')
+            {{-- Narrative Live Action Stream Cards --}}
+            <div class="divide-y divide-gray-100 dark:divide-gray-800 max-h-[580px] overflow-y-auto">
+                @forelse($messages as $msg)
+                    @php
+                        $statusBadge = match($msg['status']) {
+                            'pending' => ['bg' => 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800', 'dot' => 'bg-amber-500', 'label' => 'IN QUEUE', 'pulse' => true],
+                            'sending' => ['bg' => 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800', 'dot' => 'bg-blue-500', 'label' => 'SENDING NOW', 'pulse' => true],
+                            'sent' => ['bg' => 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-400 dark:border-cyan-800', 'dot' => 'bg-cyan-500', 'label' => 'DISPATCHED', 'pulse' => false],
+                            'delivered' => ['bg' => 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800', 'dot' => 'bg-emerald-500', 'label' => 'DELIVERED', 'pulse' => false],
+                            'failed' => ['bg' => 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800', 'dot' => 'bg-red-500', 'label' => 'FAILED', 'pulse' => false],
+                            'dlr_failed' => ['bg' => 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-800', 'dot' => 'bg-orange-500', 'label' => 'DLR FAIL', 'pulse' => false],
+                            default => ['bg' => 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700', 'dot' => 'bg-gray-400', 'label' => strtoupper($msg['status']), 'pulse' => false],
+                        };
+                        $isSendingOrPending = in_array($msg['status'], ['pending', 'sending']);
+                    @endphp
+
+                    <div class="p-3 hover:bg-gray-50/70 dark:hover:bg-gray-800/40 transition-colors {{ $isSendingOrPending ? 'bg-amber-50/15 dark:bg-amber-950/10' : '' }}"
+                         x-data="{ expanded: false }">
+                        <div class="flex flex-col md:flex-row md:items-start justify-between gap-2.5">
+                            {{-- Left Action & Narrative --}}
+                            <div class="flex items-start gap-2.5 min-w-0 flex-1">
+                                {{-- Customer Avatar / Icon --}}
+                                <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-xs">
+                                    {{ strtoupper(substr($msg['customer_name'], 0, 2)) }}
+                                </div>
+
+                                <div class="min-w-0 flex-1">
+                                    {{-- Narrative Sentence: "[Customer] is sending [message] via [gateway] to [recipient]" --}}
+                                    <div class="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
+                                        <span class="font-bold text-gray-950 dark:text-white">
+                                            {{ $msg['customer_name'] }}
+                                        </span>
+
+                                        @if($msg['customer_business'])
+                                            <span class="text-[11px] text-gray-400 font-normal">({{ $msg['customer_business'] }})</span>
+                                        @endif
+
+                                        <span class="text-[10px] px-1.5 py-0.5 rounded font-medium {{ $msg['is_bulk'] ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' }}">
+                                            {{ $msg['action_type'] }}
+                                            @if($msg['is_bulk'] && $msg['batch_id'])
+                                                #{{ $msg['batch_id'] }}
+                                            @endif
+                                        </span>
+
+                                        <span class="text-gray-400 text-[11px]">sending to</span>
+
+                                        <span class="font-mono font-bold text-gray-900 dark:text-white text-[11px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                                            {{ $msg['recipient'] }}
+                                        </span>
+
+                                        <span class="text-gray-400 text-[11px]">via</span>
+
+                                        <span class="inline-flex items-center gap-1 font-semibold text-[11px] text-emerald-600 dark:text-emerald-400">
+                                            <x-heroicon-o-server class="w-3 h-3" />
+                                            {{ $msg['gateway_name'] }}
+                                            <span class="font-mono text-[9px] text-gray-400">({{ $msg['gateway_driver'] }})</span>
+                                        </span>
+                                    </div>
+
+                                    {{-- The Message Preview Box --}}
+                                    <div class="mt-1.5 p-2 rounded-lg bg-gray-50 dark:bg-gray-800/80 border border-gray-100 dark:border-gray-700/60 text-xs text-gray-700 dark:text-gray-200 font-sans">
+                                        <div class="flex items-start justify-between gap-2">
+                                            <p class="leading-relaxed cursor-pointer"
+                                               x-on:click="expanded = !expanded"
+                                               x-text="expanded ? @js($msg['body']) : @js(mb_substr($msg['body'], 0, 140) . (mb_strlen($msg['body']) > 140 ? ' ... (click to expand)' : ''))">
+                                            </p>
+                                        </div>
+
+                                        @if($msg['failed_reason'])
+                                            <div class="mt-1.5 flex items-center gap-1 text-[11px] text-red-600 dark:text-red-400 font-mono font-medium bg-red-50 dark:bg-red-950/40 p-1 rounded border border-red-200 dark:border-red-900">
+                                                <x-heroicon-o-exclamation-circle class="w-3.5 h-3.5 flex-shrink-0" />
+                                                <span>{{ $msg['failed_reason'] }}</span>
+                                            </div>
+                                        @endif
+                                    </div>
+
+                                    {{-- Metadata Pills Row --}}
+                                    <div class="flex flex-wrap items-center gap-1.5 mt-1.5 text-[10px]">
+                                        {{-- Sender ID --}}
+                                        <span class="inline-flex items-center gap-1 text-gray-600 dark:text-gray-300">
+                                            <span class="text-gray-400">CLI:</span>
+                                            <span class="font-mono font-semibold">{{ $msg['sender_id'] }}</span>
+                                            <span class="text-[9px] px-1 rounded {{ $msg['is_masking'] ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400' }}">
+                                                {{ $msg['is_masking'] ? 'Masking' : 'Non-masking' }}
+                                            </span>
+                                        </span>
+
+                                        <span class="text-gray-300 dark:text-gray-700">•</span>
+
+                                        {{-- Operator --}}
+                                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium {{ $msg['operator_color'] }}">
+                                            <x-heroicon-o-signal class="w-2.5 h-2.5" />
+                                            {{ $msg['operator'] }}
+                                        </span>
+
+                                        <span class="text-gray-300 dark:text-gray-700">•</span>
+
+                                        {{-- Tariff & Rate --}}
+                                        <span class="text-gray-500 dark:text-gray-400">
+                                            {{ $msg['tariff_plan'] }}
+                                            @if($msg['rate'] > 0)
+                                                <span class="font-mono font-medium text-gray-700 dark:text-gray-300">(৳{{ number_format($msg['rate'], 4) }})</span>
+                                            @endif
+                                        </span>
+
+                                        <span class="text-gray-300 dark:text-gray-700">•</span>
+
+                                        {{-- Cost --}}
+                                        <span class="font-semibold text-emerald-600 dark:text-emerald-400">
+                                            Cost: ৳{{ number_format($msg['cost'], 4) }}
+                                        </span>
+
+                                        <span class="text-gray-300 dark:text-gray-700">•</span>
+
+                                        {{-- Parts & Encoding --}}
+                                        <span class="text-gray-500 dark:text-gray-400">
+                                            {{ $msg['parts'] }} {{ $msg['parts'] > 1 ? 'parts' : 'part' }}
+                                            @if($msg['is_unicode'])
+                                                <span class="text-purple-600 dark:text-purple-400 font-medium">(Unicode)</span>
+                                            @else
+                                                <span class="text-gray-400">(GSM-7)</span>
+                                            @endif
+                                        </span>
+
+                                        <span class="text-gray-300 dark:text-gray-700">•</span>
+
+                                        {{-- Source --}}
+                                        <span class="text-gray-400">
+                                            Source: <span class="font-medium text-gray-600 dark:text-gray-300 uppercase">{{ $msg['source'] }}</span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Right Action Controls & Status --}}
+                            <div class="flex md:flex-col items-end justify-between md:justify-start gap-1.5 flex-shrink-0 self-stretch md:self-auto pt-0.5">
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border {{ $statusBadge['bg'] }}">
+                                    <span class="relative flex h-1.5 w-1.5">
+                                        @if($statusBadge['pulse'])
+                                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full {{ $statusBadge['dot'] }} opacity-75"></span>
+                                        @endif
+                                        <span class="relative inline-flex rounded-full h-1.5 w-1.5 {{ $statusBadge['dot'] }}"></span>
+                                    </span>
+                                    {{ $statusBadge['label'] }}
+                                </span>
+
+                                <div class="text-right">
+                                    <span class="block text-xs font-mono font-medium text-gray-900 dark:text-white">{{ $msg['timestamp'] }}</span>
+                                    <span class="block text-[9px] text-gray-400 font-medium">{{ $msg['time_ago'] }}</span>
+                                </div>
+
+                                {{-- Direct Queue Action Buttons (Delete / Cancel or Retry) --}}
+                                <div class="flex items-center gap-1 mt-1">
+                                    @if($isSendingOrPending)
+                                        {{-- Cancel / Delete Action Button --}}
+                                        <button
+                                            type="button"
+                                            wire:click="deleteMessage({{ $msg['id'] }})"
+                                            wire:confirm="Cancel and delete this stuck action from queue?"
+                                            class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300 text-[10px] font-medium transition-colors cursor-pointer"
+                                            title="Delete action from queue"
+                                        >
+                                            <x-heroicon-m-trash class="w-3 h-3" />
+                                            <span>Delete</span>
+                                        </button>
+                                    @endif
+
+                                    {{-- Retry Button --}}
+                                    <button
+                                        type="button"
+                                        wire:click="retrySingleMessage({{ $msg['id'] }})"
+                                        class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 dark:bg-blue-950/40 dark:border-blue-900 dark:text-blue-300 text-[10px] font-medium transition-colors cursor-pointer"
+                                        title="Re-send / Retry"
+                                    >
+                                        <x-heroicon-m-arrow-path class="w-3 h-3" />
+                                        <span>Retry</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @empty
+                    {{-- High-tech Active Radar Scanner Empty State --}}
+                    <div class="py-12 px-6 text-center">
+                        <div class="relative w-16 h-16 mx-auto mb-3 flex items-center justify-center">
+                            <span class="absolute w-full h-full rounded-full bg-emerald-500/10 animate-ping opacity-75"></span>
+                            <span class="absolute w-11 h-11 rounded-full bg-emerald-500/20 animate-pulse"></span>
+                            <div class="relative w-8 h-8 rounded-full bg-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                                <x-heroicon-o-signal class="w-4 h-4 animate-pulse" />
+                            </div>
+                        </div>
+                        <h3 class="text-xs font-bold text-gray-900 dark:text-white tracking-tight">Queue is Idle & Ready</h3>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400 max-w-md mx-auto mt-0.5">
+                            No messages are currently waiting in queue or in-flight right now. System is actively listening for live incoming SMS traffic (polling every 5 seconds).
+                        </p>
+                        <div class="inline-flex items-center gap-1.5 mt-3 px-2.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-[10px] text-gray-600 dark:text-gray-300 font-mono">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                            <span>Live dispatch pipeline active & listening</span>
+                        </div>
+                    </div>
+                @endforelse
+            </div>
+        @else
+            {{-- Dense Grid Table View --}}
+            <div class="overflow-x-auto max-h-[580px] overflow-y-auto">
+                <table class="w-full text-left text-xs">
+                    <thead class="sticky top-0 bg-gray-50 dark:bg-gray-800/90 backdrop-blur border-b border-gray-200 dark:border-gray-700 z-10">
+                        <tr>
+                            <th class="px-2.5 py-2 font-semibold text-gray-600 dark:text-gray-300">Time</th>
+                            <th class="px-2.5 py-2 font-semibold text-gray-600 dark:text-gray-300">Live Status</th>
+                            <th class="px-2.5 py-2 font-semibold text-gray-600 dark:text-gray-300">Customer</th>
+                            <th class="px-2.5 py-2 font-semibold text-gray-600 dark:text-gray-300">Type</th>
+                            <th class="px-2.5 py-2 font-semibold text-gray-600 dark:text-gray-300">Sender</th>
+                            <th class="px-2.5 py-2 font-semibold text-gray-600 dark:text-gray-300">Recipient</th>
+                            <th class="px-2.5 py-2 font-semibold text-gray-600 dark:text-gray-300">Content</th>
+                            <th class="px-2.5 py-2 font-semibold text-gray-600 dark:text-gray-300">Gateway</th>
+                            <th class="px-2.5 py-2 font-semibold text-gray-600 dark:text-gray-300">Operator</th>
+                            <th class="px-2.5 py-2 font-semibold text-gray-600 dark:text-gray-300">Cost</th>
+                            <th class="px-2.5 py-2 font-semibold text-gray-600 dark:text-gray-300">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                        @forelse($messages as $msg)
+                            @php
+                                $statusBadge = match($msg['status']) {
+                                    'pending' => ['bg' => 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400', 'label' => 'IN QUEUE'],
+                                    'sending' => ['bg' => 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400', 'label' => 'SENDING'],
+                                    'sent' => ['bg' => 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-400', 'label' => 'DISPATCHED'],
+                                    'delivered' => ['bg' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400', 'label' => 'DELIVERED'],
+                                    'failed' => ['bg' => 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400', 'label' => 'FAILED'],
+                                    'dlr_failed' => ['bg' => 'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400', 'label' => 'DLR FAIL'],
+                                    default => ['bg' => 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300', 'label' => strtoupper($msg['status'])],
+                                };
+                            @endphp
+                            <tr class="hover:bg-gray-50/70 dark:hover:bg-gray-800/50 transition-colors">
+                                <td class="px-2.5 py-2 font-mono text-[10px] text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                    {{ $msg['timestamp'] }}
+                                </td>
+                                <td class="px-2.5 py-2 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold {{ $statusBadge['bg'] }}">
+                                        {{ $statusBadge['label'] }}
+                                    </span>
+                                </td>
+                                <td class="px-2.5 py-2 font-medium text-gray-900 dark:text-white max-w-[110px] truncate text-[11px]">
+                                    {{ $msg['customer_name'] }}
+                                </td>
+                                <td class="px-2.5 py-2 whitespace-nowrap">
+                                    <span class="px-1.5 py-0.5 rounded text-[9px] font-medium {{ $msg['is_bulk'] ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' }}">
+                                        {{ $msg['action_type'] }}
+                                    </span>
+                                </td>
+                                <td class="px-2.5 py-2 font-mono text-gray-700 dark:text-gray-300 whitespace-nowrap text-[10px]">
+                                    {{ $msg['sender_id'] }}
+                                </td>
+                                <td class="px-2.5 py-2 font-mono font-semibold text-gray-900 dark:text-white whitespace-nowrap text-[10px]">
+                                    {{ $msg['recipient'] }}
+                                </td>
+                                <td class="px-2.5 py-2 max-w-[180px] truncate text-gray-600 dark:text-gray-300 font-sans text-[11px]" title="{{ $msg['body'] }}">
+                                    {{ $msg['body'] }}
+                                </td>
+                                <td class="px-2.5 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap text-[11px]">
+                                    {{ $msg['gateway_name'] }}
+                                </td>
+                                <td class="px-2.5 py-2 whitespace-nowrap">
+                                    <span class="px-1 py-0.5 rounded text-[9px] font-medium border {{ $msg['operator_color'] }}">
+                                        {{ $msg['operator'] }}
+                                    </span>
+                                </td>
+                                <td class="px-2.5 py-2 font-mono font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap text-[10px]">
+                                    ৳{{ number_format($msg['cost'], 4) }}
+                                </td>
+                                <td class="px-2.5 py-2 whitespace-nowrap text-right">
+                                    <div class="flex items-center gap-1 justify-end">
+                                        @if(in_array($msg['status'], ['pending', 'sending']))
+                                            <button
+                                                type="button"
+                                                wire:click="deleteMessage({{ $msg['id'] }})"
+                                                wire:confirm="Cancel & delete action?"
+                                                class="px-1.5 py-0.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-medium"
+                                                title="Delete"
+                                            >
+                                                Delete
+                                            </button>
+                                        @endif
+                                        <button
+                                            type="button"
+                                            wire:click="retrySingleMessage({{ $msg['id'] }})"
+                                            class="px-1.5 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-medium"
+                                            title="Retry"
+                                        >
+                                            Retry
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="11" class="px-4 py-8 text-center text-gray-400 dark:text-gray-500 text-xs">
+                                    <x-heroicon-o-signal class="w-6 h-6 mx-auto mb-1 opacity-50 animate-pulse" />
+                                    <p>Live Queue is clear. No active messages waiting in queue.</p>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </div>
+</div>

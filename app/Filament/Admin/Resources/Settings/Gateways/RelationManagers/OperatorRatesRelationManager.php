@@ -61,7 +61,7 @@ class OperatorRatesRelationManager extends RelationManager
                     ->badge()
                     ->color('warning'),
                 TextColumn::make('gateway_spent')
-                    ->label('Dipping Charge')
+                    ->label('Dipping Cost')
                     ->state(fn ($record): string => number_format((float) $record->gateway_spent, 4).' ৳')
                     ->badge()
                     ->color('info'),

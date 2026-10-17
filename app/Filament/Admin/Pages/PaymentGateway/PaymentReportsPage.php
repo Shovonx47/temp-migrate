@@ -12,7 +12,7 @@ class PaymentReportsPage extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChartBar;
 
-    protected static string|UnitEnum|null $navigationGroup = SupermanNavigationGroup::PaymentGateway;
+    protected static string|\UnitEnum|null $navigationGroup = 'PaymentGateway';
 
     protected static ?string $navigationLabel = 'Payment Reports';
 

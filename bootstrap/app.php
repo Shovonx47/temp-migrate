@@ -28,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'api.access' => EnsureApiAccess::class,
             'permission' => RequireSpPermission::class,
             'sp.permission' => RequireSpPermission::class,
+            'customer.guard' => \App\Http\Middleware\UseCustomerGuard::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

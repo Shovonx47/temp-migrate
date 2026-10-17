@@ -1,0 +1,120 @@
+<?php
+
+namespace App\Filament\Admin\Resources\Settings\Gateways\RelationManagers;
+
+use App\Models\GatewayOperatorRate;
+use App\Models\Operator;
+use Filament\Actions\CreateAction;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Schema;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Table;
+
+class OperatorRatesRelationManager extends RelationManager
+{
+    use ResolvesGatewayApiType;
+
+    protected static string $relationship = 'gatewayOperatorRates';
+
+    protected static ?string $title = 'Operator Rates';
+
+    public function table(Table $table): Table
+    {
+        return $table
+            ->columns([
+                TextColumn::make('operator.name')
+                    ->label('Operator')
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('route_code')
+                    ->label('Route Code')
+                    ->state(fn ($record): ?string => $record->route_code ?? $this->getOwnerRecord()?->route_code)
+                    ->badge()
+                    ->color('info')
+                    ->placeholder('—'),
+                TextColumn::make('operator.country.name')
+                    ->label('Country')
+                    ->sortable(),
+                TextColumn::make('masking_price')
+                    ->label('Masking Price')
+                    ->prefix('৳')
+                    ->numeric(decimalPlaces: 4)
+                    ->placeholder('—')
+                    ->visible(fn (): bool => $this->gatewayUsesMasking()),
+                TextColumn::make('non_masking_price')
+                    ->label(fn (): string => $this->operatorRateColumnLabel())
+                    ->prefix('৳')
+                    ->numeric(decimalPlaces: 4)
+                    ->placeholder('—'),
+                TextColumn::make('dipping_charge')
+                    ->label('Dipping Charge')
+                    ->prefix('৳')
+                    ->numeric(decimalPlaces: 4)
+                    ->placeholder('—'),
+                TextColumn::make('operator_spent')
+                    ->label('Operator Cost')
+                    ->state(fn ($record): string => number_format((float) $record->operator_spent, 4).' ৳')
+                    ->badge()
+                    ->color('warning'),
+                TextColumn::make('gateway_spent')
+                    ->label('Dipping Cost')
+                    ->state(fn ($record): string => number_format((float) $record->gateway_spent, 4).' ৳')
+                    ->badge()
+                    ->color('info'),
+            ])
+            ->headerActions([
+                CreateAction::make()
+                    ->mutateFormDataUsing(fn (array $data): array => $this->applyMaskingToFormData($data, 'masking_price')),
+            ])
+            ->recordActions([
+                EditAction::make()
+                    ->mutateFormDataUsing(fn (array $data): array => $this->applyMaskingToFormData($data, 'masking_price')),
+                DeleteAction::make(),
+            ]);
+    }
+
+    public function form(Schema $schema): Schema
+    {
+        return $schema->components([
+            Select::make('operator_id')
+                ->label('Operator')
+                ->options(Operator::query()->active()->with('country')->get()->mapWithKeys(
+                    fn ($op) => [$op->id => $op->name.' ('.$op->country->name.')']
+                ))
+                ->searchable()
+                ->required()
+                ->unique(
+                    table: GatewayOperatorRate::class,
+                    column: 'operator_id',
+                    ignoreRecord: true,
+                    modifyRuleUsing: function ($rule) {
+                        return $rule->where('gateway_id', $this->getOwnerRecord()->getKey());
+                    },
+                )
+                ->validationMessages([
+                    'unique' => 'A rate for this operator already exists on this gateway.',
+                ]),
+            TextInput::make('masking_price')
+                ->label('Masking Price (per part)')
+                ->numeric()
+                ->nullable()
+                ->visible(fn (): bool => $this->gatewayUsesMasking())
+                ->dehydrated(fn (): bool => $this->gatewayUsesMasking()),
+            TextInput::make('non_masking_price')
+                ->label('Non-Masking Rate (Per SMS)')
+                ->numeric()
+                ->step(0.0001)
+                ->nullable(),
+            TextInput::make('dipping_charge')
+                ->label('Dipping Charge (Per Number)')
+                ->numeric()
+                ->step(0.0001)
+                ->nullable()
+                ->helperText('The gateway dipping cost charged for this operator per number.'),
+        ]);
+    }
+}

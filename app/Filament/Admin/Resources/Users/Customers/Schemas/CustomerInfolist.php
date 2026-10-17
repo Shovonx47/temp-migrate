@@ -62,6 +62,12 @@ class CustomerInfolist
                                     ->badge()
                                     ->color(fn ($record) => $record->phone_verified_at ? 'success' : 'danger'),
 
+                                TextEntry::make('created_by_admin')
+                                    ->label('Registration Source')
+                                    ->state(fn ($record) => $record->created_by_admin ? 'Created by Super Admin' : 'Self-Registered')
+                                    ->badge()
+                                    ->color(fn ($record) => $record->created_by_admin ? 'info' : 'gray'),
+
                                 TextEntry::make('created_at')
                                     ->label('Registered At')
                                     ->dateTime(),

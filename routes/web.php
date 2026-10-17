@@ -8,6 +8,8 @@ use App\Http\Controllers\SmsWebhookController;
 use App\Models\Batch;
 use Illuminate\Support\Facades\Storage;
 
+require __DIR__.'/customer-portal.php';
+
 Route::match(['post', 'get'], 'payments/{gateway}/callback/{deposit}', PaymentController::class)
     ->name('payments.callback')
     ->middleware(['auth:customer,sp,superman'])

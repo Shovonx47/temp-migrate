@@ -4,12 +4,41 @@
 
 <div
     x-data="{
-        state: $wire.$entangle('{{ $statePath }}'),
+        state: $wire.{{ $applyStateBindingModifiers("\$entangle('{$statePath}')") }},
         isCameraOpen: false,
         stream: null,
         capturedImage: null,
         cameraError: null,
         isProcessing: false,
+
+        syncState(value) {
+            this.state = value;
+            try {
+                $wire.set('{{ $statePath }}', value);
+            } catch (e) {
+                console.warn('LivePhotoCapture $wire.set failed:', e);
+            }
+            if (this.$refs.hiddenPhotoInput) {
+                this.$refs.hiddenPhotoInput.value = value || '';
+                this.$refs.hiddenPhotoInput.dispatchEvent(new Event('input', { bubbles: true }));
+                this.$refs.hiddenPhotoInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        },
+
+        init() {
+            this.initSubmitGuard();
+            this.$watch('state', (val) => {
+                if (val !== undefined && val !== $wire.get('{{ $statePath }}')) {
+                    try {
+                        $wire.set('{{ $statePath }}', val);
+                    } catch (e) {}
+                }
+            });
+            const wireVal = $wire.get('{{ $statePath }}');
+            if (!this.state && wireVal) {
+                this.state = wireVal;
+            }
+        },
 
         // === QR Code / Phone Camera Mode ===
         isQrMode: false,
@@ -131,6 +160,7 @@
                     if (data.status === 'completed' && data.photo_data) {
                         this.stopQrPolling();
                         this.capturedImage = data.photo_data;
+                        this.syncState(data.photo_data);
                         this.isQrMode = false;
                         this.clearQrCountdown();
                     } else if (data.status === 'expired') {
@@ -220,7 +250,7 @@
 
         confirm() {
             if (this.capturedImage) {
-                this.state = this.capturedImage;
+                this.syncState(this.capturedImage);
                 this.isCameraOpen = false;
                 this.stopCamera();
                 this.stopQrPolling();
@@ -229,7 +259,7 @@
         },
 
         clearPhoto() {
-            this.state = null;
+            this.syncState(null);
             this.capturedImage = null;
             this.stopCamera();
             this.stopQrPolling();
@@ -266,6 +296,11 @@
             formEl.dataset.clientValidationGuard = '1';
 
             formEl.addEventListener('submit', () => {
+                if (this.state) {
+                    try {
+                        $wire.set('{{ $statePath }}', this.state);
+                    } catch (e) {}
+                }
                 const submitBtn = formEl.querySelector('[type=submit]');
                 submitBtn?.animate(
                     [
@@ -281,7 +316,7 @@
             }, true);
         }
     }"
-    x-init="initSubmitGuard()"
+    x-init="init()"
     id="field-wrap-live-photo"
     class="fi-fo-live-photo-capture space-y-2"
 >
@@ -291,6 +326,15 @@
             <span class="text-red-500">*</span>
         @endif
     </label>
+
+    <input
+        type="hidden"
+        id="{{ $getId() }}"
+        name="{{ $statePath }}"
+        x-ref="hiddenPhotoInput"
+        :value="state ?? ''"
+        {{ $applyStateBindingModifiers('wire:model') }}="{{ $statePath }}"
+    />
 
     <canvas x-ref="canvas" class="hidden"></canvas>
 
@@ -345,15 +389,6 @@
                     <span>Use Phone Camera (QR)</span>
                 </button>
             </div>
-
-            <input
-                type="text"
-                :value="state ?? ''"
-                required
-                tabindex="-1"
-                aria-hidden="true"
-                class="opacity-0 h-0 w-full absolute pointer-events-none"
-            />
         </div>
     </template>
 

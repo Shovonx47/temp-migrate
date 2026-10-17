@@ -15,6 +15,13 @@
     $disk = $health['disk'] ?? [];
     $load = $health['load'] ?? [];
     $memory = $health['memory'] ?? [];
+    $cpu = $health['cpu'] ?? [];
+    $uptime = $health['uptime'] ?? [];
+    $network = $health['network'] ?? [];
+    $redis = $health['redis'] ?? [];
+    $supervisor = $health['supervisor'] ?? [];
+    $queueWorker = $health['queue_worker'] ?? [];
+    $cron = $health['cron'] ?? [];
 
     $totalQ = (int) str_replace(',', '', $kpis['total_queue']);
     $pendingQ = (int) str_replace(',', '', $kpis['pending_queue']);
@@ -456,29 +463,32 @@
             <div class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-3 flex flex-col justify-between shadow-xs">
                 <div class="flex items-center justify-between mb-1">
                     <h3 class="text-[10px] font-bold text-gray-900 dark:text-white uppercase tracking-wider">WORKER POOL</h3>
-                    <span class="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold">Active</span>
+                    <span class="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold">{{ $queueWorker['status'] ?? 'Active' }}</span>
                 </div>
                 <div class="flex items-center justify-center relative my-1">
                     <svg class="w-24 h-24 transform -rotate-90" viewBox="0 0 36 36">
                         <path class="text-gray-100 dark:text-gray-800" stroke-width="4.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                        <path class="text-emerald-500" stroke-dasharray="91.7, 100" stroke-width="4.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                        <path class="text-blue-500" stroke-dasharray="4.2, 100" stroke-dashoffset="-91.7" stroke-width="4.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                        <path class="text-amber-500" stroke-dasharray="4.1, 100" stroke-dashoffset="-95.9" stroke-width="4.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        @if(($queueWorker['total'] ?? 0) > 0)
+                            <path class="text-emerald-500" stroke-dasharray="{{ $queueWorker['active_pct'] ?? 0 }}, 100" stroke-width="4.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path class="text-blue-500" stroke-dasharray="{{ $queueWorker['idle_pct'] ?? 0 }}, 100" stroke-dashoffset="-{{ $queueWorker['active_pct'] ?? 0 }}" stroke-width="4.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        @else
+                            <path class="text-emerald-500" stroke-dasharray="100, 100" stroke-width="4.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        @endif
                     </svg>
                     <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
                         <span class="text-[8px] text-gray-400">Total</span>
-                        <span class="text-xs font-bold font-mono text-gray-900 dark:text-white">24</span>
+                        <span class="text-xs font-bold font-mono text-gray-900 dark:text-white">{{ $queueWorker['total'] ?? 0 }}</span>
                     </div>
                 </div>
 
                 <div class="space-y-1 text-[10px] pt-1.5 border-t border-gray-100 dark:border-gray-800">
                     <div class="flex items-center justify-between">
                         <span class="flex items-center gap-1 text-gray-600 dark:text-gray-300"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Active Workers</span>
-                        <span class="font-mono text-gray-500 dark:text-gray-400">22 (91.7%)</span>
+                        <span class="font-mono text-gray-500 dark:text-gray-400">{{ $queueWorker['active'] ?? 0 }} ({{ $queueWorker['active_pct'] ?? 0 }}%)</span>
                     </div>
                     <div class="flex items-center justify-between">
                         <span class="flex items-center gap-1 text-gray-600 dark:text-gray-300"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Idle / Ready</span>
-                        <span class="font-mono text-gray-500 dark:text-gray-400">2 (8.3%)</span>
+                        <span class="font-mono text-gray-500 dark:text-gray-400">{{ $queueWorker['idle'] ?? 0 }} ({{ $queueWorker['idle_pct'] ?? 0 }}%)</span>
                     </div>
                 </div>
             </div>
@@ -501,30 +511,30 @@
                     <div class="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 p-2 text-xs">
                         <div class="flex items-center justify-between">
                             <span class="font-bold text-[10px] text-gray-900 dark:text-white">REDIS</span>
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span class="w-1.5 h-1.5 rounded-full {{ ($redis['status'] ?? 'healthy') === 'healthy' ? 'bg-emerald-500' : 'bg-rose-500' }}"></span>
                         </div>
-                        <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold block mt-0.5">Online</span>
-                        <span class="text-[8px] text-gray-400 block mt-0.5 font-mono">Mem: 312.5 MB</span>
+                        <span class="text-[10px] {{ ($redis['status'] ?? 'healthy') === 'healthy' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }} font-semibold block mt-0.5">{{ $redis['label'] ?? 'Online' }}</span>
+                        <span class="text-[8px] text-gray-400 block mt-0.5 font-mono">Mem: {{ $redis['used_memory'] ?? '0 MB' }}</span>
                     </div>
 
                     {{-- Redis DB --}}
                     <div class="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 p-2 text-xs">
                         <div class="flex items-center justify-between">
                             <span class="font-bold text-[10px] text-gray-900 dark:text-white">REDIS DB</span>
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span class="w-1.5 h-1.5 rounded-full {{ ($redis['status'] ?? 'healthy') === 'healthy' ? 'bg-emerald-500' : 'bg-rose-500' }}"></span>
                         </div>
                         <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold block mt-0.5">Connected</span>
-                        <span class="text-[8px] text-gray-400 block mt-0.5 font-mono">Hit: 98.6%</span>
+                        <span class="text-[8px] text-gray-400 block mt-0.5 font-mono">Hit: {{ $redis['hit_rate'] ?? 100 }}%</span>
                     </div>
 
                     {{-- Supervisor --}}
                     <div class="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 p-2 text-xs">
                         <div class="flex items-center justify-between">
                             <span class="font-bold text-[10px] text-gray-900 dark:text-white">SUPERVISOR</span>
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span class="w-1.5 h-1.5 rounded-full {{ ($supervisor['status'] ?? 'healthy') === 'healthy' ? 'bg-emerald-500' : 'bg-amber-500' }}"></span>
                         </div>
-                        <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold block mt-0.5">Running</span>
-                        <span class="text-[8px] text-gray-400 block mt-0.5 font-mono">Proc: 24</span>
+                        <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold block mt-0.5">{{ $supervisor['label'] ?? 'Running' }}</span>
+                        <span class="text-[8px] text-gray-400 block mt-0.5 font-mono">Proc: {{ $supervisor['process_count'] ?? 0 }}</span>
                     </div>
 
                     {{-- PHP-FPM --}}
@@ -534,17 +544,17 @@
                             <span class="w-1.5 h-1.5 rounded-full {{ ($phpFpm['status'] ?? 'healthy') === 'healthy' ? 'bg-emerald-500' : 'bg-amber-500' }}"></span>
                         </div>
                         <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold block mt-0.5">{{ ($phpFpm['status'] ?? 'healthy') === 'healthy' ? 'Active' : 'Warning' }}</span>
-                        <span class="text-[8px] text-gray-400 block mt-0.5 font-mono">v{{ PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION }}</span>
+                        <span class="text-[8px] text-gray-400 block mt-0.5 font-mono">v{{ PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION }} ({{ $phpFpm['process_count'] ?? 1 }}p)</span>
                     </div>
 
                     {{-- Nginx --}}
                     <div class="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 p-2 text-xs">
                         <div class="flex items-center justify-between">
                             <span class="font-bold text-[10px] text-gray-900 dark:text-white">NGINX</span>
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span class="w-1.5 h-1.5 rounded-full {{ ($nginx['status'] ?? 'healthy') === 'healthy' ? 'bg-emerald-500' : 'bg-amber-500' }}"></span>
                         </div>
-                        <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold block mt-0.5">Running</span>
-                        <span class="text-[8px] text-gray-400 block mt-0.5 font-mono">Active Conn</span>
+                        <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold block mt-0.5">{{ ($nginx['status'] ?? 'healthy') === 'healthy' ? 'Running' : 'Degraded' }}</span>
+                        <span class="text-[8px] text-gray-400 block mt-0.5 font-mono">{{ $nginx['active_connections'] ?? 1 }} Active Conn</span>
                     </div>
 
                     {{-- MySQL --}}
@@ -561,25 +571,25 @@
                     <div class="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 p-2 text-xs">
                         <div class="flex items-center justify-between">
                             <span class="font-bold text-[10px] text-gray-900 dark:text-white">QUEUE WORKER</span>
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span class="w-1.5 h-1.5 rounded-full {{ ($queueWorker['total'] ?? 0) > 0 ? 'bg-emerald-500' : 'bg-amber-500' }}"></span>
                         </div>
-                        <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold block mt-0.5">Active</span>
-                        <span class="text-[8px] text-gray-400 block mt-0.5 font-mono">Jobs: {{ $kpis['total_queue'] }}</span>
+                        <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold block mt-0.5">{{ ($queueWorker['total'] ?? 0) > 0 ? 'Active' : 'Idle' }}</span>
+                        <span class="text-[8px] text-gray-400 block mt-0.5 font-mono">Workers: {{ $queueWorker['total'] ?? 0 }}</span>
                     </div>
 
                     {{-- Cron Service --}}
                     <div class="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 p-2 text-xs">
                         <div class="flex items-center justify-between">
                             <span class="font-bold text-[10px] text-gray-900 dark:text-white">CRON SERVICE</span>
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span class="w-1.5 h-1.5 rounded-full {{ ($cron['status'] ?? 'healthy') === 'healthy' ? 'bg-emerald-500' : 'bg-amber-500' }}"></span>
                         </div>
-                        <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold block mt-0.5">Running</span>
-                        <span class="text-[8px] text-gray-400 block mt-0.5 font-mono">1m interval</span>
+                        <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold block mt-0.5">{{ $cron['label'] ?? 'Running' }}</span>
+                        <span class="text-[8px] text-gray-400 block mt-0.5 font-mono">{{ $cron['interval'] ?? '1m interval' }}</span>
                     </div>
                 </div>
 
                 <div class="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-[9px] text-gray-400 font-mono">
-                    <span>Host: {{ gethostname() ?: 'production-node' }}</span>
+                    <span>Host: {{ $health['overall']['hostname'] ?? gethostname() }}</span>
                     <span>Last Check: {{ now()->format('H:i:s') }}</span>
                 </div>
             </div>
@@ -594,12 +604,12 @@
                         <div class="relative w-14 h-14 mx-auto flex items-center justify-center">
                             <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                                 <path class="text-gray-100 dark:text-gray-800" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                <path class="text-emerald-500" stroke-dasharray="23, 100" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <path class="{{ ($cpu['usage_percentage'] ?? 0) >= 90 ? 'text-rose-500' : (($cpu['usage_percentage'] ?? 0) >= 80 ? 'text-amber-500' : 'text-emerald-500') }}" stroke-dasharray="{{ $cpu['usage_percentage'] ?? 0 }}, 100" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                             </svg>
-                            <span class="absolute text-[10px] font-bold font-mono text-gray-900 dark:text-white">23%</span>
+                            <span class="absolute text-[10px] font-bold font-mono text-gray-900 dark:text-white">{{ $cpu['usage_percentage'] ?? 0 }}%</span>
                         </div>
                         <span class="text-[9px] text-gray-500 dark:text-gray-400 block mt-0.5 font-medium">CPU Usage</span>
-                        <span class="text-[8px] text-gray-400 font-mono">8 Cores</span>
+                        <span class="text-[8px] text-gray-400 font-mono">{{ $cpu['cores'] ?? 1 }} Cores</span>
                     </div>
 
                     {{-- RAM Gauge --}}
@@ -607,12 +617,12 @@
                         <div class="relative w-14 h-14 mx-auto flex items-center justify-center">
                             <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                                 <path class="text-gray-100 dark:text-gray-800" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                <path class="text-amber-500" stroke-dasharray="{{ $memory['used_percentage'] ?? 61 }}, 100" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <path class="{{ ($memory['used_percentage'] ?? 0) >= 90 ? 'text-rose-500' : (($memory['used_percentage'] ?? 0) >= 80 ? 'text-amber-500' : 'text-amber-500') }}" stroke-dasharray="{{ $memory['used_percentage'] ?? 0 }}, 100" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                             </svg>
-                            <span class="absolute text-[10px] font-bold font-mono text-gray-900 dark:text-white">{{ $memory['used_percentage'] ?? 61 }}%</span>
+                            <span class="absolute text-[10px] font-bold font-mono text-gray-900 dark:text-white">{{ $memory['used_percentage'] ?? 0 }}%</span>
                         </div>
                         <span class="text-[9px] text-gray-500 dark:text-gray-400 block mt-0.5 font-medium">RAM Usage</span>
-                        <span class="text-[8px] text-gray-400 font-mono">{{ $memory['used_gb'] ?? '3.8' }}G / {{ $memory['total_gb'] ?? '6.2' }}G</span>
+                        <span class="text-[8px] text-gray-400 font-mono">{{ $memory['used_gb'] ?? 0 }}G / {{ $memory['total_gb'] ?? 0 }}G</span>
                     </div>
 
                     {{-- Disk Gauge --}}
@@ -620,27 +630,27 @@
                         <div class="relative w-14 h-14 mx-auto flex items-center justify-center">
                             <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                                 <path class="text-gray-100 dark:text-gray-800" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                <path class="text-blue-500" stroke-dasharray="{{ $disk['used_percentage'] ?? 47 }}, 100" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <path class="{{ ($disk['used_percentage'] ?? 0) >= 90 ? 'text-rose-500' : (($disk['used_percentage'] ?? 0) >= 80 ? 'text-amber-500' : 'text-blue-500') }}" stroke-dasharray="{{ $disk['used_percentage'] ?? 0 }}, 100" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                             </svg>
-                            <span class="absolute text-[10px] font-bold font-mono text-gray-900 dark:text-white">{{ $disk['used_percentage'] ?? 47 }}%</span>
+                            <span class="absolute text-[10px] font-bold font-mono text-gray-900 dark:text-white">{{ $disk['used_percentage'] ?? 0 }}%</span>
                         </div>
                         <span class="text-[9px] text-gray-500 dark:text-gray-400 block mt-0.5 font-medium">Disk Usage</span>
-                        <span class="text-[8px] text-gray-400 font-mono">{{ $disk['used_gb'] ?? '47' }}G / {{ $disk['total_gb'] ?? '100' }}G</span>
+                        <span class="text-[8px] text-gray-400 font-mono">{{ $disk['used_gb'] ?? 0 }}G / {{ $disk['total_gb'] ?? 0 }}G</span>
                     </div>
                 </div>
 
                 <div class="space-y-1 text-[10px] text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-800">
                     <div class="flex justify-between">
                         <span>Load Average:</span>
-                        <span class="font-mono text-gray-800 dark:text-gray-200">0.65, 0.72, 0.58</span>
+                        <span class="font-mono text-gray-800 dark:text-gray-200">{{ $load['load_str'] ?? '0.00, 0.00, 0.00' }}</span>
                     </div>
                     <div class="flex justify-between">
                         <span>Network In / Out:</span>
-                        <span class="font-mono text-gray-800 dark:text-gray-200">125.6 / 48.3 Mbps</span>
+                        <span class="font-mono text-gray-800 dark:text-gray-200">{{ $network['display'] ?? '0 B / 0 B' }}</span>
                     </div>
                     <div class="flex justify-between">
                         <span>Server Uptime:</span>
-                        <span class="font-mono text-gray-800 dark:text-gray-200">2d 14h 32m</span>
+                        <span class="font-mono text-gray-800 dark:text-gray-200">{{ $uptime['formatted'] ?? '0d 0h 0m' }}</span>
                     </div>
                 </div>
             </div>

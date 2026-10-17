@@ -60,6 +60,8 @@ use Propaganistas\LaravelPhone\Casts\E164PhoneNumberCast;
     'kyc_submitted_at',
     'kyc_verified_at',
     'kyc_resubmit_fields',
+    'created_by_admin',
+    'created_by',
     'last_login_at',
 ])]
 #[Hidden(['type', 'password', 'remember_token', 'front_nid', 'back_nid', 'live_photo', 'trade_license_file'])]
@@ -103,9 +105,21 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
             'kyc_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
 
+            'created_by_admin' => 'boolean',
+
             // Stores which fields admin requested to be resubmitted
             'kyc_resubmit_fields' => 'array',
         ];
+    }
+
+    public function isCreatedByAdmin(): bool
+    {
+        return (bool) $this->created_by_admin;
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'created_by');
     }
 
     public function requiresSmsApproval(): bool

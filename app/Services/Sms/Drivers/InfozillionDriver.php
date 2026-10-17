@@ -314,9 +314,13 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
                 'apiKey' => $this->credentials['api_key'] ?? '',
             ]);
 
+            $formattedBalance = ($balance !== null && is_numeric($balance))
+                ? number_format((float) $balance, 4, '.', '')
+                : $balance;
+
             $cards[] = new StatCard(
                 label: "{$name} Balance",
-                value: $balance ?? 'N/A',
+                value: $formattedBalance ?? 'N/A',
                 description: "{$code} carrier credit",
                 icon: 'heroicon-o-device-phone-mobile',
             );
@@ -477,6 +481,10 @@ final readonly class InfozillionDriver implements SmsGateway, SupportsBulkSms, S
         $cli = ! empty($senderId)
             ? trim((string) $senderId)
             : trim((string) ($this->credentials['cli'] ?? ''));
+
+        if ($cli === '') {
+            $cli = trim((string) ($this->credentials['bill_msisdn'] ?? ''));
+        }
 
                 // Numeric CLI (digits only, no letters): CLI and billMsisdn are ALWAYS the same number.
         $cliDigits = preg_replace('/\D+/', '', $cli) ?? '';

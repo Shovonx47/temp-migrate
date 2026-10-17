@@ -2,6 +2,8 @@
 
 namespace App\Providers\Filament;
 
+use App\Http\Middleware\DebugAuthSession;
+
 use App\Enums\CustomerNavigationGroup;
 use App\Filament\Customer\Pages\Account\Banned;
 use App\Filament\Customer\Pages\Account\Kyc;
@@ -54,6 +56,19 @@ class CustomerPanelProvider extends PanelProvider
             ->emailVerification()
             ->emailChangeVerification()
             ->authGuard('customer')
+            ->userMenuItems([
+                \Filament\Navigation\MenuItem::make()
+                    ->label('KYC Verification')
+                    ->url(fn (): string => url('/account/kyc'))
+                    ->icon(Heroicon::OutlinedIdentification),
+
+
+                  \Filament\Navigation\MenuItem::make('back-to-admin')
+                      ->label('Back to Admin')
+                      ->url(fn (): string => route('filament-impersonate.leave'))
+                      ->icon(Heroicon::OutlinedArrowLeftOnRectangle)
+                      ->visible(fn (): bool => app(\STS\FilamentImpersonate\ImpersonateManager::class)->isImpersonating()),
+            ])
             ->multiFactorAuthentication([
                 AppAuthentication::make()
                     ->recoverable(),
@@ -143,6 +158,7 @@ class CustomerPanelProvider extends PanelProvider
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
+            DebugAuthSession::class,
                 ShareErrorsFromSession::class,
                 PreventRequestForgery::class,
                 SubstituteBindings::class,
@@ -160,7 +176,7 @@ class CustomerPanelProvider extends PanelProvider
                 name: PanelsRenderHook::GLOBAL_SEARCH_AFTER,
                 hook: fn () => Blade::render("@livewire('balance-button')"),
             )
-            ->spa()
+
             ->unsavedChangesAlerts();
     }
 

@@ -12,7 +12,7 @@ class ReconciliationPage extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedScale;
 
-    protected static string|UnitEnum|null $navigationGroup = SupermanNavigationGroup::PaymentGateway;
+    protected static string|\UnitEnum|null $navigationGroup = 'PaymentGateway';
 
     protected static ?string $navigationLabel = 'Reconciliation';
 

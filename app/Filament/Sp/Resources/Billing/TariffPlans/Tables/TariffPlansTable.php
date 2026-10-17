@@ -14,12 +14,14 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class TariffPlansTable
 {
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->withCount('activeCustomerAssignments'))
             ->columns([
                 TextColumn::make('name')
                     ->searchable()
@@ -36,9 +38,9 @@ class TariffPlansTable
                     ->sortable(),
                 TextColumn::make('currency')
                     ->sortable(),
-                TextColumn::make('active_assignees')
+                TextColumn::make('active_customer_assignments_count')
                     ->label('Customers')
-                    ->state(fn (TariffPlan $record): string => (string) $record->activeAssignments()->count())
+                    ->numeric()
                     ->alignCenter()
                     ->sortable(false),
                 TextColumn::make('updated_at')

@@ -183,13 +183,6 @@ class OtpVerificationService
             ];
         }
 
-        if (User::withoutGlobalScopes()->whereNull('deleted_at')->where('phone', $normalizedPhone)->exists()) {
-            return [
-                'success' => false,
-                'message' => 'This mobile number is already registered.',
-            ];
-        }
-
         $rateLimitCheck = $this->checkRateLimit($normalizedPhone, 'sms');
         if (! $rateLimitCheck['allowed']) {
             return [
@@ -238,10 +231,24 @@ class OtpVerificationService
         if ($gateways->isNotEmpty()) {
             foreach ($gateways as $gateway) {
                 try {
-                    $this->smsManager
+                    $senderId = $sms->from
+                        ?: ($gateway->credentials['cli'] ?? $gateway->credentials['bill_msisdn'] ?? null);
+
+                    $gatewaySms = new SmsRequest(
+                        to: $sms->to,
+                        body: $sms->body,
+                        from: $senderId,
+                        isUnicode: $sms->isUnicode,
+                    );
+
+                    $response = $this->smsManager
                         ->usingGateway($gateway)
                         ->driver($gateway->driver->value)
-                        ->send($sms);
+                        ->send($gatewaySms);
+
+                    if (! $response->successful) {
+                        throw new \RuntimeException($response->errorMessage ?? 'Gateway rejected the SMS message.');
+                    }
 
                     Log::info("SMS OTP delivered successfully via priority gateway [{$gateway->name}] (Priority: {$gateway->priority}, Driver: {$gateway->driver->value})", [
                         'gateway_id' => $gateway->id,
@@ -249,6 +256,7 @@ class OtpVerificationService
                         'priority' => $gateway->priority,
                         'driver' => $gateway->driver->value,
                         'recipient' => $phone,
+                        'gateway_message_id' => $response->gatewayMessageId,
                     ]);
 
                     return true;

@@ -138,20 +138,20 @@
 </script>
 
 <svelte:head>
-	<title>IP Whitelist – WhiteInfo Portal</title>
+	<title>IP Whitelist – SMS Whiteinfo</title>
 </svelte:head>
 
 <div class="space-y-6">
 	<!-- Page Header -->
 	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div>
-			<h1 class="text-xl font-bold tracking-tight text-white">IP Whitelisting</h1>
-			<p class="text-xs text-gray-400">Restricted IP network access policy for customer REST API endpoints.</p>
+			<h1 class="text-xl font-bold tracking-tight text-gray-950 dark:text-white">IP Whitelisting</h1>
+			<p class="text-sm text-gray-500 dark:text-gray-400">Restricted IP network access policy for customer REST API endpoints.</p>
 		</div>
 		<button
 			type="button"
 			onclick={() => (requestModalOpen = true)}
-			class="flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-primary-600/20 transition hover:bg-primary-500"
+			class="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-500"
 		>
 			<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
 				<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -161,8 +161,8 @@
 	</div>
 
 	<!-- Security Notice -->
-	<div class="flex items-start gap-3 rounded-2xl border border-gray-800 bg-gray-900/60 p-4 text-xs text-gray-300">
-		<svg class="h-5 w-5 shrink-0 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+	<div class="flex items-start gap-3 rounded-xl border border-teal-200 bg-teal-50/70 p-4 text-xs text-teal-800 dark:border-teal-800/60 dark:bg-teal-950/30 dark:text-teal-300">
+		<svg class="h-5 w-5 shrink-0 text-teal-600 dark:text-teal-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
 			<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
 		</svg>
 		<p>
@@ -191,37 +191,37 @@
 <Modal bind:open={requestModalOpen} title="Request IP Whitelist" description="Submit an origin server IPv4 address for API authentication.">
 	<form onsubmit={(e) => { e.preventDefault(); handleRequestIp(); }} class="space-y-4">
 		<div>
-			<label for="ip-address" class="mb-1.5 block text-xs font-semibold text-gray-300 uppercase tracking-wide">Server IPv4 Address</label>
+			<label for="ip-address" class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Server IPv4 Address</label>
 			<input
 				id="ip-address"
 				type="text"
 				bind:value={newIp}
 				placeholder="e.g. 103.145.118.42"
-				class="w-full font-mono rounded-xl border border-gray-700 bg-gray-800 px-3.5 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+				class="w-full font-mono rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
 			/>
 		</div>
 		<div>
-			<label for="ip-label" class="mb-1.5 block text-xs font-semibold text-gray-300 uppercase tracking-wide">Server Label / Environment</label>
+			<label for="ip-label" class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Server Label / Environment</label>
 			<input
 				id="ip-label"
 				type="text"
 				bind:value={newLabel}
 				placeholder="e.g. AWS Production Node, Staging Webhook"
-				class="w-full rounded-xl border border-gray-700 bg-gray-800 px-3.5 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+				class="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
 			/>
 		</div>
 		<div class="flex justify-end gap-3 pt-2">
 			<button
 				type="button"
 				onclick={() => (requestModalOpen = false)}
-				class="rounded-xl border border-gray-700 px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800"
+				class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
 			>
 				Cancel
 			</button>
 			<button
 				type="submit"
 				disabled={submitting}
-				class="rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-500 disabled:opacity-50"
+				class="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-500 disabled:opacity-50"
 			>
 				{submitting ? 'Submitting...' : 'Submit IP Request'}
 			</button>

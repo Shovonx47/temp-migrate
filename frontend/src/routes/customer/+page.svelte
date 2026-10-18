@@ -85,16 +85,16 @@
 			value: `৳${formatMoney(auth.balance)}`,
 			sub: 'BDT Available',
 			icon: 'banknotes',
-			color: 'text-primary-400',
-			bg: 'bg-primary-500/10'
+			color: 'text-teal-600 dark:text-teal-400',
+			bg: 'bg-teal-50 dark:bg-teal-950/40'
 		},
 		{
 			label: 'Messages Today',
 			value: stats ? String(stats.messages_today) : '—',
 			sub: 'Sent today',
 			icon: 'paper-airplane',
-			color: 'text-blue-400',
-			bg: 'bg-blue-500/10'
+			color: 'text-blue-600 dark:text-blue-400',
+			bg: 'bg-blue-50 dark:bg-blue-950/40'
 		},
 		{
 			label: 'Delivery Rate',
@@ -103,40 +103,40 @@
 			icon: 'check-badge',
 			color:
 				(stats?.delivery_rate ?? 0) >= 90
-					? 'text-green-400'
+					? 'text-emerald-600 dark:text-emerald-400'
 					: (stats?.delivery_rate ?? 0) >= 70
-						? 'text-yellow-400'
-						: 'text-red-400',
+						? 'text-amber-600 dark:text-amber-400'
+						: 'text-red-600 dark:text-red-400',
 			bg:
 				(stats?.delivery_rate ?? 0) >= 90
-					? 'bg-green-500/10'
+					? 'bg-emerald-50 dark:bg-emerald-950/40'
 					: (stats?.delivery_rate ?? 0) >= 70
-						? 'bg-yellow-500/10'
-						: 'bg-red-500/10'
+						? 'bg-amber-50 dark:bg-amber-950/40'
+						: 'bg-red-50 dark:bg-red-950/40'
 		},
 		{
 			label: 'Failed Today',
 			value: stats ? String(stats.failed_today) : '—',
 			sub: 'Send & DLR failures',
 			icon: 'x-circle',
-			color: (stats?.failed_today ?? 0) > 0 ? 'text-red-400' : 'text-green-400',
-			bg: (stats?.failed_today ?? 0) > 0 ? 'bg-red-500/10' : 'bg-green-500/10'
+			color: (stats?.failed_today ?? 0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400',
+			bg: (stats?.failed_today ?? 0) > 0 ? 'bg-red-50 dark:bg-red-950/40' : 'bg-emerald-50 dark:bg-emerald-950/40'
 		},
 		{
 			label: "Today's Spend",
 			value: stats ? `৳${formatMoney(stats.cost_today)}` : '—',
 			sub: 'BDT charged',
 			icon: 'currency-dollar',
-			color: 'text-yellow-400',
-			bg: 'bg-yellow-500/10'
+			color: 'text-teal-600 dark:text-teal-400',
+			bg: 'bg-teal-50 dark:bg-teal-950/40'
 		},
 		{
 			label: 'Total Contacts',
 			value: stats ? String(stats.contacts_total) : '—',
 			sub: 'In your address book',
 			icon: 'users',
-			color: 'text-violet-400',
-			bg: 'bg-violet-500/10'
+			color: 'text-violet-600 dark:text-violet-400',
+			bg: 'bg-violet-50 dark:bg-violet-950/40'
 		}
 	]);
 
@@ -151,8 +151,8 @@
 </script>
 
 <svelte:head>
-	<title>Dashboard – SMS Portal</title>
-	<meta name="description" content="Your SMS Portal customer dashboard." />
+	<title>Dashboard – SMS Whiteinfo</title>
+	<meta name="description" content="Your SMS Whiteinfo customer dashboard." />
 </svelte:head>
 
 <div class="space-y-6">

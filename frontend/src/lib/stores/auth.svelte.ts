@@ -61,10 +61,10 @@ function createAuthStore() {
 			}
 		},
 
-		async login(email: string, password: string) {
+		async login(email: string, password: string, remember: boolean = true) {
 			state.loading = true;
 			try {
-				await api.post('/customer/login', { email, password });
+				await api.post('/api/v1/customer/login', { email, password, remember });
 				const data = await api.get<{ data: User }>('/api/v1/customer/me');
 				state.user = data.data;
 				return { success: true };
@@ -81,7 +81,7 @@ function createAuthStore() {
 
 		async logout() {
 			try {
-				await api.post('/customer/logout');
+				await api.post('/api/v1/customer/logout');
 			} catch {
 				// ignore
 			} finally {

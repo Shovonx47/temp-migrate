@@ -1,6 +1,8 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-
-	// Redirect root to customer portal or login
-	goto('/customer');
+	import CustomerDashboard from './customer/+page.svelte';
+	import PortalLayout from '$lib/components/PortalLayout.svelte';
 </script>
+
+<PortalLayout>
+	<CustomerDashboard />
+</PortalLayout>

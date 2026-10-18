@@ -16,7 +16,7 @@
 </script>
 
 <svelte:head>
-	<title>{is404 ? 'Page Not Found' : 'Something Went Wrong'} – WhiteInfo Portal</title>
+	<title>{is404 ? 'Page Not Found' : 'Something Went Wrong'} – SMS Whiteinfo</title>
 </svelte:head>
 
 <div class="flex min-h-screen items-center justify-center bg-gray-50 p-4 text-gray-900 transition-colors dark:bg-gray-950 dark:text-gray-100">
@@ -74,7 +74,7 @@
 
 		<!-- Footer note -->
 		<div class="mt-8 border-t border-gray-100 pt-4 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
-			Need help? Reach out to <a href="mailto:support@whiteinfobd.com" class="text-teal-600 hover:underline dark:text-teal-400">WhiteInfo Support</a>
+			Need help? Reach out to <a href="mailto:support@whiteinfobd.com" class="text-teal-600 hover:underline dark:text-teal-400">SMS Whiteinfo Support</a>
 		</div>
 	</div>
 </div>

@@ -6,7 +6,7 @@ use Spatie\LaravelSettings\Settings;
 
 class GeneralSettings extends Settings
 {
-    public string $appName = 'Sendora';
+    public string $appName = 'SMS Whiteinfo';
 
     public string $logoUrl = 'logo.png';
 

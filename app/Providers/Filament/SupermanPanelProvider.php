@@ -59,6 +59,7 @@ class SupermanPanelProvider extends PanelProvider
             ->brandName(fn () => $generalSettings->appName)
             ->brandLogo(fn () => $generalSettings->getLogoUrl())
             ->brandLogoHeight('50px')
+            ->favicon(fn () => asset('icon.png'))
 
             // Database
             ->databaseTransactions()

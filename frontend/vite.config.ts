@@ -28,6 +28,18 @@ export default defineConfig({
 			'/sanctum': {
 				target: 'http://127.0.0.1:8000',
 				changeOrigin: true
+			},
+			'/superman': {
+				target: 'http://127.0.0.1:8000',
+				changeOrigin: true
+			},
+			'/filament': {
+				target: 'http://127.0.0.1:8000',
+				changeOrigin: true
+			},
+			'/livewire': {
+				target: 'http://127.0.0.1:8000',
+				changeOrigin: true
 			}
 		}
 	}

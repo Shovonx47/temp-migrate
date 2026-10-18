@@ -168,20 +168,20 @@ console.log(data);`;
 </script>
 
 <svelte:head>
-	<title>Developer API Access – WhiteInfo Portal</title>
+	<title>Developer API Access – SMS Whiteinfo</title>
 </svelte:head>
 
 <div class="space-y-8">
 	<!-- Page Header -->
 	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div>
-			<h1 class="text-xl font-bold tracking-tight text-white">Developer API Access</h1>
-			<p class="text-xs text-gray-400">Manage high-speed Bearer authentication tokens for automated SMS dispatch.</p>
+			<h1 class="text-xl font-bold tracking-tight text-gray-950 dark:text-white">Developer API Access</h1>
+			<p class="text-sm text-gray-500 dark:text-gray-400">Manage high-speed Bearer authentication tokens for automated SMS dispatch.</p>
 		</div>
 		<button
 			type="button"
 			onclick={() => { newlyCreatedToken = null; createModalOpen = true; }}
-			class="flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-primary-600/20 transition hover:bg-primary-500"
+			class="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-500"
 		>
 			<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
 				<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -201,19 +201,19 @@ console.log(data);`;
 	/>
 
 	<!-- API Quickstart & Code Examples -->
-	<div class="rounded-2xl border border-gray-800 bg-gray-900 overflow-hidden">
-		<div class="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
+	<div class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 overflow-hidden">
+		<div class="border-b border-gray-100 px-6 py-4 flex items-center justify-between dark:border-gray-800">
 			<div>
-				<h2 class="text-sm font-bold text-white">HTTP API Quickstart</h2>
-				<p class="text-xs text-gray-400">Endpoint: <code class="text-primary-400">POST https://sms.whiteinfobd.com/api/v1/messages</code></p>
+				<h2 class="text-sm font-bold text-gray-900 dark:text-white">HTTP API Quickstart</h2>
+				<p class="text-xs text-gray-500 dark:text-gray-400">Endpoint: <code class="text-teal-600 dark:text-teal-400">POST https://sms.whiteinfobd.com/api/v1/messages</code></p>
 			</div>
 			<!-- Snippet Tabs -->
-			<div class="flex items-center gap-1 rounded-xl bg-gray-800 p-1">
+			<div class="flex items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
 				{#each ['curl', 'php', 'python', 'node'] as lang (lang)}
 					<button
 						type="button"
 						onclick={() => (activeSnippet = lang as typeof activeSnippet)}
-						class="rounded-lg px-2.5 py-1 text-xs font-medium uppercase transition {activeSnippet === lang ? 'bg-primary-600 text-white' : 'text-gray-400 hover:text-gray-200'}"
+						class="rounded-md px-2.5 py-1 text-xs font-semibold uppercase transition {activeSnippet === lang ? 'bg-teal-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'}"
 					>
 						{lang}
 					</button>
@@ -240,19 +240,19 @@ console.log(data);`;
 	{#if newlyCreatedToken}
 		<div class="space-y-4">
 			<div class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
-				<p class="text-xs font-semibold text-emerald-400">Token Generated Successfully!</p>
-				<p class="mt-1 text-xs text-gray-300">Copy this token now. For security purposes, you will not be able to view it again.</p>
+				<p class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Token Generated Successfully!</p>
+				<p class="mt-1 text-xs text-gray-600 dark:text-gray-300">Copy this token now. For security purposes, you will not be able to view it again.</p>
 				<div class="mt-3 flex items-center gap-2">
 					<input
 						type="text"
 						readonly
 						value={newlyCreatedToken}
-						class="flex-1 font-mono text-xs rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-emerald-300 focus:outline-none select-all"
+						class="flex-1 font-mono text-xs rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-emerald-600 focus:outline-none select-all dark:border-gray-700 dark:bg-gray-900 dark:text-emerald-300"
 					/>
 					<button
 						type="button"
 						onclick={() => copyToClipboard(newlyCreatedToken!)}
-						class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-500"
+						class="rounded-lg bg-teal-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-500"
 					>
 						Copy
 					</button>
@@ -262,7 +262,7 @@ console.log(data);`;
 				<button
 					type="button"
 					onclick={() => (createModalOpen = false)}
-					class="rounded-xl bg-gray-800 px-4 py-2 text-sm text-gray-200 transition hover:bg-gray-700"
+					class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
 				>
 					Done
 				</button>
@@ -271,27 +271,27 @@ console.log(data);`;
 	{:else}
 		<form onsubmit={(e) => { e.preventDefault(); handleCreateToken(); }} class="space-y-4">
 			<div>
-				<label for="token-label" class="mb-1.5 block text-xs font-semibold text-gray-300 uppercase tracking-wide">Token Name / Service</label>
+				<label for="token-label" class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Token Name / Service</label>
 				<input
 					id="token-label"
 					type="text"
 					bind:value={tokenName}
 					placeholder="e.g. ERP Backend Gateway, Mobile App"
-					class="w-full rounded-xl border border-gray-700 bg-gray-800 px-3.5 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+					class="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
 				/>
 			</div>
 			<div class="flex justify-end gap-3 pt-2">
 				<button
 					type="button"
 					onclick={() => (createModalOpen = false)}
-					class="rounded-xl border border-gray-700 px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800"
+					class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
 				>
 					Cancel
 				</button>
 				<button
 					type="submit"
 					disabled={submitting}
-					class="rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-500 disabled:opacity-50"
+					class="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-500 disabled:opacity-50"
 				>
 					{submitting ? 'Generating...' : 'Create Token'}
 				</button>

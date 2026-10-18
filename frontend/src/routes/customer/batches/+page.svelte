@@ -109,19 +109,19 @@
 </script>
 
 <svelte:head>
-	<title>Batches – SMS Portal</title>
+	<title>Batches – SMS Whiteinfo</title>
 	<meta name="description" content="View all your SMS batch campaigns and their progress." />
 </svelte:head>
 
 <div class="space-y-4">
 	<div class="flex items-start justify-between gap-4">
 		<div>
-			<h2 class="text-lg font-semibold text-gray-100">Batches</h2>
+			<h2 class="text-lg font-semibold text-gray-950 dark:text-gray-100">Batches</h2>
 			<p class="mt-0.5 text-sm text-gray-500">All bulk campaigns and their delivery progress.</p>
 		</div>
 		<a
 			href="/customer/messages/bulk"
-			class="flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-primary-500"
+			class="flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-teal-500"
 		>
 			<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
 				<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />

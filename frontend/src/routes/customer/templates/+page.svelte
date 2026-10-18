@@ -125,20 +125,20 @@
 </script>
 
 <svelte:head>
-	<title>SMS Templates – WhiteInfo Portal</title>
+	<title>SMS Templates – SMS Whiteinfo</title>
 </svelte:head>
 
 <div class="space-y-6">
 	<!-- Page Header -->
 	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div>
-			<h1 class="text-xl font-bold tracking-tight text-white">SMS Templates</h1>
-			<p class="text-xs text-gray-400">Pre-approved reusable message formats with variables.</p>
+			<h1 class="text-xl font-bold tracking-tight text-gray-950 dark:text-white">SMS Templates</h1>
+			<p class="text-sm text-gray-500 dark:text-gray-400">Pre-approved reusable message formats with variables.</p>
 		</div>
 		<button
 			type="button"
 			onclick={() => (createModalOpen = true)}
-			class="flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-primary-600/20 transition hover:bg-primary-500"
+			class="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-500"
 		>
 			<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
 				<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -168,37 +168,37 @@
 <Modal bind:open={createModalOpen} title="Create New Template" description={'Design a reusable SMS template. Use {variable} placeholders.'}>
 	<form onsubmit={(e) => { e.preventDefault(); handleCreateTemplate(); }} class="space-y-4">
 		<div>
-			<label for="template-name" class="mb-1.5 block text-xs font-semibold text-gray-300 uppercase tracking-wide">Template Name</label>
+			<label for="template-name" class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Template Name</label>
 			<input
 				id="template-name"
 				type="text"
 				bind:value={newName}
 				placeholder="e.g. Welcome Message"
-				class="w-full rounded-xl border border-gray-700 bg-gray-800 px-3.5 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+				class="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
 			/>
 		</div>
 		<div>
-			<label for="template-body" class="mb-1.5 block text-xs font-semibold text-gray-300 uppercase tracking-wide">Message Content</label>
+			<label for="template-body" class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Message Content</label>
 			<textarea
 				id="template-body"
 				bind:value={newBody}
 				rows={4}
 				placeholder={'Hello {name}, your booking {id} is confirmed!'}
-				class="w-full resize-none rounded-xl border border-gray-700 bg-gray-800 px-3.5 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+				class="w-full resize-none rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
 			></textarea>
 		</div>
 		<div class="flex justify-end gap-3 pt-2">
 			<button
 				type="button"
 				onclick={() => (createModalOpen = false)}
-				class="rounded-xl border border-gray-700 px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800"
+				class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
 			>
 				Cancel
 			</button>
 			<button
 				type="submit"
 				disabled={submitting}
-				class="rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-500 disabled:opacity-50"
+				class="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-500 disabled:opacity-50"
 			>
 				{submitting ? 'Saving...' : 'Save Template'}
 			</button>

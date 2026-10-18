@@ -99,7 +99,7 @@
 		{
 			key: 'description',
 			label: 'Description',
-			class: 'text-xs text-gray-300 max-w-md truncate'
+			class: 'text-xs text-gray-600 dark:text-gray-300 max-w-md truncate'
 		},
 		{
 			key: 'created_at',
@@ -110,15 +110,15 @@
 </script>
 
 <svelte:head>
-	<title>Transactions Ledger – WhiteInfo Portal</title>
+	<title>Transactions Ledger – SMS Whiteinfo</title>
 </svelte:head>
 
 <div class="space-y-6">
 	<!-- Page Header -->
 	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div>
-			<h1 class="text-xl font-bold tracking-tight text-white">Transactions Ledger</h1>
-			<p class="text-xs text-gray-400">Complete immutable record of all balance debits and wallet credits.</p>
+			<h1 class="text-xl font-bold tracking-tight text-gray-950 dark:text-white">Transactions Ledger</h1>
+			<p class="text-sm text-gray-500 dark:text-gray-400">Complete immutable record of all balance debits and wallet credits.</p>
 		</div>
 	</div>
 

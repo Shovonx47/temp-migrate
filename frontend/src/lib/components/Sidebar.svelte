@@ -18,53 +18,53 @@
 	const navGroups: NavGroup[] = [
 		{
 			group: '',
-			items: [{ label: 'Dashboard', href: '/customer', icon: 'home' }]
+			items: [{ label: 'Dashboard', href: '/', icon: 'home' }]
 		},
 		{
 			group: 'Messaging',
 			items: [
-				{ label: 'Live Queue', href: '/customer/live-queue', icon: 'signal' },
-				{ label: 'Quick Message', href: '/customer/messages/quick', icon: 'paper-airplane' },
-				{ label: 'Bulk Message', href: '/customer/messages/bulk', icon: 'sparkles' },
-				{ label: 'SMS Logs', href: '/customer/messages', icon: 'list-bullet' },
-				{ label: 'Batches', href: '/customer/batches', icon: 'queue-list' },
-				{ label: 'Templates', href: '/customer/templates', icon: 'document-text' },
-				{ label: 'Sender IDs', href: '/customer/senders', icon: 'identification' }
+				{ label: 'Live Queue', href: '/messaging/live-queue', icon: 'signal' },
+				{ label: 'Quick Message', href: '/messaging/messages/quick', icon: 'paper-airplane' },
+				{ label: 'Bulk Message', href: '/messaging/messages/bulk', icon: 'sparkles' },
+				{ label: 'SMS Logs', href: '/messaging/messages', icon: 'list-bullet' },
+				{ label: 'Batches', href: '/messaging/batches', icon: 'queue-list' },
+				{ label: 'Templates', href: '/messaging/templates', icon: 'document-text' },
+				{ label: 'Sender IDs', href: '/messaging/senders', icon: 'identification' }
 			]
 		},
 		{
 			group: 'Reports & Analytics',
 			items: [
-				{ label: 'Analytics', href: '/customer/analytics', icon: 'chart-bar' }
+				{ label: 'Analytics', href: '/analytics/messaging', icon: 'chart-bar' }
 			]
 		},
 		{
 			group: 'Audience',
 			items: [
-				{ label: 'Contacts', href: '/customer/contacts', icon: 'users' },
-				{ label: 'Groups', href: '/customer/groups', icon: 'user-group' }
+				{ label: 'Contacts', href: '/audience/contacts', icon: 'users' },
+				{ label: 'Groups', href: '/audience/groups', icon: 'user-group' }
 			]
 		},
 		{
 			group: 'Billing',
 			items: [
-				{ label: 'Deposits', href: '/customer/deposits', icon: 'banknotes' },
-				{ label: 'Transactions', href: '/customer/transactions', icon: 'arrows-right-left' },
-				{ label: 'Pricing', href: '/customer/pricing', icon: 'tag' }
+				{ label: 'Deposits', href: '/billing/deposits', icon: 'banknotes' },
+				{ label: 'Transactions', href: '/billing/transactions', icon: 'arrows-right-left' },
+				{ label: 'Pricing', href: '/pricing', icon: 'tag' }
 			]
 		},
 		{
 			group: 'Developer',
 			items: [
-				{ label: 'API Access', href: '/customer/developer', icon: 'code-bracket' },
-				{ label: 'IP Whitelist', href: '/customer/ip-whitelist', icon: 'shield-check' }
+				{ label: 'API Access', href: '/developer/access-tokens', icon: 'code-bracket' },
+				{ label: 'IP Whitelist', href: '/developer/ip-whitelists', icon: 'shield-check' }
 			]
 		},
 		{
 			group: 'Account',
 			items: [
-				{ label: 'KYC Verification', href: '/customer/kyc', icon: 'shield-check' },
-				{ label: 'My Profile', href: '/customer/profile', icon: 'user' }
+				{ label: 'KYC Verification', href: '/account/kyc', icon: 'shield-check' },
+				{ label: 'My Profile', href: '/profile', icon: 'user' }
 			]
 		}
 	];
@@ -73,9 +73,37 @@
 
 	let currentPath = $derived($page.url.pathname);
 
+	const routeAliases: Record<string, string[]> = {
+		'/': ['/customer'],
+		'/messaging/live-queue': ['/customer/live-queue'],
+		'/messaging/messages/quick': ['/customer/messages/quick'],
+		'/messaging/messages/bulk': ['/customer/messages/bulk', '/messaging/messages/smart'],
+		'/messaging/messages': ['/customer/messages'],
+		'/messaging/batches': ['/customer/batches'],
+		'/messaging/templates': ['/customer/templates'],
+		'/messaging/senders': ['/customer/senders'],
+		'/analytics/messaging': ['/analytics', '/customer/analytics', '/analytics/billing'],
+		'/audience/contacts': ['/customer/contacts'],
+		'/audience/groups': ['/customer/groups'],
+		'/billing/deposits': ['/customer/deposits'],
+		'/billing/transactions': ['/customer/transactions'],
+		'/pricing': ['/customer/pricing'],
+		'/developer/access-tokens': ['/customer/developer', '/developer'],
+		'/developer/ip-whitelists': ['/customer/ip-whitelist'],
+		'/account/kyc': ['/customer/kyc', '/account/pending', '/account/banned', '/account/rejected'],
+		'/profile': ['/customer/profile']
+	};
+
 	function isActive(href: string): boolean {
-		if (href === '/customer') return currentPath === '/customer';
-		return currentPath.startsWith(href);
+		if (href === '/' || href === '/customer') {
+			return currentPath === '/' || currentPath === '/customer';
+		}
+		if (currentPath === href) return true;
+		if (routeAliases[href]?.some((alias) => currentPath === alias || currentPath.startsWith(alias + '/'))) {
+			return true;
+		}
+		if (href.length > 1 && currentPath.startsWith(href + '/')) return true;
+		return false;
 	}
 
 	async function handleLogout() {
@@ -120,31 +148,43 @@
 			: ''}"
 	>
 		{#if !collapsed}
-			<div class="flex items-center gap-2.5">
+			<a href="/customer" class="flex items-center overflow-hidden py-1">
+				<img
+					src="/logo.png"
+					alt="SMS Whiteinfo"
+					class="h-9 max-h-9 w-auto max-w-[180px] object-contain"
+					onerror={(e) => {
+						(e.currentTarget as HTMLElement).style.display = 'none';
+						const fallback = document.getElementById('sidebar-logo-fallback');
+						if (fallback) fallback.style.display = 'flex';
+					}}
+				/>
 				<div
-					class="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-600 text-white shadow-sm"
+					id="sidebar-logo-fallback"
+					class="hidden h-8 w-8 items-center justify-center rounded-lg bg-teal-600 text-white shadow-sm"
 				>
-					<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-						<path
-							d="M1.5 8.67v8.58a3 3 0 003 3h15a3 3 0 003-3V8.67l-8.928 5.493a3 3 0 01-3.144 0L1.5 8.67z"
-						/>
-						<path
-							d="M22.5 6.908V6.75a3 3 0 00-3-3h-15a3 3 0 00-3 3v.158l9.714 5.978a1.5 1.5 0 001.572 0L22.5 6.908z"
-						/>
-					</svg>
+					<img src="/icon.png" alt="Whiteinfo" class="h-7 w-7 object-contain" />
 				</div>
-				<span class="text-sm font-bold tracking-tight text-gray-900 dark:text-white">SMS Portal</span>
-			</div>
+			</a>
 		{:else}
-			<div
-				class="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-600 text-white shadow-sm"
-			>
-				<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-					<path
-						d="M1.5 8.67v8.58a3 3 0 003 3h15a3 3 0 003-3V8.67l-8.928 5.493a3 3 0 01-3.144 0L1.5 8.67z"
-					/>
-				</svg>
-			</div>
+			<a href="/customer" class="flex items-center justify-center py-1">
+				<img
+					src="/icon.png"
+					alt="SMS Whiteinfo"
+					class="h-8 w-8 object-contain rounded"
+					onerror={(e) => {
+						(e.currentTarget as HTMLElement).style.display = 'none';
+						const fallback = document.getElementById('sidebar-collapsed-logo');
+						if (fallback) fallback.style.display = 'flex';
+					}}
+				/>
+				<div
+					id="sidebar-collapsed-logo"
+					class="hidden h-7 w-7 items-center justify-center rounded-lg bg-teal-600 text-white shadow-sm"
+				>
+					<span class="text-xs font-bold">W</span>
+				</div>
+			</a>
 		{/if}
 		<button
 			onclick={() => (collapsed = !collapsed)}

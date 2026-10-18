@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 @theme {
-	--font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+	--font-sans: 'Instrument Sans', 'Inter', ui-sans-serif, system-ui, sans-serif;
 	--color-primary-50: oklch(0.971 0.014 199);
 	--color-primary-100: oklch(0.938 0.029 199);
 	--color-primary-200: oklch(0.875 0.058 197);

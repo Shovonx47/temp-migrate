@@ -105,7 +105,7 @@ Route::get('_app/{path}', function (string $path) {
     ]);
 })->where('path', '.*')->name('svelte.asset');
 
-Route::get('customer/{any?}', function () {
+$spaHandler = function () {
     $path = base_path('frontend/build/index.html');
     abort_unless(file_exists($path), 404);
 
@@ -113,15 +113,20 @@ Route::get('customer/{any?}', function () {
         'Content-Type' => 'text/html',
         'Cache-Control' => 'no-cache, private',
     ]);
-})->where('any', '.*')->name('svelte.customer');
+};
 
-Route::get('{authRoute}', function () {
-    $path = base_path('frontend/build/index.html');
-    abort_unless(file_exists($path), 404);
-
-    return response()->file($path, [
-        'Content-Type' => 'text/html',
-        'Cache-Control' => 'no-cache, private',
-    ]);
-})->whereIn('authRoute', ['login', 'register', 'forgot-password', 'reset-password'])->name('svelte.auth');
+Route::get('/', $spaHandler)->name('svelte.root');
+Route::get('customer/{any?}', $spaHandler)->where('any', '.*')->name('svelte.customer');
+Route::get('messaging/{any?}', $spaHandler)->where('any', '.*')->name('svelte.messaging');
+Route::get('audience/{any?}', $spaHandler)->where('any', '.*')->name('svelte.audience');
+Route::get('billing/{any?}', $spaHandler)->where('any', '.*')->name('svelte.billing');
+Route::get('developer/{any?}', $spaHandler)->where('any', '.*')->name('svelte.developer');
+Route::get('analytics/{any?}', $spaHandler)->where('any', '.*')->name('svelte.analytics');
+Route::get('account/{any?}', $spaHandler)->where('any', '.*')->name('svelte.account');
+Route::get('password-reset/{any?}', $spaHandler)->where('any', '.*')->name('svelte.password-reset');
+Route::get('pricing', $spaHandler)->name('svelte.pricing');
+Route::get('profile', $spaHandler)->name('svelte.profile');
+Route::get('superman/{any?}', $spaHandler)->where('any', '.*')->name('svelte.superman');
+Route::get('sp/{any?}', $spaHandler)->where('any', '.*')->name('svelte.sp');
+Route::get('{authRoute}', $spaHandler)->whereIn('authRoute', ['login', 'register', 'forgot-password', 'reset-password'])->name('svelte.auth');
 

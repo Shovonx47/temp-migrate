@@ -2,6 +2,7 @@
 
 namespace App\Filament\Sp\Resources\Customers\Tables;
 
+use App\Filament\Sp\Resources\Customers\Actions\DepositAction;
 use App\Enums\UserStatus;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
@@ -56,6 +57,7 @@ class CustomersTable
                 ActionGroup::make([
                     ViewAction::make()
                         ->label('View Customer'),
+                    DepositAction::make(),
                     EditAction::make()
                         ->label('Edit Customer'),
                 ]),

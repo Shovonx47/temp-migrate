@@ -7,6 +7,7 @@ use App\Models\SpDistribution;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
+use RuntimeException;
 
 readonly class DistributeBalance
 {
@@ -35,11 +36,14 @@ readonly class DistributeBalance
             throw new InvalidArgumentException('Target must be a customer owned by this S P.');
         }
 
-        if ($amount <= 0) {
-            throw new InvalidArgumentException('Distribution amount must be greater than zero.');
+        if ($amount === 0.0 || $amount === 0) {
+            throw new InvalidArgumentException('Distribution amount must not be zero.');
         }
 
         return DB::transaction(function () use ($sp, $customer, $amount, $note, $distributedBy) {
+            $absAmount = abs($amount);
+            $isReversal = $amount < 0;
+
             $distribution = SpDistribution::query()->create([
                 'sp_id' => $sp->id,
                 'customer_id' => $customer->id,
@@ -50,22 +54,46 @@ readonly class DistributeBalance
             ]);
 
             $description = $note
-                ? "S P distribution: {$note}"
-                : "S P distribution #{$distribution->id}";
+                ? ($isReversal ? "S P reversal: {$note}" : "S P distribution: {$note}")
+                : ($isReversal ? "S P reversal #{$distribution->id}" : "S P distribution #{$distribution->id}");
 
-            $debitTransaction = $this->debitBalance->handle(
-                $sp,
-                $amount,
-                $distribution,
-                $description,
-            );
+            if ($isReversal) {
+                // Reversal: debit the customer, credit the SP back.
+                $lockedCustomer = User::query()->whereKey($customer->id)->lockForUpdate()->firstOrFail();
 
-            $this->creditBalance->handle(
-                $customer,
-                $amount,
-                $distribution,
-                $description,
-            );
+                if ((float) $lockedCustomer->balance < $absAmount) {
+                    throw new RuntimeException('Customer has insufficient balance to reverse this amount.');
+                }
+
+                $debitTransaction = $this->debitBalance->handle(
+                    $lockedCustomer,
+                    $absAmount,
+                    $distribution,
+                    $description,
+                );
+
+                $this->creditBalance->handle(
+                    $sp,
+                    $absAmount,
+                    $distribution,
+                    $description,
+                );
+            } else {
+                // Normal distribution: debit SP, credit customer.
+                $debitTransaction = $this->debitBalance->handle(
+                    $sp,
+                    $absAmount,
+                    $distribution,
+                    $description,
+                );
+
+                $this->creditBalance->handle(
+                    $customer,
+                    $absAmount,
+                    $distribution,
+                    $description,
+                );
+            }
 
             $distribution->update([
                 'transaction_id' => $debitTransaction->id,

@@ -27,6 +27,22 @@ final class Kyc extends Page implements HasForms
 
     public ?array $data = [];
 
+    public function mount(): void
+    {
+        $user = Filament::auth()->user();
+
+        $fillData = [
+            'nid_number' => $user?->nid_number,
+            'front_nid' => $user?->front_nid ? [$user->front_nid] : [],
+            'back_nid' => $user?->back_nid ? [$user->back_nid] : [],
+            'live_photo' => null,
+            'trade_license_number' => $user?->trade_license_number,
+            'trade_license_file' => $user?->trade_license_file ? [$user->trade_license_file] : [],
+        ];
+
+        $this->content->fill($fillData);
+    }
+
     public static function getSlug(?Panel $panel = null): string
     {
         return 'account/kyc';
@@ -136,6 +152,10 @@ final class Kyc extends Page implements HasForms
         if ($this->shouldShowField('live_photo')) {
             $livePhotoComponents[] = LivePhotoCapture::make('live_photo')
                 ->label('Live Photo (Camera Only)')
+                ->validationAttribute('Live Photo')
+                ->validationMessages([
+                    'required' => 'Please capture a live photo using your webcam or phone camera before submitting.',
+                ])
                 ->required(!$isResubmission);
         }
 

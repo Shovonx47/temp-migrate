@@ -11,9 +11,9 @@ use App\Providers\TelescopeServiceProvider;
 return [
     AppServiceProvider::class,
     FilamentServiceProvider::class,
-    CustomerPanelProvider::class,
-    SpPanelProvider::class,
-    SupermanPanelProvider::class,
+    // CustomerPanelProvider::class, // Customer portal migrated to Svelte SPA
+    // SpPanelProvider::class, // SP reseller portal migrated to Svelte SPA
+    // SupermanPanelProvider::class, // Superman admin panel migrated to Svelte SPA
     HorizonServiceProvider::class,
     TelescopeServiceProvider::class,
 ];

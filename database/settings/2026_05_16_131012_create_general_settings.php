@@ -10,7 +10,7 @@ class CreateGeneralSettings extends SettingsMigration
      */
     public function up(): void
     {
-        $this->migrator->add('general.appName', 'Sendora');
+        $this->migrator->add('general.appName', 'SMS Whiteinfo');
         $this->migrator->add('general.logoUrl', 'logo.png');
     }
 }

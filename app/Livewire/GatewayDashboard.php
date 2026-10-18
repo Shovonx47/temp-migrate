@@ -61,13 +61,20 @@ class GatewayDashboard extends Component
         try {
             $dashboardData = $driver->getDashboardData();
 
-            return array_map(fn ($card) => [
-                'label' => $card->label,
-                'value' => $card->value,
-                'description' => $card->description,
-                'color' => $card->color,
-                'icon' => $card->icon,
-            ], $dashboardData->cards);
+            return array_map(function ($card) {
+                $val = $card->value;
+                if ($val !== null && is_numeric($val)) {
+                    $val = number_format((float) $val, 4, '.', '');
+                }
+
+                return [
+                    'label' => $card->label,
+                    'value' => (string) $val,
+                    'description' => $card->description,
+                    'color' => $card->color,
+                    'icon' => $card->icon,
+                ];
+            }, $dashboardData->cards);
         } catch (\Throwable) {
             return [];
         }

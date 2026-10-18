@@ -1,0 +1,134 @@
+<?php
+
+namespace App\Filament\Admin\Pages\PaymentGateway;
+
+use Filament\Forms;
+use Filament\Forms\Form;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Notifications\Notification;
+use Filament\Pages\Page;
+use Illuminate\Support\Facades\Artisan;
+
+class GlobalPaymentGatewaysPage extends Page implements HasForms
+{
+    use InteractsWithForms;
+
+    protected static string|\UnitEnum|null $navigationGroup = 'PaymentGateway';
+
+    protected static ?string $navigationLabel = 'Global Gateways';
+
+    protected static ?string $title = 'Global Payment Gateways';
+
+    protected static ?string $slug = 'payment-gateways/global';
+
+    protected string $view = 'filament.admin.pages.payment-gateway.global-payment-gateways-page';
+
+    public ?array $data = [];
+
+    public function mount(): void
+    {
+        $this->form->fill([
+            'gateway' => 'PipraPay',
+            'base_url' => config('payment.drivers.piprapay.base_url') ?: env('PIPRAPAY_BASE_URL'),
+            'api_key' => config('payment.drivers.piprapay.api_key') ?: env('PIPRAPAY_API_KEY'),
+            'enabled' => true,
+            'default' => true,
+        ]);
+    }
+
+    public function form(Form $form): Form
+    {
+        return $form
+            ->schema([
+                Forms\Components\Section::make('PipraPay Payment Gateway')
+                    ->description('Configure PipraPay credentials. Values are also synchronized to the .env file.')
+                    ->icon('heroicon-o-credit-card')
+                    ->schema([
+                        Forms\Components\TextInput::make('gateway')
+                            ->label('Gateway Name')
+                            ->default('PipraPay')
+                            ->disabled()
+                            ->dehydrated(),
+
+                        Forms\Components\TextInput::make('base_url')
+                            ->label('Base URL')
+                            ->url()
+                            ->required()
+                            ->placeholder('https://epay.softcents.com/api'),
+
+                        Forms\Components\TextInput::make('api_key')
+                            ->label('API Key')
+                            ->password()
+                            ->revealable()
+                            ->required(),
+
+                        Forms\Components\Toggle::make('enabled')
+                            ->label('Enable Gateway')
+                            ->default(true),
+
+                        Forms\Components\Toggle::make('default')
+                            ->label('Default Gateway')
+                            ->default(true),
+                    ])
+                    ->columns(2),
+            ])
+            ->statePath('data');
+    }
+
+    public function save(): void
+    {
+        $data = $this->form->getState();
+
+        $envPath = base_path('.env');
+
+        if (! file_exists($envPath)) {
+            Notification::make()
+                ->title('Error')
+                ->body('.env file was not found.')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $env = file_get_contents($envPath);
+
+        $replaceEnv = function (string $env, string $key, string $value): string {
+            $line = $key . '=' . $value;
+
+            if (preg_match('/^' . preg_quote($key, '/') . '=.*$/m', $env)) {
+                return preg_replace(
+                    '/^' . preg_quote($key, '/') . '=.*$/m',
+                    $line,
+                    $env
+                );
+            }
+
+            return rtrim($env) . PHP_EOL . $line . PHP_EOL;
+        };
+
+        $env = $replaceEnv(
+            $env,
+            'PIPRAPAY_BASE_URL',
+            $data['base_url']
+        );
+
+        $env = $replaceEnv(
+            $env,
+            'PIPRAPAY_API_KEY',
+            $data['api_key']
+        );
+
+        file_put_contents($envPath, $env);
+
+        Artisan::call('config:clear');
+        Artisan::call('config:cache');
+
+        Notification::make()
+            ->title('PipraPay Settings Saved')
+            ->body('PipraPay credentials have been updated in the Admin Panel and .env.')
+            ->success()
+            ->send();
+    }
+}

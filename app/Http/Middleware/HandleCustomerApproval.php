@@ -42,6 +42,11 @@ class HandleCustomerApproval
             return $next($request);
         }
 
+        // If customer was created by the Superman admin, do not trap them on "account.pending"
+        if (method_exists($user, 'isCreatedByAdmin') && $user->isCreatedByAdmin() && $user->status === UserStatus::Pending) {
+            return $next($request);
+        }
+
         $redirectRoute = match ($user->status) {
             UserStatus::Pending => 'filament.customer.account.pending',
             UserStatus::Rejected => 'filament.customer.account.rejected',

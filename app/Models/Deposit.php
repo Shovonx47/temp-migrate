@@ -37,4 +37,9 @@ class Deposit extends Model implements Transactionable
     {
         return $this->belongsTo(User::class);
     }
+
+    public function depositedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deposited_by_id');
+    }
 }

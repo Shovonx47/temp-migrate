@@ -64,3 +64,4 @@ Homestead.yaml
 
 /dist
 /packages
+*.tar.gz

@@ -74,8 +74,8 @@
                                 {{ $card['label'] }}
                             </p>
 
-                            <p class="mt-1 text-2xl font-semibold {{ $colorClasses }}">
-                                {{ $card['value'] }}
+                            <p class="mt-1 text-2xl font-semibold truncate {{ $colorClasses }}">
+                                {{ is_numeric($card['value']) ? number_format((float) $card['value'], 4, '.', '') : $card['value'] }}
                             </p>
                         </div>
                     </div>

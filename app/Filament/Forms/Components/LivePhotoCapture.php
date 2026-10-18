@@ -14,6 +14,13 @@ class LivePhotoCapture extends Field
 
     protected string $disk = 'private';
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->default(null);
+    }
+
     public function directory(string $directory): static
     {
         $this->directory = $directory;

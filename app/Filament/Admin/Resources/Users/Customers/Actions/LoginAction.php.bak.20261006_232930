@@ -1,0 +1,15 @@
+<?php
+
+namespace App\Filament\Admin\Resources\Users\Customers\Actions;
+
+use STS\FilamentImpersonate\Actions\Impersonate;
+
+class LoginAction
+{
+    public static function make(): Impersonate
+    {
+        return Impersonate::make()
+            ->guard('customer')
+            ->redirectTo('/')
+    }
+}

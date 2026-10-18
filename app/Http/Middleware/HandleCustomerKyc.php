@@ -36,6 +36,12 @@ class HandleCustomerKyc
 
     private function requiresKycSubmission($customer): bool
     {
+        // Customers created by the Superman admin are pre-vetted and not held off for KYC verification.
+        // They can voluntarily submit their KYC documents later at /account/kyc.
+        if (method_exists($customer, 'isCreatedByAdmin') && $customer->isCreatedByAdmin()) {
+            return false;
+        }
+
         $status = $customer->kyc_status;
 
         // Redirect if documents have never been submitted (no front_nid)

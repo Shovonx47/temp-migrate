@@ -87,7 +87,7 @@ final class Login extends BaseLogin
             return null;
         }
 
-        $user = User::query()->where('email', $email)->first();
+        $user = User::withoutGlobalScopes()->where('email', $email)->first();
 
         if (! $user || ! $user->password || ! Hash::check($password, $user->password)) {
             return null;
@@ -95,6 +95,11 @@ final class Login extends BaseLogin
 
         $notYetReviewed = $user->status === UserStatus::Pending
             && in_array($user->kyc_status, [KycStatus::Pending, KycStatus::UnderReview], true);
+
+        // A customer created by the Superman admin is pre-authorized by the administrator and should never be blocked from signing in
+        if ($user->isCreatedByAdmin()) {
+            $notYetReviewed = false;
+        }
 
         return match (true) {
             $user->status === UserStatus::Banned => 'Your account has been banned due to a violation of our Terms & Conditions. Please contact the administrator for assistance.',

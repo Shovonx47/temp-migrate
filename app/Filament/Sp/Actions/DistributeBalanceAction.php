@@ -41,19 +41,26 @@ class DistributeBalanceAction
                     })
                     ->searchable()
                     ->preload()
-                    ->required(),
+                    ->required()
+                    ->live(),
+                \Filament\Schemas\Components\View::make('filament.schemas.components.deposit-customer-header'),
                 TextInput::make('amount')
                     ->label('Amount')
                     ->prefix('BDT')
-                    ->placeholder('Enter amount')
+                    ->placeholder('Enter amount (negative to reverse)')
                     ->numeric()
                     ->required()
-                    ->minValue(0.01),
+                    ->rules(['numeric', 'not_in:0'])
+                    ->extraInputAttributes([
+                        'data-deposit-amount-input' => 'true',
+                        'autocomplete' => 'off',
+                    ]),
                 TextInput::make('note')
                     ->label('Note')
-                    ->placeholder('Optional note')
+                    ->placeholder('Optional note (e.g. Balance top up)')
                     ->maxLength(255)
                     ->nullable(),
+                \Filament\Schemas\Components\View::make('filament.schemas.components.deposit-balance-preview'),
             ])
             ->action(function (array $data): void {
                 /** @var User $actingUser */
@@ -71,8 +78,10 @@ class DistributeBalanceAction
                     );
 
                     Notification::make()
-                        ->title('Balance Distributed')
-                        ->body("Distributed {$data['amount']} BDT to {$customer->name}.")
+                        ->title((float) $data['amount'] < 0 ? 'Balance Reversed' : 'Balance Distributed')
+                        ->body((float) $data['amount'] < 0
+                            ? "Reversed " . abs((float) $data['amount']) . " BDT from {$customer->name}."
+                            : "Distributed {$data['amount']} BDT to {$customer->name}.")
                         ->success()
                         ->send();
                 } catch (RuntimeException $exception) {

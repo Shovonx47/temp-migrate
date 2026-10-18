@@ -8,6 +8,7 @@ use App\Enums\KycPermission;
 use App\Enums\KycStatus;
 use App\Enums\SupermanNavigationGroup;
 use App\Enums\UserStatus;
+use App\Filament\Admin\Resources\Users\Customers\CustomerResource;
 use App\Filament\Admin\Resources\Users\Customers\Actions\ApproveKycAction;
 use App\Filament\Admin\Resources\Users\Customers\Actions\RejectKycAction;
 use App\Filament\Admin\Resources\Users\Customers\Actions\RequestKycResubmissionAction;
@@ -15,6 +16,8 @@ use App\Models\User;
 use App\Services\KycGate;
 use BackedEnum;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -66,6 +69,12 @@ class VerificationRequestsPage extends Page implements HasTable
                     ->searchable()
                     ->weight('bold'),
 
+                TextColumn::make('business_name')
+                    ->label('Company Name')
+                    ->searchable()
+                    ->sortable()
+                    ->placeholder('—'),
+
                 TextColumn::make('nid_number')
                     ->label('NID Number')
                     ->searchable()
@@ -113,6 +122,14 @@ class VerificationRequestsPage extends Page implements HasTable
             ])
             ->recordActions([
                 ActionGroup::make([
+                    ViewAction::make()
+                        ->label('View')
+                        ->url(fn ($record) => CustomerResource::getUrl('view', ['record' => $record])),
+
+                    EditAction::make()
+                        ->label('Edit')
+                        ->url(fn ($record) => CustomerResource::getUrl('edit', ['record' => $record])),
+
                     ApproveKycAction::make(),
                     RequestKycResubmissionAction::make(),
                     RejectKycAction::make(),

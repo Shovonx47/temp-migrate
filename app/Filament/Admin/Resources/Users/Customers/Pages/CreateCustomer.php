@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Resources\Users\Customers\Pages;
 
 use App\Enums\TariffPlanAssignmentStatus;
+use App\Enums\UserStatus;
 use App\Enums\UserType;
 use App\Filament\Admin\Resources\Users\Customers\CustomerResource;
 use App\Models\TariffPlanAssignment;
@@ -15,6 +16,14 @@ class CreateCustomer extends CreateRecord
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $data['type'] = UserType::Customer;
+        $data['created_by_admin'] = true;
+        $data['created_by'] = auth('superman')->id() ?? auth()->id();
+        $data['status'] = $data['status'] ?? UserStatus::Approved;
+        $data['email_verified_at'] = now();
+
+        if (! empty($data['phone'])) {
+            $data['phone_verified_at'] = now();
+        }
 
         return $data;
     }

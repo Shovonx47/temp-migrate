@@ -39,7 +39,7 @@ class CustomerForm
                         Select::make('status')
                             ->placeholder('Select an approval status')
                             ->options(UserStatus::class)
-                            ->default(UserStatus::Pending)
+                            ->default(UserStatus::Approved)
                             ->required(),
                         TextInput::make('password')
                             ->placeholder('Enter a strong password')

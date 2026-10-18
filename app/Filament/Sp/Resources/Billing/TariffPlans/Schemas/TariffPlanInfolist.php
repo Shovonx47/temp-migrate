@@ -37,9 +37,9 @@ class TariffPlanInfolist
                     ]),
                 Section::make('Assignment Summary')
                     ->schema([
-                        TextEntry::make('activeAssignments')
+                        TextEntry::make('activeCustomerAssignments')
                             ->label('Active Customers')
-                            ->state(fn (object $record): string => (string) $record->activeAssignments()->count()),
+                            ->state(fn (object $record): string => (string) $record->activeCustomerAssignments()->count()),
                     ]),
             ]);
     }

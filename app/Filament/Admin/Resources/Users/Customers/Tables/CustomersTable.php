@@ -136,6 +136,14 @@ class CustomersTable
                     })
                     ->wrap(false),
 
+                TextColumn::make('created_by_admin')
+                    ->label('Source')
+                    ->state(fn (User $record): string => $record->created_by_admin ? 'Admin' : 'Self')
+                    ->badge()
+                    ->color(fn (User $record): string => $record->created_by_admin ? 'info' : 'gray')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('created_at')
                     ->label('Created At')
                     ->dateTime('M d, Y h:i A')
@@ -143,6 +151,13 @@ class CustomersTable
                     ->wrap(false),
             ])
             ->filters([
+                SelectFilter::make('created_by_admin')
+                    ->label('Creation Source')
+                    ->options([
+                        '1' => 'Super Admin Created',
+                        '0' => 'Self-Registered',
+                    ]),
+
                 SelectFilter::make('kyc_status')
                     ->label('KYC Status')
                     ->options(KycStatus::class),

@@ -26,21 +26,31 @@ class DepositAction
             ->requiresConfirmation()
             ->visible(fn (User $record) => $record->status->isApproved())
             ->schema([
+                \Filament\Schemas\Components\View::make('filament.schemas.components.deposit-customer-header'),
                 TextInput::make('amount')
                     ->prefix('BDT')
                     ->label('Amount')
-                    ->placeholder('Enter amount')
+                    ->placeholder('Enter amount (negative to deduct)')
                     ->numeric()
                     ->required()
-                    ->minValue(0.01),
+                    ->rules(['numeric', 'not_in:0'])
+                    ->extraInputAttributes([
+                        'data-deposit-amount-input' => 'true',
+                        'autocomplete' => 'off',
+                    ]),
+                \Filament\Schemas\Components\View::make('filament.schemas.components.deposit-balance-preview'),
             ])
             ->action(function (array $data, User $record) {
                 DB::transaction(function () use ($data, $record) {
-                    $record->increment('balance', $data['amount']);
+                    $amount = (float) $data['amount'];
+                    $isNegative = $amount < 0;
+
+                    $record->increment('balance', $amount);
 
                     /** @var Deposit $deposit */
                     $deposit = $record->deposits()->create([
-                        'amount' => $data['amount'],
+                        'amount' => $amount,
+                        'deposited_by_id' => filament()->auth()->id(),
                         'currency' => 'BDT',
                         'payment_method' => 'manual',
                         'transaction_id' => 'manual-'.uniqid(),
@@ -50,21 +60,25 @@ class DepositAction
 
                     $deposit->transactions()->create([
                         'user_id' => $record->id,
-                        'amount' => $data['amount'],
-                        'direction' => 'credit',
-                        'balance_before' => $record->balance - $data['amount'],
+                        'amount' => abs($amount),
+                        'direction' => $isNegative ? 'debit' : 'credit',
+                        'balance_before' => $record->balance - $amount,
                         'balance_after' => $record->balance,
-                        'description' => 'Admin topped up S P wallet',
+                        'description' => $isNegative ? 'Admin deducted from S P wallet' : 'Admin topped up S P wallet',
                     ]);
 
                     Notification::make()
-                        ->title('Wallet Topped Up')
-                        ->body("Successfully added {$data['amount']} to the S P wallet.")
+                        ->title($isNegative ? 'Wallet Deducted' : 'Wallet Topped Up')
+                        ->body($isNegative
+                            ? 'Successfully deducted ' . number_format(abs($amount), 2) . ' from the S P wallet.'
+                            : "Successfully added {$amount} to the S P wallet.")
                         ->sendToDatabase($record);
 
                     Notification::make()
-                        ->title('S P Wallet Topped Up')
-                        ->body("Added {$data['amount']} to {$record->name}'s wallet.")
+                        ->title($isNegative ? 'S P Wallet Deducted' : 'S P Wallet Topped Up')
+                        ->body($isNegative
+                            ? 'Deducted ' . number_format(abs($amount), 2) . " from {$record->name}'s wallet."
+                            : "Added {$amount} to {$record->name}'s wallet.")
                         ->icon(Heroicon::User)
                         ->send();
                 });

@@ -46,6 +46,7 @@ class SpPanelProvider extends PanelProvider
             ->brandName(fn () => $generalSettings->appName)
             ->brandLogo(fn () => $generalSettings->getLogoUrl())
             ->brandLogoHeight('50px')
+            ->favicon(fn () => asset('icon.png'))
             ->sidebarCollapsibleOnDesktop()
             ->collapsibleNavigationGroups()
             ->sidebarWidth('300px')
